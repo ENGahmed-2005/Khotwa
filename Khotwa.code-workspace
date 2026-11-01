@@ -1,0 +1,12 @@
+{
+  "folders": [
+    {"name": "Khotwa Mobile", "path": "mobile"},
+    {"name": "Khotwa Docs", "path": "docs"}
+  ],
+  "settings": {
+    "files.encoding": "utf8",
+    "files.autoSave": "afterDelay",
+    "editor.formatOnSave": true,
+    "dart.flutterCreateOrganization": "org.khotwa"
+  }
+}
