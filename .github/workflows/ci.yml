@@ -1,0 +1,111 @@
+name: Khotwa quality and native builds
+on:
+  pull_request:
+  push:
+    branches: ['feat/**', 'fix/**', 'test/**', 'codex/**']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+concurrency:
+  group: khotwa-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  planning:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python scripts/validate_planning.py
+
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: khotwa
+          POSTGRES_PASSWORD: ci-only-synthetic-password
+          POSTGRES_DB: khotwa_ci
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U khotwa -d khotwa_ci"
+          --health-interval 5s --health-timeout 5s --health-retries 12
+    env:
+      DATABASE_URL: postgresql://khotwa:ci-only-synthetic-password@127.0.0.1:5432/khotwa_ci
+      TEST_DATABASE_URL: postgresql://khotwa:ci-only-synthetic-password@127.0.0.1:5432/khotwa_ci
+      NODE_ENV: test
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - run: npm run db:generate
+      - run: npm run db:migrate:ci
+      - name: Confirm migrations are repeatable
+        run: npm run db:migrate:ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run test:ci
+      - run: npm run build
+
+  flutter:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: android
+          - os: macos-15
+            platform: ios
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        if: matrix.platform == 'android'
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: '3.47.5'
+          cache: true
+      - run: flutter --version
+      - run: flutter pub get --enforce-lockfile
+      - run: dart format --output=none --set-exit-if-changed lib test
+      - run: flutter analyze
+      - run: flutter test --coverage
+      - name: Build Android debug APK
+        if: matrix.platform == 'android'
+        run: flutter build apk --debug
+      - name: Build iOS without signing
+        if: matrix.platform == 'ios'
+        run: flutter build ios --debug --no-codesign
+      - name: Upload Android preview
+        if: matrix.platform == 'android'
+        uses: actions/upload-artifact@v4
+        with:
+          name: khotwa-android-preview-${{ github.sha }}
+          path: mobile/build/app/outputs/flutter-apk/app-debug.apk
+          retention-days: 7
+      - name: Upload unsigned iOS build
+        if: matrix.platform == 'ios'
+        uses: actions/upload-artifact@v4
+        with:
+          name: khotwa-ios-unsigned-${{ github.sha }}
+          path: mobile/build/ios/iphoneos/Runner.app
+          retention-days: 7

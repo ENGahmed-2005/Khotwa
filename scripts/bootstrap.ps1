@@ -6,7 +6,16 @@ if (-not (Get-Command flutter -ErrorAction SilentlyContinue)) {
     exit 1
 }
 if ((Test-Path (Join-Path $mobile 'android')) -or (Test-Path (Join-Path $mobile 'ios'))) {
-    Write-Host 'Native runner folders already exist. Not overwriting.'
+    Write-Host 'Using existing native runners.'
+    Push-Location $mobile
+    try {
+        flutter pub get
+        if ($LASTEXITCODE -ne 0) { throw 'flutter pub get failed' }
+        flutter analyze
+        if ($LASTEXITCODE -ne 0) { throw 'flutter analyze failed' }
+        flutter test
+        if ($LASTEXITCODE -ne 0) { throw 'flutter test failed' }
+    } finally { Pop-Location }
     exit 0
 }
 $temp = Join-Path ([IO.Path]::GetTempPath()) ('khotwa-' + [Guid]::NewGuid().ToString('N'))
@@ -28,5 +37,13 @@ try {
     } finally { Pop-Location }
     Write-Host 'Project ready. Go to mobile and run flutter run.'
 } finally {
-    if (Test-Path $temp) { Remove-Item -Recurse -Force $temp }
+    if (Test-Path -LiteralPath $temp) {
+        $resolvedTemp = (Resolve-Path -LiteralPath $temp).Path
+        $tempRoot = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd('\') + '\'
+        if (-not $resolvedTemp.StartsWith($tempRoot, [StringComparison]::OrdinalIgnoreCase) -or
+            -not ([IO.Path]::GetFileName($resolvedTemp).StartsWith('khotwa-'))) {
+            throw 'Refusing to remove an unverified temporary path.'
+        }
+        Remove-Item -LiteralPath $resolvedTemp -Recurse -Force
+    }
 }

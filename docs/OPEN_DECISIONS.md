@@ -12,3 +12,5 @@ No educational/legal/hosting decision is silently resolved by implementation.
 - See imported OPEN_DECISIONS_AR.md and full reference SRS section 2.7 for original additional decisions; tracked map is provisional until complete reconciliation.
 
 Development is authorized with synthetic data; none of the above blocks foundation, account/owner boundaries, encrypted storage, or assessment infrastructure.
+
+Technical prototype policies (not educational approval): cancelled sessions are excluded from attendance denominator; absent sessions have no performance score. Engagement is an institution-entered label until its three-level scale is approved. Imported template v1.0 snapshots remain separate and preserved; no silent upgrade to v1.1. A supervised migration is still needed for any preexisting v1.0 data.

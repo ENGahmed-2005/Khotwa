@@ -1,0 +1,19 @@
+services:
+  postgres:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: khotwa
+      POSTGRES_USER: khotwa
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Run scripts/configure-dev.ps1 first}
+    ports:
+      - "127.0.0.1:55432:5432"
+    volumes:
+      - khotwa_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U khotwa -d khotwa"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+volumes:
+  khotwa_pg:

@@ -1,85 +1,70 @@
-# خطوة (Khotwa) | مساحة بدء التطوير
+# خطوة — Khotwa
 
-**المرجع:** وثيقة متطلبات البرمجيات SRS v1.3 بتاريخ 28 أكتوبر 2026 (مرفقة في `docs/SRS_Khotwa_v1.3.docx`).
+تطبيق Flutter عربي Android/iOS لإعداد الخطط التربوية الفردية وتوثيق التقييم والأداء. المرجع: SRS v1.3 في `docs/reference/Khotwa_SRS_v1.3.docx`.
 
-**هدف المنتج:** تطبيق تربوي عربي لتمكين المختصة من تقييم مهارات الطلبة بشكل غير تشخيصي، وبناء خطط تدخل فردية ومتابعة تنفيذها، على **Android وiOS من الإصدار الأول**.
+**الحالة: تطوير أول مسار قابل للتشغيل، وليس MVP مكتملًا أو معتمدًا للاستخدام مع بيانات حقيقية.** راجع `docs/PROJECT_STATUS.md` للأوامر المنفّذة ونتائجها.
 
-> **حالة الحزمة:** نموذج تأسيسي قابل لتطوير تطبيق Flutter، **وليس MVP جاهزًا للنشر أو للاستخدام ببيانات أطفال حقيقية**. لم يُجر اختبار تشغيل Flutter هنا لعدم توفر Flutter SDK في بيئة الإنشاء. لا تستخدم معلومات طلاب حقيقية قبل استكمال المصادقة، التفويض، المزامنة الآمنة، مراجعة الاستضافة والموافقات، والاختبارات الميدانية.
+## البنية
 
-## ماذا يوجد الآن؟
+- `mobile/`: Flutter عربية RTL، حسابات، ملفات مجهلة، تقييم أكاديمي، تخزين مشفر ومزامنة.
+- `backend/`: Node 22 + TypeScript + Fastify + Zod + Prisma + PostgreSQL.
+- `packages/contracts/API.md`: عقد API والمزامنة وإصدارات القوالب.
+- `docs/requirements_map.json`: فهرس 128 متطلبًا؛ `TASKS.md`: التبعيات والحالة.
+- `docs/OPEN_DECISIONS.md`: القرارات التي تحتاج اعتمادًا.
 
-- ملفات مشروع Flutter وأساس تصميم عربي RTL ملائم للهواتف.
-- شاشة رئيسية، وقائمة ملفات طلبة برموز **غير اسمية**، وإقرار الموافقة.
-- محتوى **البطاقات الست** للتقييم الأكاديمي للفئتين 6–8 و9–12 سنة من ملحق (ب) في SRS v1.3.
-- نموذج لتسجيل حالة تنفيذ كل مهمة، والحكم المهني، والمساعدة والملاحظات وزمن القراءة.
-- احتساب وصفي للبنود الموضوعية المستقلة الصحيحة، مع استبعاد البنود غير المنفذة أو غير القابلة للتصحيح.
-- شاشة مراجعة ملخص التقييم، واعتماد صريح من المختصة، ثم منع تعديل التقييم المعتمد مباشرة.
-- التخزين المشفر على الجهاز باستخدام `flutter_secure_storage` للبيانات التجريبية المحدودة؛ **لا توجد مزامنة ولا مصادقة** في هذه النسخة.
-- اختبارات وحدات لقواعد الأعمار والتصحيح والخصوصية والموافقة والاعتماد.
-- وثيقة متطلبات SRS، وخطة مهام، وخريطة ربط المتطلبات، وقائمة ضوابط الخصوصية.
+## تشغيل الخادم
 
-## تشغيل المشروع على Windows (Android)
+يتطلب Node 22+ وقاعدة PostgreSQL 17. لقاعدة محلية انسخ `backend/.env.example` إلى `backend/.env` واضبط الرابط ومفتاح AES من 32 بايت عشوائي. لا تشارك الملف. أو استخدم Docker: شغّل `powershell -File scripts/configure-dev.ps1` ثم `docker compose up -d`.
 
-1. ثبّت Flutter وAndroid Studio وإضافتي Dart/Flutter لـ VS Code. اختبر إعداد البيئة بالأمر `flutter doctor`.
-2. فك ضغط مجلد `khotwa_workspace` وافتح الملف **`Khotwa.code-workspace`** في VS Code.
-3. افتح PowerShell داخل المجلد الرئيسي ونفّذ:
+```powershell
+cd backend
+npm ci
+npm run db:generate
+npm run db:migrate:ci
+npm run dev
+```
 
-   ```powershell
-   .\scripts\bootstrap.ps1
-   ```
+الخادم الافتراضي على `http://127.0.0.1:3000`. الاختبار المحلي اصطناعي فقط. الإنتاج يتطلب HTTPS واعتماد سياسة الاستضافة والموافقات.
 
-4. إذا اكتملت التهيئة والاختبارات، شغّل محاكي Android أو صِل هاتفًا للتطوير:
+## تشغيل Flutter
 
-   ```powershell
-   cd mobile
-   flutter run
-   ```
-
-## على macOS (Android وiPhone)
-
-بعد تثبيت Flutter وXcode وAndroid Studio، افتح Terminal في المجلد الرئيسي ثم:
-
-```bash
-bash scripts/bootstrap.sh
+```powershell
 cd mobile
-flutter run
+flutter pub get --enforce-lockfile
+flutter analyze
+flutter test
+flutter run --dart-define=API_BASE_URL=http://10.0.2.2:3000
 ```
 
-لإنشاء نسخة iPhone أو نشرها عبر TestFlight ستحتاج **macOS مع Xcode وحساب Apple Developer لإجراءات النشر**. تطوير واجهة Dart نفسه يمكن أن يتم على Windows، لكن بناء iOS النهائي يحتاج جهاز Mac أو CI يعمل على macOS.
+`10.0.2.2` لمحاكي Android؛ لمحاكي iOS استخدم `http://127.0.0.1:3000` في إعداد التطوير. الجهاز الفعلي يحتاج HTTPS قابلًا للوصول. لا مفاتيح خادم أو AI داخل التطبيق.
 
-**ملاحظة:** يقوم سكربت التهيئة بإنشاء مجلدَي `android/` و`ios/` باستخدام Flutter SDK المثبّت لديك، ثم تطبيق تعطيل النسخ الاحتياطي التلقائي في Android لحماية مفاتيح التخزين المشفر، ثم تشغيل `flutter analyze` و`flutter test`. لم نضف هذين المجلدين يدويًا لأن ملفات المنصات يجب أن يولّدها SDK المستخدم، وليس قوالب تخمينية. راجع إعدادات Keychain وملف تعريف التطبيق قبل تجربة iPhone.
+أنشئ حساب تطوير ثم ملف طالب برمز عشوائي وإقرار الموافقة. لا تدخل اسم طالب أو تاريخ ميلاد كامل أو تشخيص. احفظ التقييم محليًا ثم زامن وراقب حالة الانتظار والتعارض. أسماء الأشخاص داخل نصوص بطاقات SRS أمثلة ثابتة وليست بيانات الطالب.
 
-## هيكل مساحة العمل
+## الاختبارات والبناء
 
-```text
-khotwa_workspace/
-├── Khotwa.code-workspace       # افتحه في VS Code
-├── README.md                   # تعليمات البدء
-├── mobile/                     # Flutter source, pubspec.yaml, tests
-│   ├── lib/main.dart
-│   ├── lib/core/              # الحالة والتخزين المحلي المشفر
-│   ├── lib/models/            # كائنات البيانات وقواعد التقييم
-│   ├── lib/data/              # البطاقات التعليمية الست
-│   ├── lib/features/          # شاشات التطبيق
-│   └── test/                  # اختبارات Dart/Flutter
-├── docs/
-│   ├── SRS_Khotwa_v1.3.docx
-│   ├── WORK_PLAN_AR.md
-│   ├── ARCHITECTURE_AR.md
-│   ├── PRIVACY_AND_SAFETY_AR.md
-│   ├── REQUIREMENTS_MAP_AR.md
-│   └── OPEN_DECISIONS_AR.md
-└── scripts/                     # توليد ملفات Android/iOS وتهيئتها
+```powershell
+python scripts/validate_planning.py
+cd backend
+npm run lint
+npm run typecheck
+# اضبط TEST_DATABASE_URL لقاعدة PostgreSQL اختبار منفصلة أولًا
+npm run test:ci
+npm run build
+cd ../mobile
+dart format --output=none --set-exit-if-changed lib test
+flutter analyze
+flutter test
+flutter build apk --debug
+# على macOS مع Xcode فقط:
+flutter build ios --debug --no-codesign
 ```
 
-## أول خطوة عملية بعد الفتح
+CI في `.github/workflows/ci.yml` يشغّل PostgreSQL واختبارات الخادم وFlutter وبناء Android وiOS على macOS. البناء لا يثبت اختبارات الأجهزة والتشفير والمزامنة الميدانية. بناء iOS بلا توقيع ليس TestFlight.
 
-ابدأ بـ`docs/WORK_PLAN_AR.md`، ثم جهّز Flutter، وشغّل الاختبارات، وتحقق من واجهة التقييم على Android وiPhone. لا تربط خادم ذكاء اصطناعي أو تبدأ استقبال بيانات حقيقية قبل إقرار قرارات الخصوصية والاستضافة في `docs/OPEN_DECISIONS_AR.md`.
+## حدود التنفيذ
 
-## معلومات تقنية
+التوليد الخارجي بالذكاء الاصطناعي معطل لحين اختيار المزوّد واعتماد سياسة المعالجة. وحدات قواعد الخطط والجلسات قابلة للاختبار، وارتباطها بالواجهة والخادم موثق في ملف الحالة. التقارير العربية والاختبار الميداني والتوقيع والنشر تحتاج التنفيذ والتحقق وفق التبعيات.
 
-- Flutter + Dart: تطبيق موحد يدعم Android وiOS.
-- `flutter_secure_storage ^11.2.0`: تخزين مشفر صغير في هذا النموذج وليس قاعدة بيانات إنتاج.
-- الخادم المستقبلي المقترح بحسب SRS: FastAPI أو Node.js، وقاعدة بيانات PostgreSQL بموقع استضافة متوافق مع السياسة.
-- غيّر `org.khotwa` إلى معرف المؤسسة الرسمي قبل النشر.
-- يجب عدم تضمين مفاتيح API أو أسرار أو بيانات طلبة في المستودع.
+ملفات `_AR` تصف حزمة البداية؛ `ARCHITECTURE.md` و`PROJECT_STATUS.md` مرجع التنفيذ الحالي. README الأصلي محفوظ في `docs/reference/IMPORTED_README.md` والنسخة المضغوطة الأصلية لم تتغير.
+
+العمل عبر فروع وPull Requests إلى [المستودع الخاص](https://github.com/ENGahmed-2005/Khotwa)، دون دمج تلقائي إلى main.
