@@ -12,6 +12,8 @@ class AssessmentItemResult {
     this.observation = '',
     this.readingSeconds,
     this.readingErrors,
+    this.wordsRead,
+    this.selfCorrections,
   });
 
   final ItemExecution execution;
@@ -21,6 +23,8 @@ class AssessmentItemResult {
   final String observation;
   final int? readingSeconds;
   final int? readingErrors;
+  final int? wordsRead;
+  final int? selfCorrections;
 
   bool get isScorable => execution == ItemExecution.performed &&
       judgment != null && judgment != ItemJudgment.notScorable;
@@ -35,6 +39,8 @@ class AssessmentItemResult {
         'observation': observation,
         'readingSeconds': readingSeconds,
         'readingErrors': readingErrors,
+        'wordsRead': wordsRead,
+        'selfCorrections': selfCorrections,
       };
 
   factory AssessmentItemResult.fromJson(Map<String, dynamic> json) =>
@@ -48,6 +54,8 @@ class AssessmentItemResult {
         observation: (json['observation'] as String?) ?? '',
         readingSeconds: (json['readingSeconds'] as num?)?.toInt(),
         readingErrors: (json['readingErrors'] as num?)?.toInt(),
+        wordsRead: (json['wordsRead'] as num?)?.toInt(),
+        selfCorrections: (json['selfCorrections'] as num?)?.toInt(),
       );
 }
 
@@ -64,6 +72,7 @@ class AssessmentRecord {
     this.strengths = '',
     this.needs = '',
     this.approvedAt,
+    this.privacyReviewed = false,
   });
 
   final String id;
@@ -77,6 +86,7 @@ class AssessmentRecord {
   final String strengths;
   final String needs;
   final String? approvedAt;
+  final bool privacyReviewed;
 
   AssessmentRecord copyWith({
     Map<String, AssessmentItemResult>? results,
@@ -96,6 +106,7 @@ class AssessmentRecord {
         needs: needs ?? this.needs,
         status: status ?? this.status,
         approvedAt: approvedAt ?? this.approvedAt,
+        privacyReviewed: privacyReviewed,
       );
 
   Map<String, dynamic> toJson() => {
@@ -110,6 +121,7 @@ class AssessmentRecord {
         'strengths': strengths,
         'needs': needs,
         'approvedAt': approvedAt,
+        'privacyReviewed': privacyReviewed,
       };
 
   factory AssessmentRecord.fromJson(Map<String, dynamic> data) {
@@ -127,6 +139,7 @@ class AssessmentRecord {
       strengths: (data['strengths'] as String?) ?? '',
       needs: (data['needs'] as String?) ?? '',
       approvedAt: data['approvedAt'] as String?,
+      privacyReviewed: data['privacyReviewed'] == true,
     );
   }
 }

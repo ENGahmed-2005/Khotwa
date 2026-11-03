@@ -1,21 +1,25 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
-import 'core/app_state.dart';
+import 'core/api_client.dart';
+import 'core/auth_state.dart';
 import 'core/secure_local_store.dart';
 import 'features/home_screen.dart';
+import 'features/auth_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  final state = AppState(SecureLocalStore());
-  await state.load();
-  runApp(KhotwaApp(state: state));
+  final SecretStore secrets = kIsWeb ? PreviewSecretStore() : const DeviceSecretStore();
+  final auth = AuthState(api: ApiClient(baseUrl: const String.fromEnvironment('API_BASE_URL', defaultValue: 'https://localhost:3000'), allowDebugHttp: kDebugMode || (kIsWeb && const bool.fromEnvironment('ALLOW_SYNTHETIC_WEB_PREVIEW'))), secrets: secrets, storeForOwner: (owner) => EncryptedFileStore.forOwner(owner, secrets));
+  await auth.restore();
+  runApp(KhotwaApp(auth: auth));
 }
 
 class KhotwaApp extends StatelessWidget {
-  const KhotwaApp({super.key, required this.state});
+  const KhotwaApp({super.key, required this.auth});
 
-  final AppState state;
+  final AuthState auth;
 
   @override
   Widget build(BuildContext context) {
@@ -59,9 +63,9 @@ class KhotwaApp extends StatelessWidget {
         textDirection: TextDirection.rtl,
         child: child ?? const SizedBox.shrink(),
       ),
-      home: state.storageError == null
-          ? HomeScreen(state: state)
-          : StorageFailureScreen(message: state.storageError!),
+      home: AnimatedBuilder(animation: auth, builder: (context, _) => !auth.signedIn ? AuthScreen(auth: auth) : auth.records!.storageError == null
+          ? HomeScreen(key: ValueKey(auth.ownerId), state: auth.records!, auth: auth)
+          : StorageFailureScreen(message: auth.records!.storageError!)),
     );
   }
 }

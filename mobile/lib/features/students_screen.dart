@@ -33,7 +33,7 @@ class StudentsScreen extends StatelessWidget {
             Card(child: ListTile(
               leading: const CircleAvatar(child: Icon(Icons.person_outline)),
               title: Text('الطالب ${student.code}', style: const TextStyle(fontWeight: FontWeight.w700)),
-              subtitle: Text('الصف: ${student.grade} · ${student.ageLabel}'),
+              subtitle: Text('الصف: ${student.grade} · ${student.ageLabel}\n${syncStatusLabel(state.stateFor(student.id))}'),
               trailing: const Icon(Icons.chevron_left),
               onTap: () => Navigator.push(context, MaterialPageRoute<void>(
                 builder: (_) => StudentDetailScreen(state: state, studentId: student.id),
@@ -52,25 +52,17 @@ class StudentFormScreen extends StatefulWidget {
 }
 
 class _StudentFormScreenState extends State<StudentFormScreen> {
-  final _code = TextEditingController();
   String _grade = 'الثاني الأساسي';
   int _years = 7;
   int _months = 0;
   bool _consent = false;
   bool _saving = false;
 
-  @override
-  void dispose() {
-    _code.dispose();
-    super.dispose();
-  }
-
   Future<void> _submit() async {
     if (_saving) return;
     setState(() => _saving = true);
     try {
       await widget.state.createStudent(
-        code: _code.text,
         grade: _grade,
         ageYears: _years,
         ageMonths: _months,
@@ -92,12 +84,7 @@ class _StudentFormScreenState extends State<StudentFormScreen> {
           children: [
             const PrototypeNote(),
             const SectionHeading('البيانات الأساسية المجهّلة'),
-            TextField(
-              controller: _code,
-              textCapitalization: TextCapitalization.characters,
-              decoration: const InputDecoration(
-                  labelText: 'رمز الطالب', hintText: 'KH-0001', helperText: 'لا تضع الاسم أو الأحرف الأولى للاسم الحقيقي'),
-            ),
+            const Text('يُنشأ رمز عشوائي تلقائيًا مثل ST-XXXXXXXX. احتفظي بربط الرمز بالاسم على الورق خارج التطبيق.'),
             const SizedBox(height: 16),
             DropdownButtonFormField<String>(
               initialValue: _grade,
@@ -161,6 +148,7 @@ class StudentDetailScreen extends StatelessWidget {
         studentId: student.id,
         overrideGroup: choice.group,
         overrideReason: choice.reason,
+        privacyReviewed: true,
       );
       if (context.mounted) {
         Navigator.push(context, MaterialPageRoute<void>(
@@ -209,7 +197,7 @@ class StudentDetailScreen extends StatelessWidget {
               for (final assessment in assessments)
                 Card(child: ListTile(
                   title: Text('بطاقات ${assessment.ageGroup} سنة - ${_statusLabel(assessment.status)}'),
-                  subtitle: Text('قالب ${assessment.templateVersion} · ${assessment.createdAt.substring(0, 10)}'),
+                  subtitle: Text('قالب ${assessment.templateVersion} · ${assessment.createdAt.substring(0, 10)}\n${syncStatusLabel(state.stateFor(assessment.id))}'),
                   trailing: const Icon(Icons.chevron_left),
                   onTap: () => Navigator.push(context, MaterialPageRoute<void>(
                     builder: (_) => AssessmentScreen(state: state, assessmentId: assessment.id),
@@ -237,6 +225,7 @@ class _AssessmentStartDialog extends StatefulWidget {
 
 class _AssessmentStartDialogState extends State<_AssessmentStartDialog> {
   String _group = '6-8';
+  bool _privacyReviewed = false;
   final _reason = TextEditingController();
 
   @override
@@ -276,13 +265,14 @@ class _AssessmentStartDialogState extends State<_AssessmentStartDialog> {
               TextField(controller: _reason, maxLines: 2,
                 onChanged: (_) => setState(() {}),
                 decoration: const InputDecoration(labelText: 'المسوّغ التربوي لاختيار فئة مختلفة')),
-            ]
+            ],
+            CheckboxListTile(value: _privacyReviewed, onChanged: (v) => setState(() => _privacyReviewed = v ?? false), contentPadding: EdgeInsets.zero, title: const Text('أؤكد خلو المسوّغ والمدخلات من الأسماء وبيانات التعريف والتشخيص؛ سأراجع النصوص قبل حفظها ومزامنتها.')),
           ],
         )),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')),
           FilledButton(
-            onPressed: (widget.recommended == null ||
+            onPressed: (!_privacyReviewed || widget.recommended == null ||
                 (_group != widget.recommended && _reason.text.trim().isEmpty))
                 ? null : () => Navigator.pop(context, (group: _group, reason: _reason.text)),
             child: const Text('بدء'),

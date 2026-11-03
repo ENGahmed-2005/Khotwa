@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 
 class SectionHeading extends StatelessWidget {
   const SectionHeading(this.title, {super.key, this.subtitle});
@@ -39,7 +40,7 @@ class PrototypeNote extends StatelessWidget {
             SizedBox(width: 12),
             Expanded(
               child: Text(
-                'نسخة تأسيسية للتطوير والاختبار ببيانات وهمية فقط. لا تُستخدم ملفات أطفال حقيقية قبل اكتمال المصادقة، المزامنة، مراجعة الخصوصية، والاختبارات الميدانية.',
+                kIsWeb ? 'معاينة متصفح ببيانات مصطنعة فقط. التخزين هنا مؤقت في الذاكرة ويُفقد عند إعادة التحميل؛ زامني بالخادم لحفظ عمل التجربة. هذه المعاينة لا تختبر تشفير Android أو iOS.' : 'نسخة تطوير ببيانات تجريبية مصطنعة فقط. يلزم اعتماد سياسة الاستضافة والموافقة والاحتفاظ ومراجعة المختصة والاختبارات الميدانية قبل بيانات الطلبة الحقيقية.',
                 style: TextStyle(color: Color(0xFF654611)),
               ),
             ),
@@ -53,3 +54,10 @@ void showError(BuildContext context, Object error) {
     content: Text(error.toString().replaceFirst('Bad state: ', '')),
   ));
 }
+
+String syncStatusLabel(String value) => switch (value) {
+  'pending' => 'محفوظ محليًا · بانتظار المزامنة',
+  'conflict' => 'تعارض · النسختان محفوظتان',
+  'error' => 'تعذّر الإرسال · راجع المزامنة',
+  _ => 'متزامن',
+};

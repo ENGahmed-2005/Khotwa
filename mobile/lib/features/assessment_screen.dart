@@ -24,12 +24,14 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
   late final TextEditingController _notes;
   late final TextEditingController _readingSeconds;
   late final TextEditingController _readingErrors;
+  late final TextEditingController _wordsRead;
+  late final TextEditingController _selfCorrections;
   bool _saving = false;
 
   AssessmentRecord get _assessment => widget.state.assessmentById(widget.assessmentId);
   List<AssessmentTask> get _tasks => tasksForAge(_assessment.ageGroup);
   AssessmentTask get _task => _tasks[_index];
-  bool get _locked => _assessment.status == AssessmentStatus.approved;
+  bool get _locked => _assessment.status == AssessmentStatus.approved || _assessment.templateVersion != assessmentTemplateVersion;
 
   @override
   void initState() {
@@ -38,6 +40,8 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
     _notes = TextEditingController();
     _readingSeconds = TextEditingController();
     _readingErrors = TextEditingController();
+    _wordsRead = TextEditingController();
+    _selfCorrections = TextEditingController();
     _loadTask();
   }
 
@@ -50,6 +54,8 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
     _notes.text = item?.observation ?? '';
     _readingSeconds.text = item?.readingSeconds?.toString() ?? '';
     _readingErrors.text = item?.readingErrors?.toString() ?? '';
+    _wordsRead.text = item?.wordsRead?.toString() ?? '';
+    _selfCorrections.text = item?.selfCorrections?.toString() ?? '';
   }
 
   @override
@@ -58,6 +64,8 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
     _notes.dispose();
     _readingSeconds.dispose();
     _readingErrors.dispose();
+    _wordsRead.dispose();
+    _selfCorrections.dispose();
     super.dispose();
   }
 
@@ -86,6 +94,8 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
           observation: _notes.text.trim(),
           readingSeconds: _task.isReading && _execution == ItemExecution.performed ? seconds : null,
           readingErrors: _task.isReading && _execution == ItemExecution.performed ? errors : null,
+          wordsRead: _task.isReading && _execution == ItemExecution.performed ? _intOrNull(_wordsRead.text) : null,
+          selfCorrections: _task.isReading && _execution == ItemExecution.performed ? _intOrNull(_selfCorrections.text) : null,
         ),
       );
       if (!mounted) return;
@@ -173,11 +183,11 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
           const Text('حكم المختصة على الأداء'),
           const SizedBox(height: 8),
           Wrap(spacing: 6, runSpacing: 4, children: [
-            _option<ItemJudgment>('صحيح مستقل', ItemJudgment.independentCorrect,
+            if (task.isObjective) _option<ItemJudgment>('صحيح مستقل', ItemJudgment.independentCorrect,
                 _judgment, (v) => setState(() => _judgment = v)),
-            _option<ItemJudgment>('صحيح بمساعدة/جزئي', ItemJudgment.supportedCorrect,
+            if (task.isObjective) _option<ItemJudgment>('صحيح بمساعدة/جزئي', ItemJudgment.supportedCorrect,
                 _judgment, (v) => setState(() => _judgment = v)),
-            _option<ItemJudgment>('غير صحيح', ItemJudgment.incorrect,
+            if (task.isObjective) _option<ItemJudgment>('غير صحيح', ItemJudgment.incorrect,
                 _judgment, (v) => setState(() => _judgment = v)),
             _option<ItemJudgment>('وصفي، غير قابل للتصحيح العددي', ItemJudgment.notScorable,
                 _judgment, (v) => setState(() => _judgment = v)),
@@ -226,6 +236,7 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
             )),
           ]),
         ],
+        if (task.isReading && _execution == ItemExecution.performed) Row(children: [Expanded(child: TextField(enabled: !_locked, controller: _wordsRead, keyboardType: TextInputType.number, inputFormatters: [FilteringTextInputFormatter.digitsOnly], decoration: const InputDecoration(labelText: 'عدد الكلمات المقروءة'))), const SizedBox(width: 12), Expanded(child: TextField(enabled: !_locked, controller: _selfCorrections, keyboardType: TextInputType.number, inputFormatters: [FilteringTextInputFormatter.digitsOnly], decoration: const InputDecoration(labelText: 'التصحيح الذاتي')))]),
         const SizedBox(height: 12),
         TextField(
           enabled: !_locked,
@@ -287,6 +298,7 @@ class _AssessmentSummaryScreenState extends State<AssessmentSummaryScreen> {
   late final TextEditingController _strengths;
   late final TextEditingController _needs;
   bool _busy = false;
+  bool _privacyReviewed = false;
 
   @override
   void initState() {
@@ -311,6 +323,7 @@ class _AssessmentSummaryScreenState extends State<AssessmentSummaryScreen> {
         assessmentId: widget.assessmentId,
         strengths: _strengths.text,
         needs: _needs.text,
+        privacyReviewed: _privacyReviewed,
       );
       if (approve) {
         await widget.state.approveAssessment(widget.assessmentId);
@@ -371,6 +384,7 @@ class _AssessmentSummaryScreenState extends State<AssessmentSummaryScreen> {
                 decoration: const InputDecoration(labelText: 'المهارات التي تحتاج إلى تطوير (مطلوب للاعتماد)'),
               ),
               const SizedBox(height: 10),
+              if (!approved) CheckboxListTile(value: _privacyReviewed, onChanged: (v) => setState(() => _privacyReviewed = v ?? false), contentPadding: EdgeInsets.zero, title: const Text('راجعت النصوص وأؤكد خلوها من الأسماء وبيانات التعريف والتشخيص.')),
               if (approved)
                 const Card(child: Padding(padding: EdgeInsets.all(16),
                   child: Text('هذا التقييم معتمد ومجمّد. يُنشأ تقييم آخر لإعادة القياس.')))
@@ -387,7 +401,7 @@ class _AssessmentSummaryScreenState extends State<AssessmentSummaryScreen> {
                 ),
               ],
               const SizedBox(height: 20),
-              const Text('لا يُرسَل هذا المحتوى لأي خادم في هذه النسخة. سيُضاف إرسال ملخص مجهّل ومراجع بعد إعداد سياسة البيانات والموافقات.'),
+              const Text('تُزامن النتائج مع خادم الحساب. لا يُرسل أي محتوى لخدمة ذكاء اصطناعي في هذا التسليم. الأرقام وصفية وليست تشخيصًا.'),
             ]),
           );
         },

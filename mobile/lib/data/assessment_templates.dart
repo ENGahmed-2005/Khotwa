@@ -1,6 +1,6 @@
 import '../models/student.dart';
 
-const assessmentTemplateVersion = '1.0';
+const assessmentTemplateVersion = '1.1';
 
 class AssessmentTask {
   const AssessmentTask({
@@ -50,7 +50,10 @@ const assessmentCards = <AssessmentCard>[
     AssessmentTask(id: '1a', cardNumber: 1, domain: 'القراءة', title: 'حذف الصوت الأول', prompt: 'قل للطفل: كلمة «سَمَاء»، لو حذفنا حرف «س»، ماذا تصبح؟', reference: 'ماء'),
     AssessmentTask(id: '1b', cardNumber: 1, domain: 'القراءة', title: 'إبدال الصوت الأول', prompt: 'قل للطفل: كلمة «نَامَ»، لو استبدلنا «ن» بحرف «ص»، ماذا تصبح؟', reference: 'صام'),
     AssessmentTask(id: '1c', cardNumber: 1, domain: 'القراءة', title: 'تجميع الأصوات', prompt: 'انطق «قـ - لـ - مـ»، واطلب تجميعها في كلمة واحدة.', reference: 'قلم'),
-    AssessmentTask(id: '1d', cardNumber: 1, domain: 'القراءة', title: 'قراءة متدرجة', prompt: 'اطلب قراءة الكلمات بالترتيب: دَرَجَ، بَاب، شَجَرَة، مُسْتَشْفَى.', reference: 'تُسجّل المختصة دقة كل كلمة والملاحظات؛ لا معيار سرعة ثابت.', isReading: true, isObjective: false),
+    AssessmentTask(id: '1d1', cardNumber: 1, domain: 'القراءة', title: 'قراءة متدرجة — 1', prompt: 'اطلب قراءة: دَرَجَ', reference: 'دَرَجَ؛ سجّل الحكم المهني ومستوى المساعدة.', isReading: true),
+    AssessmentTask(id: '1d2', cardNumber: 1, domain: 'القراءة', title: 'قراءة متدرجة — 2', prompt: 'اطلب قراءة: بَاب', reference: 'بَاب؛ سجّل الحكم المهني ومستوى المساعدة.', isReading: true),
+    AssessmentTask(id: '1d3', cardNumber: 1, domain: 'القراءة', title: 'قراءة متدرجة — 3', prompt: 'اطلب قراءة: شَجَرَة', reference: 'شَجَرَة؛ سجّل الحكم المهني ومستوى المساعدة.', isReading: true),
+    AssessmentTask(id: '1d4', cardNumber: 1, domain: 'القراءة', title: 'قراءة متدرجة — 4', prompt: 'اطلب قراءة: مُسْتَشْفَى', reference: 'مُسْتَشْفَى؛ سجّل الحكم المهني ومستوى المساعدة.', isReading: true),
   ]),
   AssessmentCard(number: 2, ageGroup: '6-8', title: 'الإملاء والكتابة وملاحظة الأداء', tasks: [
     AssessmentTask(id: '2a', cardNumber: 2, domain: 'الكتابة', title: 'إملاء جملة', prompt: 'أملِ الجملة دون تشكيل: «كَتَبَ أَمِيرٌ الدَّرْسَ فِي الدَّفْتَرِ».', reference: 'تتحقق المختصة من الإملاء دون درجة معيارية.', isObjective: false),

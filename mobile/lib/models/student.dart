@@ -69,8 +69,8 @@ class StudentInputValidator {
     required int ageMonths,
     required bool consentConfirmed,
   }) {
-    if (!RegExp(r'^[A-Za-z0-9-]{4,20}$').hasMatch(code)) {
-      return 'رمز الطالب يجب أن يكون 4–20 حرفاً لاتينيًا/رقمًا/شرطة دون اسم.';
+    if (!RegExp(r'^ST-[0-9A-F]{8}$').hasMatch(code)) {
+      return 'رمز الطالب يجب أن يكون مولّدًا عشوائيًا دون اسم.';
     }
     if (!supportedSchoolGrades.contains(grade)) {
       return 'اختر الصف الدراسي من القائمة المعتمدة.';

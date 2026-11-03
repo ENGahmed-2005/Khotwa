@@ -1,26 +1,37 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+export 'encrypted_file_store.dart' if (dart.library.html) 'web_local_store.dart';
 
-/// Prototype adapter: encrypted key-value storage on each device.
-/// NOT a substitute for production encrypted DB, accounts, audit logs or sync.
 abstract class LocalStore {
   Future<String?> read();
   Future<void> write(String data);
   Future<void> clear();
 }
 
-class SecureLocalStore implements LocalStore {
-  SecureLocalStore({FlutterSecureStorage? storage})
-      : _storage = storage ?? const FlutterSecureStorage();
+abstract class SecretStore {
+  Future<String?> read(String key);
+  Future<void> write(String key, String value);
+  Future<void> delete(String key);
+}
 
-  static const _key = 'khotwa_snapshot_v1';
-  final FlutterSecureStorage _storage;
-
+class DeviceSecretStore implements SecretStore {
+  const DeviceSecretStore();
+  static const _storage = FlutterSecureStorage();
   @override
-  Future<String?> read() => _storage.read(key: _key);
-
+  Future<String?> read(String key) => _storage.read(key: key);
   @override
-  Future<void> write(String data) => _storage.write(key: _key, value: data);
-
+  Future<void> write(String key, String value) => _storage.write(key: key, value: value);
   @override
-  Future<void> clear() => _storage.delete(key: _key);
+  Future<void> delete(String key) => _storage.delete(key: key);
+}
+
+
+/// Browser development preview only; all values disappear on reload.
+class PreviewSecretStore implements SecretStore {
+  final _values = <String,String>{};
+  @override
+  Future<String?> read(String key) async => _values[key];
+  @override
+  Future<void> write(String key, String value) async { _values[key] = value; }
+  @override
+  Future<void> delete(String key) async { _values.remove(key); }
 }
