@@ -1,0 +1,63 @@
+name: Build synthetic Flutter preview
+on:
+  push:
+    branches: ['feat/fnd-02-foundation']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: khotwa-preview-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.9'
+          channel: stable
+          cache: true
+      - name: Generate missing native runners without overwriting existing source
+        run: |
+          flutter create --project-name khotwa --org org.khotwa --platforms android,ios /tmp/khotwa_native
+          test -d mobile/android || cp -R /tmp/khotwa_native/android mobile/android
+          test -d mobile/ios || cp -R /tmp/khotwa_native/ios mobile/ios
+          test -f mobile/.metadata || cp /tmp/khotwa_native/.metadata mobile/.metadata
+          python scripts/prepare_android_manifest.py mobile/android/app/src/main/AndroidManifest.xml
+      - name: Resolve dependencies and return formatter output for review
+        working-directory: mobile
+        run: |
+          flutter pub get
+          dart format lib test
+          if test -d integration_test; then dart format integration_test; fi
+      - name: Upload generated source for local review and commit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: flutter-reviewed-source
+          include-hidden-files: true
+          path: |
+            mobile/lib
+            mobile/test
+            mobile/integration_test
+            mobile/pubspec.lock
+            mobile/android
+            mobile/ios
+            mobile/.metadata
+          retention-days: 3
+      - name: Analyze real Flutter source
+        working-directory: mobile
+        run: flutter analyze
+      - name: Run Flutter tests
+        working-directory: mobile
+        run: flutter test
+      - name: Build development browser preview
+        working-directory: mobile
+        run: flutter build web --dart-define=API_BASE_URL=http://127.0.0.1:4173 --dart-define=ALLOW_SYNTHETIC_WEB_PREVIEW=true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: khotwa-flutter-web-preview
+          path: mobile/build/web
+          retention-days: 3
