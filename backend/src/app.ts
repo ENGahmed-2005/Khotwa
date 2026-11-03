@@ -29,7 +29,7 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   const app = Fastify({ logger: false, bodyLimit: 1024 * 1024, trustProxy: false });
   await app.register(helmet);
   await app.register(rateLimit, { max: options.globalRateLimit ?? 120, timeWindow: '1 minute',
-    errorResponseBuilder: () => ({ error: { code: 'RATE_LIMITED', message: 'محاولات كثيرة؛ انتظر قليلًا ثم أعد المحاولة.' } }),
+    errorResponseBuilder: () => new ApiError(429, 'RATE_LIMITED', 'محاولات كثيرة؛ انتظر قليلًا ثم أعد المحاولة.'),
   });
   const auth = new AuthService(options.prisma, options.clock, options.resetDelivery);
   const records = new RecordStore(options.prisma, new PayloadCipher(options.storageKey), options.clock);

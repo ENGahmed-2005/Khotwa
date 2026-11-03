@@ -20,7 +20,7 @@ export const itemResultSchema = z.strictObject({
   execution: z.enum(['notDone', 'performed', 'unable']),
   judgment: z.enum(['independentCorrect', 'supportedCorrect', 'incorrect', 'notScorable']).nullable(),
   support: z.enum(['independent', 'verbal', 'partial', 'full']), response: text, observation: text,
-  readingSeconds: z.number().int().min(0).max(86400).nullable(),
+  readingSeconds: z.number().int().nonnegative().nullable(),
   readingErrors: z.number().int().nonnegative().nullable(),
   wordsRead: z.number().int().nonnegative().nullable().optional(),
   selfCorrections: z.number().int().nonnegative().nullable().optional(),
