@@ -29,6 +29,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       if (value == 'logout') await widget.auth.logout();
       if (value == 'lock') await widget.auth.lock();
       if (value == 'delete') {
+        if (!mounted) return;
         final password = TextEditingController();
         final confirmed = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(title: const Text('حذف الحساب وبياناته نهائيًا؟'), content: Column(mainAxisSize: MainAxisSize.min, children: [const Text('يحذف الحساب وملفاته من الخادم، ثم بيانات هذا الحساب المحلية على هذا الجهاز. لا يمكن التراجع. أدخل كلمة المرور للتأكيد.'), const SizedBox(height: 12), TextField(controller: password, obscureText: true, decoration: const InputDecoration(labelText: 'كلمة المرور'))]), actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')), FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('حذف نهائي'))]));
         final value = password.text; password.dispose();

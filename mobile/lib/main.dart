@@ -10,6 +10,7 @@ import 'features/auth_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  if (kIsWeb) WidgetsBinding.instance.ensureSemantics();
   final SecretStore secrets = kIsWeb ? PreviewSecretStore() : const DeviceSecretStore();
   final auth = AuthState(api: ApiClient(baseUrl: const String.fromEnvironment('API_BASE_URL', defaultValue: 'https://localhost:3000'), allowDebugHttp: kDebugMode || (kIsWeb && const bool.fromEnvironment('ALLOW_SYNTHETIC_WEB_PREVIEW'))), secrets: secrets, storeForOwner: (owner) => EncryptedFileStore.forOwner(owner, secrets));
   await auth.restore();

@@ -30,6 +30,7 @@ jobs:
         working-directory: mobile
         run: |
           flutter pub get
+          dart fix --apply
           dart format lib test
           if test -d integration_test; then dart format integration_test; fi
       - name: Upload generated source for local review and commit
