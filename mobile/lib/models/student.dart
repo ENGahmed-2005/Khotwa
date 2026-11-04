@@ -23,26 +23,26 @@ class StudentRecord {
   String get ageLabel => '$ageYears سنوات و$ageMonths أشهر';
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'code': code,
-        'grade': grade,
-        'ageYears': ageYears,
-        'ageMonths': ageMonths,
-        'consentConfirmed': consentConfirmed,
-        'consentDate': consentDate,
-        'createdAt': createdAt,
-      };
+    'id': id,
+    'code': code,
+    'grade': grade,
+    'ageYears': ageYears,
+    'ageMonths': ageMonths,
+    'consentConfirmed': consentConfirmed,
+    'consentDate': consentDate,
+    'createdAt': createdAt,
+  };
 
   factory StudentRecord.fromJson(Map<String, dynamic> data) => StudentRecord(
-        id: data['id'] as String,
-        code: data['code'] as String,
-        grade: data['grade'] as String,
-        ageYears: (data['ageYears'] as num).toInt(),
-        ageMonths: (data['ageMonths'] as num).toInt(),
-        consentConfirmed: data['consentConfirmed'] == true,
-        consentDate: (data['consentDate'] as String?) ?? '',
-        createdAt: data['createdAt'] as String,
-      );
+    id: data['id'] as String,
+    code: data['code'] as String,
+    grade: data['grade'] as String,
+    ageYears: (data['ageYears'] as num).toInt(),
+    ageMonths: (data['ageMonths'] as num).toInt(),
+    consentConfirmed: data['consentConfirmed'] == true,
+    consentDate: (data['consentDate'] as String?) ?? '',
+    createdAt: data['createdAt'] as String,
+  );
 }
 
 const supportedSchoolGrades = <String>[

@@ -11,8 +11,22 @@ import 'features/auth_screen.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   if (kIsWeb) WidgetsBinding.instance.ensureSemantics();
-  final SecretStore secrets = kIsWeb ? PreviewSecretStore() : const DeviceSecretStore();
-  final auth = AuthState(api: ApiClient(baseUrl: const String.fromEnvironment('API_BASE_URL', defaultValue: 'https://localhost:3000'), allowDebugHttp: kDebugMode || (kIsWeb && const bool.fromEnvironment('ALLOW_SYNTHETIC_WEB_PREVIEW'))), secrets: secrets, storeForOwner: (owner) => EncryptedFileStore.forOwner(owner, secrets));
+  final SecretStore secrets = kIsWeb
+      ? PreviewSecretStore()
+      : const DeviceSecretStore();
+  final auth = AuthState(
+    api: ApiClient(
+      baseUrl: const String.fromEnvironment(
+        'API_BASE_URL',
+        defaultValue: 'https://localhost:3000',
+      ),
+      allowDebugHttp:
+          kDebugMode ||
+          (kIsWeb && const bool.fromEnvironment('ALLOW_SYNTHETIC_WEB_PREVIEW')),
+    ),
+    secrets: secrets,
+    storeForOwner: (owner) => EncryptedFileStore.forOwner(owner, secrets),
+  );
   await auth.restore();
   runApp(KhotwaApp(auth: auth));
 }
@@ -57,16 +71,28 @@ class KhotwaApp extends StatelessWidget {
         ),
         inputDecorationTheme: InputDecorationTheme(
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 14,
+            vertical: 14,
+          ),
         ),
       ),
       builder: (context, child) => Directionality(
         textDirection: TextDirection.rtl,
         child: child ?? const SizedBox.shrink(),
       ),
-      home: AnimatedBuilder(animation: auth, builder: (context, _) => !auth.signedIn ? AuthScreen(auth: auth) : auth.records!.storageError == null
-          ? HomeScreen(key: ValueKey(auth.ownerId), state: auth.records!, auth: auth)
-          : StorageFailureScreen(message: auth.records!.storageError!)),
+      home: AnimatedBuilder(
+        animation: auth,
+        builder: (context, _) => !auth.signedIn
+            ? AuthScreen(auth: auth)
+            : auth.records!.storageError == null
+            ? HomeScreen(
+                key: ValueKey(auth.ownerId),
+                state: auth.records!,
+                auth: auth,
+              )
+            : StorageFailureScreen(message: auth.records!.storageError!),
+      ),
     );
   }
 }
@@ -78,23 +104,25 @@ class StorageFailureScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(28),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.lock_outline, size: 58),
-                const SizedBox(height: 16),
-                Text('تعذّر فتح التخزين الآمن',
-                    style: Theme.of(context).textTheme.headlineSmall),
-                const SizedBox(height: 12),
-                const Text('لحماية بيانات الطلبة، لن يعمل التطبيق دون تخزين آمن.'),
-                const SizedBox(height: 8),
-                SelectableText(message, textAlign: TextAlign.center),
-              ],
+    body: Center(
+      child: Padding(
+        padding: const EdgeInsets.all(28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.lock_outline, size: 58),
+            const SizedBox(height: 16),
+            Text(
+              'تعذّر فتح التخزين الآمن',
+              style: Theme.of(context).textTheme.headlineSmall,
             ),
-          ),
+            const SizedBox(height: 12),
+            const Text('لحماية بيانات الطلبة، لن يعمل التطبيق دون تخزين آمن.'),
+            const SizedBox(height: 8),
+            SelectableText(message, textAlign: TextAlign.center),
+          ],
         ),
-      );
+      ),
+    ),
+  );
 }

@@ -14,15 +14,15 @@ void main() {
 
   test('age boundaries choose correct grouping', () {
     StudentRecord build(int years, int months) => StudentRecord(
-          id: 'local',
-          code: 'TEST-0001',
-          grade: 'الثاني الأساسي',
-          ageYears: years,
-          ageMonths: months,
-          consentConfirmed: true,
-          consentDate: '2026-10-28',
-          createdAt: '2026-10-28',
-        );
+      id: 'local',
+      code: 'TEST-0001',
+      grade: 'الثاني الأساسي',
+      ageYears: years,
+      ageMonths: months,
+      consentConfirmed: true,
+      consentDate: '2026-10-28',
+      createdAt: '2026-10-28',
+    );
     expect(recommendedAgeGroup(build(5, 11)), isNull);
     expect(recommendedAgeGroup(build(6, 0)), '6-8');
     expect(recommendedAgeGroup(build(8, 11)), '6-8');
@@ -33,15 +33,23 @@ void main() {
 
   test('unperformed, unavailable and descriptive tasks are excluded from denominator', () {
     const items = [
-      AssessmentItemResult(execution: ItemExecution.performed,
-          judgment: ItemJudgment.independentCorrect),
-      AssessmentItemResult(execution: ItemExecution.performed,
-          judgment: ItemJudgment.supportedCorrect),
-      AssessmentItemResult(execution: ItemExecution.notDone,
-          judgment: ItemJudgment.incorrect),
+      AssessmentItemResult(
+        execution: ItemExecution.performed,
+        judgment: ItemJudgment.independentCorrect,
+      ),
+      AssessmentItemResult(
+        execution: ItemExecution.performed,
+        judgment: ItemJudgment.supportedCorrect,
+      ),
+      AssessmentItemResult(
+        execution: ItemExecution.notDone,
+        judgment: ItemJudgment.incorrect,
+      ),
       AssessmentItemResult(execution: ItemExecution.unable),
-      AssessmentItemResult(execution: ItemExecution.performed,
-          judgment: ItemJudgment.notScorable),
+      AssessmentItemResult(
+        execution: ItemExecution.performed,
+        judgment: ItemJudgment.notScorable,
+      ),
     ];
     final score = AssessmentScore.fromResults(items);
     expect(score.independentCorrect, 1);
@@ -50,12 +58,23 @@ void main() {
 
   test('student JSON does not store identity or diagnostic fields', () {
     const student = StudentRecord(
-      id: 'localid', code: 'KH-0001', grade: 'الثالث الأساسي',
-      ageYears: 9, ageMonths: 3, consentConfirmed: true,
-      consentDate: '2026-10-28', createdAt: '2026-10-28',
+      id: 'localid',
+      code: 'KH-0001',
+      grade: 'الثالث الأساسي',
+      ageYears: 9,
+      ageMonths: 3,
+      consentConfirmed: true,
+      consentDate: '2026-10-28',
+      createdAt: '2026-10-28',
     );
     final json = student.toJson();
-    for (final forbidden in ['name', 'birthDate', 'dob', 'medicalDiagnosis', 'diagnosis']) {
+    for (final forbidden in [
+      'name',
+      'birthDate',
+      'dob',
+      'medicalDiagnosis',
+      'diagnosis',
+    ]) {
       expect(json.containsKey(forbidden), isFalse);
     }
   });

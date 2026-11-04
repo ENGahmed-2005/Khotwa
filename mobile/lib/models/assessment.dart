@@ -1,6 +1,14 @@
 enum AssessmentStatus { draft, completed, approved }
+
 enum ItemExecution { notDone, performed, unable }
-enum ItemJudgment { independentCorrect, supportedCorrect, incorrect, notScorable }
+
+enum ItemJudgment {
+  independentCorrect,
+  supportedCorrect,
+  incorrect,
+  notScorable,
+}
+
 enum SupportLevel { independent, verbal, partial, full }
 
 class AssessmentItemResult {
@@ -26,22 +34,24 @@ class AssessmentItemResult {
   final int? wordsRead;
   final int? selfCorrections;
 
-  bool get isScorable => execution == ItemExecution.performed &&
-      judgment != null && judgment != ItemJudgment.notScorable;
+  bool get isScorable =>
+      execution == ItemExecution.performed &&
+      judgment != null &&
+      judgment != ItemJudgment.notScorable;
   bool get isIndependentCorrect =>
       isScorable && judgment == ItemJudgment.independentCorrect;
 
   Map<String, dynamic> toJson() => {
-        'execution': execution.name,
-        'judgment': judgment?.name,
-        'support': support.name,
-        'response': response,
-        'observation': observation,
-        'readingSeconds': readingSeconds,
-        'readingErrors': readingErrors,
-        'wordsRead': wordsRead,
-        'selfCorrections': selfCorrections,
-      };
+    'execution': execution.name,
+    'judgment': judgment?.name,
+    'support': support.name,
+    'response': response,
+    'observation': observation,
+    'readingSeconds': readingSeconds,
+    'readingErrors': readingErrors,
+    'wordsRead': wordsRead,
+    'selfCorrections': selfCorrections,
+  };
 
   factory AssessmentItemResult.fromJson(Map<String, dynamic> json) =>
       AssessmentItemResult(
@@ -95,34 +105,34 @@ class AssessmentRecord {
     AssessmentStatus? status,
     String? approvedAt,
   }) => AssessmentRecord(
-        id: id,
-        studentId: studentId,
-        ageGroup: ageGroup,
-        templateVersion: templateVersion,
-        createdAt: createdAt,
-        ageOverrideReason: ageOverrideReason,
-        results: results ?? this.results,
-        strengths: strengths ?? this.strengths,
-        needs: needs ?? this.needs,
-        status: status ?? this.status,
-        approvedAt: approvedAt ?? this.approvedAt,
-        privacyReviewed: privacyReviewed,
-      );
+    id: id,
+    studentId: studentId,
+    ageGroup: ageGroup,
+    templateVersion: templateVersion,
+    createdAt: createdAt,
+    ageOverrideReason: ageOverrideReason,
+    results: results ?? this.results,
+    strengths: strengths ?? this.strengths,
+    needs: needs ?? this.needs,
+    status: status ?? this.status,
+    approvedAt: approvedAt ?? this.approvedAt,
+    privacyReviewed: privacyReviewed,
+  );
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'studentId': studentId,
-        'ageGroup': ageGroup,
-        'templateVersion': templateVersion,
-        'createdAt': createdAt,
-        'status': status.name,
-        'ageOverrideReason': ageOverrideReason,
-        'results': results.map((key, value) => MapEntry(key, value.toJson())),
-        'strengths': strengths,
-        'needs': needs,
-        'approvedAt': approvedAt,
-        'privacyReviewed': privacyReviewed,
-      };
+    'id': id,
+    'studentId': studentId,
+    'ageGroup': ageGroup,
+    'templateVersion': templateVersion,
+    'createdAt': createdAt,
+    'status': status.name,
+    'ageOverrideReason': ageOverrideReason,
+    'results': results.map((key, value) => MapEntry(key, value.toJson())),
+    'strengths': strengths,
+    'needs': needs,
+    'approvedAt': approvedAt,
+    'privacyReviewed': privacyReviewed,
+  };
 
   factory AssessmentRecord.fromJson(Map<String, dynamic> data) {
     final raw = (data['results'] as Map<String, dynamic>?) ?? {};
@@ -134,8 +144,14 @@ class AssessmentRecord {
       createdAt: data['createdAt'] as String,
       status: AssessmentStatus.values.byName(data['status'] as String),
       ageOverrideReason: (data['ageOverrideReason'] as String?) ?? '',
-      results: raw.map((key, value) => MapEntry(
-          key, AssessmentItemResult.fromJson(Map<String, dynamic>.from(value as Map)))),
+      results: raw.map(
+        (key, value) => MapEntry(
+          key,
+          AssessmentItemResult.fromJson(
+            Map<String, dynamic>.from(value as Map),
+          ),
+        ),
+      ),
       strengths: (data['strengths'] as String?) ?? '',
       needs: (data['needs'] as String?) ?? '',
       approvedAt: data['approvedAt'] as String?,
@@ -145,7 +161,10 @@ class AssessmentRecord {
 }
 
 class AssessmentScore {
-  const AssessmentScore({required this.independentCorrect, required this.scorable});
+  const AssessmentScore({
+    required this.independentCorrect,
+    required this.scorable,
+  });
   final int independentCorrect;
   final int scorable;
   String get label => '$independentCorrect من $scorable';
@@ -155,7 +174,9 @@ class AssessmentScore {
   static AssessmentScore fromResults(Iterable<AssessmentItemResult> items) {
     final scorable = items.where((item) => item.isScorable).toList();
     return AssessmentScore(
-      independentCorrect: scorable.where((item) => item.isIndependentCorrect).length,
+      independentCorrect: scorable
+          .where((item) => item.isIndependentCorrect)
+          .length,
       scorable: scorable.length,
     );
   }
