@@ -43,6 +43,7 @@ class ApiClient {
     String path, {
     String? token,
     Map<String, dynamic>? data,
+    Duration timeout = const Duration(seconds: 20),
   }) async {
     try {
       final request = http.Request(method, base.resolve(path));
@@ -55,8 +56,8 @@ class ApiClient {
         request.body = jsonEncode(data);
       }
       final response = await http.Response.fromStream(
-        await _client.send(request).timeout(const Duration(seconds: 20)),
-      ).timeout(const Duration(seconds: 20));
+        await _client.send(request).timeout(timeout),
+      ).timeout(timeout);
       Map<String, dynamic> body = {};
       if (response.body.isNotEmpty) {
         try {
