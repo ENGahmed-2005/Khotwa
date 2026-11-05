@@ -12,6 +12,64 @@ import 'app_state_test.dart' show FakeStore;
 import 'encrypted_store_test.dart' show MemorySecrets;
 
 void main() {
+  test('account deletion clears its records and plan cache only after server success', () async {
+    final stores = <String, FakeStore>{};
+    var deleteAllowed = false;
+    final auth = AuthState(
+      api: ApiClient(
+        baseUrl: 'https://example.test',
+        client: MockClient((request) async {
+          if (request.method == 'DELETE') {
+            return http.Response(
+              deleteAllowed ? '' : '{"error":{"code":"invalid_credentials"}}',
+              deleteAllowed ? 204 : 401,
+            );
+          }
+          return http.Response(
+            jsonEncode({
+              'token': 'synthetic-token',
+              'expiresAt': '2099-01-01T00:00:00Z',
+              'user': {
+                'id': 'owner-a',
+                'email': 'a@example.test',
+                'role': 'specialist',
+              },
+            }),
+            200,
+          );
+        }),
+      ),
+      secrets: MemorySecrets(),
+      storeForOwner: (id) async => stores.putIfAbsent(id, FakeStore.new),
+    );
+    await auth.authenticate(
+      email: 'a@example.test',
+      password: 'SyntheticPass123!',
+      register: false,
+    );
+    await auth.records!.createStudent(
+      grade: 'الثاني الأساسي',
+      ageYears: 7,
+      ageMonths: 0,
+      consentConfirmed: true,
+    );
+    final plans = await auth.storeForOwner('owner-a-plan-inputs');
+    await plans.write('{"syntheticPlan":"draft"}');
+    final otherPlans = await auth.storeForOwner('owner-b-plan-inputs');
+    await otherPlans.write('{"syntheticPlan":"other-owner"}');
+    await expectLater(
+      auth.deleteAccount('wrong-password'),
+      throwsA(isA<ApiException>()),
+    );
+    expect(await plans.read(), isNotNull);
+    expect(auth.signedIn, isTrue);
+    deleteAllowed = true;
+    await auth.deleteAccount('SyntheticPass123!');
+    expect(await stores['owner-a']!.read(), isNull);
+    expect(await plans.read(), isNull);
+    expect(await otherPlans.read(), isNotNull);
+    expect(auth.signedIn, isFalse);
+  });
   test(
     'unsafe production URLs and redirect credentials are not allowed',
     () async {

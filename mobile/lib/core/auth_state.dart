@@ -149,6 +149,8 @@ class AuthState extends ChangeNotifier {
       data: {'password': password, 'confirmed': true},
     );
     await records!.deleteLocalAfterAccountDeletion();
+    final planInputs = await storeForOwner('$ownerId-plan-inputs');
+    await planInputs.clear();
     await lock();
   }
 }

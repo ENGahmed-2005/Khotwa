@@ -4,7 +4,7 @@ No educational/legal/hosting decision is silently resolved by implementation.
 
 - Institution-approved plan layout and exact report headers: needs specialist sample/approval.
 - Consent wording/evidence, data country/provider processing location, retention/deletion and backup policy: needs institution/project-owner approval before real data or production.
-- AI provider/model, cost budget and no-training/data-processing terms: not selected or enabled.
+- User selected Gemini `gemini-flash-latest` and authorized their server-side key for synthetic development. Gateway integration is in progress. Cost budget and data-processing location/terms remain unresolved for real student data; this authorization does not approve production processing.
 - Objective mastery/stagnation thresholds and extended writing rubric: not standardized or inferred; raw descriptive performance only.
 - Supported minimum Android/iOS versions and field device matrix: technical provisional setup is not acceptance.
 - Publishing accounts, signing and TestFlight: not configured.
