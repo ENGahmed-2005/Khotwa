@@ -177,9 +177,9 @@ void main() {
       ['1d1', '1d2', '1d3', '1d4'],
     );
     expect(
-      tasksForAge('6-8')
-          .where((t) => t.id.startsWith('1d'))
-          .every((t) => t.isObjective),
+      tasksForAge(
+        '6-8',
+      ).where((t) => t.id.startsWith('1d')).every((t) => t.isObjective),
       isTrue,
     );
   });
@@ -300,36 +300,39 @@ void main() {
       );
     },
   );
-  test('out of range age is not forced into a card; override requires reason and privacy', () async {
-    final state = stateFor(FakeStore());
-    final s = await addStudent(state, age: 5);
-    await expectLater(
-      state.createAssessment(studentId: s.id, privacyReviewed: true),
-      throwsStateError,
-    );
-    final seven = await addStudent(state);
-    await expectLater(
-      state.createAssessment(
-        studentId: seven.id,
-        overrideGroup: '9-12',
-        privacyReviewed: true,
-      ),
-      throwsStateError,
-    );
-    await expectLater(
-      state.createAssessment(studentId: seven.id, privacyReviewed: false),
-      throwsStateError,
-    );
-    expect(
-      (await state.createAssessment(
-        studentId: seven.id,
-        overrideGroup: '9-12',
-        overrideReason: 'مبرر تجريبي',
-        privacyReviewed: true,
-      )).ageGroup,
-      '9-12',
-    );
-  });
+  test(
+    'out of range age is not forced into a card; override requires reason and privacy',
+    () async {
+      final state = stateFor(FakeStore());
+      final s = await addStudent(state, age: 5);
+      await expectLater(
+        state.createAssessment(studentId: s.id, privacyReviewed: true),
+        throwsStateError,
+      );
+      final seven = await addStudent(state);
+      await expectLater(
+        state.createAssessment(
+          studentId: seven.id,
+          overrideGroup: '9-12',
+          privacyReviewed: true,
+        ),
+        throwsStateError,
+      );
+      await expectLater(
+        state.createAssessment(studentId: seven.id, privacyReviewed: false),
+        throwsStateError,
+      );
+      expect(
+        (await state.createAssessment(
+          studentId: seven.id,
+          overrideGroup: '9-12',
+          overrideReason: 'مبرر تجريبي',
+          privacyReviewed: true,
+        )).ageGroup,
+        '9-12',
+      );
+    },
+  );
   test('offline save survives restart and resumes synchronization', () async {
     final store = FakeStore();
     final state = stateFor(store);
@@ -359,44 +362,47 @@ void main() {
       expect(server.applications, 1);
     },
   );
-  test('two devices conflict preserves local variant and explicit resolution archives both', () async {
-    final first = stateFor(FakeStore());
-    final second = stateFor(FakeStore(), device: 'device-b');
-    final server = SyncServer();
-    final student = await addStudent(first);
-    final assessment = await first.createAssessment(
-      studentId: student.id,
-      privacyReviewed: true,
-    );
-    await first.sync(server.api, 'token');
-    await second.sync(server.api, 'token');
-    await first.saveResult(
-      assessmentId: assessment.id,
-      itemId: '1a',
-      result: const AssessmentItemResult(observation: 'نسخة أولى'),
-    );
-    await second.saveResult(
-      assessmentId: assessment.id,
-      itemId: '1a',
-      result: const AssessmentItemResult(observation: 'نسخة ثانية'),
-    );
-    await first.sync(server.api, 'token');
-    await second.sync(server.api, 'token');
-    expect(second.conflicts, contains(assessment.id));
-    expect(
-      second.assessmentById(assessment.id).results['1a']!.observation,
-      'نسخة ثانية',
-    );
-    await second.resolveConflict(assessment.id, keepLocal: true);
-    await second.sync(server.api, 'token');
-    expect(second.conflicts, isEmpty);
-    expect(second.pendingCount, 0);
-    expect(
-      (server.records[assessment.id]!['data']
-          as Map)['results']['1a']['observation'],
-      'نسخة ثانية',
-    );
-  });
+  test(
+    'two devices conflict preserves local variant and explicit resolution archives both',
+    () async {
+      final first = stateFor(FakeStore());
+      final second = stateFor(FakeStore(), device: 'device-b');
+      final server = SyncServer();
+      final student = await addStudent(first);
+      final assessment = await first.createAssessment(
+        studentId: student.id,
+        privacyReviewed: true,
+      );
+      await first.sync(server.api, 'token');
+      await second.sync(server.api, 'token');
+      await first.saveResult(
+        assessmentId: assessment.id,
+        itemId: '1a',
+        result: const AssessmentItemResult(observation: 'نسخة أولى'),
+      );
+      await second.saveResult(
+        assessmentId: assessment.id,
+        itemId: '1a',
+        result: const AssessmentItemResult(observation: 'نسخة ثانية'),
+      );
+      await first.sync(server.api, 'token');
+      await second.sync(server.api, 'token');
+      expect(second.conflicts, contains(assessment.id));
+      expect(
+        second.assessmentById(assessment.id).results['1a']!.observation,
+        'نسخة ثانية',
+      );
+      await second.resolveConflict(assessment.id, keepLocal: true);
+      await second.sync(server.api, 'token');
+      expect(second.conflicts, isEmpty);
+      expect(second.pendingCount, 0);
+      expect(
+        (server.records[assessment.id]!['data']
+            as Map)['results']['1a']['observation'],
+        'نسخة ثانية',
+      );
+    },
+  );
   test(
     'remote tombstone is retained; missing snapshots do not imply deletion',
     () async {

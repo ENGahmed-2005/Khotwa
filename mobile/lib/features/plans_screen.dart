@@ -121,7 +121,9 @@ class _PlansScreenState extends State<PlansScreen> {
     } catch (error) {
       if (mounted) {
         setState(() {
-          _error = _storageReady ? planErrorMessage(error) : 'تعذّر فتح مسودة المدخلات بأمان. احتُفظ بالتخزين دون تغيير؛ التوليد مقفل.';
+          _error = _storageReady
+              ? planErrorMessage(error)
+              : 'تعذّر فتح مسودة المدخلات بأمان. احتُفظ بالتخزين دون تغيير؛ التوليد مقفل.';
           _busy = false;
         });
       }
@@ -167,7 +169,8 @@ class _PlansScreenState extends State<PlansScreen> {
       _persist().catchError((Object error) {
         if (mounted) {
           setState(
-            () => _error = 'لم تُحفظ آخر تغييرات المدخلات محليًا. أعيدي المحاولة قبل المغادرة.',
+            () => _error =
+                'لم تُحفظ آخر تغييرات المدخلات محليًا. أعيدي المحاولة قبل المغادرة.',
           );
         }
       }),

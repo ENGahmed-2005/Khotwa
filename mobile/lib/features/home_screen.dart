@@ -204,8 +204,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       ),
       Text(
         'ولكل خطوة أثر في التقدم',
-        style: Theme.of(context).textTheme.titleLarge
-            ?.copyWith(color: Theme.of(context).colorScheme.primary),
+        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+          color: Theme.of(context).colorScheme.primary,
+        ),
       ),
       const SizedBox(height: 18),
       const PrototypeNote(),

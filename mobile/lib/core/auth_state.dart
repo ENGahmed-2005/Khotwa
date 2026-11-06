@@ -29,8 +29,9 @@ class AuthState extends ChangeNotifier {
       final value = await secrets.read(_sessionKey);
       if (value != null) {
         final session = jsonDecode(value) as Map<String, dynamic>;
-        if (DateTime.parse(session['expiresAt'] as String)
-            .isAfter(DateTime.now())) {
+        if (DateTime.parse(
+          session['expiresAt'] as String,
+        ).isAfter(DateTime.now())) {
           await _open(session);
         } else {
           await secrets.delete(_sessionKey);

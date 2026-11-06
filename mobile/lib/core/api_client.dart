@@ -61,9 +61,9 @@ class ApiClient {
       Map<String, dynamic> body = {};
       if (response.body.isNotEmpty) {
         try {
-          body = jsonDecode(
-            utf8.decode(response.bodyBytes),
-          ) as Map<String, dynamic>;
+          body =
+              jsonDecode(utf8.decode(response.bodyBytes))
+                  as Map<String, dynamic>;
         } catch (_) {
           throw const ApiException(
             'invalid_response',

@@ -31,30 +31,33 @@ void main() {
     expect(recommendedAgeGroup(build(13, 0)), isNull);
   });
 
-  test('unperformed, unavailable and descriptive tasks are excluded from denominator', () {
-    const items = [
-      AssessmentItemResult(
-        execution: ItemExecution.performed,
-        judgment: ItemJudgment.independentCorrect,
-      ),
-      AssessmentItemResult(
-        execution: ItemExecution.performed,
-        judgment: ItemJudgment.supportedCorrect,
-      ),
-      AssessmentItemResult(
-        execution: ItemExecution.notDone,
-        judgment: ItemJudgment.incorrect,
-      ),
-      AssessmentItemResult(execution: ItemExecution.unable),
-      AssessmentItemResult(
-        execution: ItemExecution.performed,
-        judgment: ItemJudgment.notScorable,
-      ),
-    ];
-    final score = AssessmentScore.fromResults(items);
-    expect(score.independentCorrect, 1);
-    expect(score.scorable, 2);
-  });
+  test(
+    'unperformed, unavailable and descriptive tasks are excluded from denominator',
+    () {
+      const items = [
+        AssessmentItemResult(
+          execution: ItemExecution.performed,
+          judgment: ItemJudgment.independentCorrect,
+        ),
+        AssessmentItemResult(
+          execution: ItemExecution.performed,
+          judgment: ItemJudgment.supportedCorrect,
+        ),
+        AssessmentItemResult(
+          execution: ItemExecution.notDone,
+          judgment: ItemJudgment.incorrect,
+        ),
+        AssessmentItemResult(execution: ItemExecution.unable),
+        AssessmentItemResult(
+          execution: ItemExecution.performed,
+          judgment: ItemJudgment.notScorable,
+        ),
+      ];
+      final score = AssessmentScore.fromResults(items);
+      expect(score.independentCorrect, 1);
+      expect(score.scorable, 2);
+    },
+  );
 
   test('student JSON does not store identity or diagnostic fields', () {
     const student = StudentRecord(

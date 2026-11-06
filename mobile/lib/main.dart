@@ -49,6 +49,7 @@ class KhotwaApp extends StatelessWidget {
         GlobalCupertinoLocalizations.delegate,
       ],
       theme: ThemeData(
+        fontFamily: 'NotoSansArabic',
         useMaterial3: true,
         scaffoldBackgroundColor: const Color(0xFFF6FAFB),
         colorScheme: ColorScheme.fromSeed(

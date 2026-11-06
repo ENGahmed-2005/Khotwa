@@ -95,8 +95,9 @@ void main() {
     () async {
       final first = store('owner-a');
       await first.write('durable');
-      await File('${first.file.path}.pending')
-          .writeAsString('partial interrupted write');
+      await File(
+        '${first.file.path}.pending',
+      ).writeAsString('partial interrupted write');
       expect(await store('owner-a').read(), 'durable');
     },
   );

@@ -176,7 +176,9 @@ class _PasswordResetScreenState extends State<PasswordResetScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              confirm ? 'تم تحديث كلمة المرور؛ سجّل الدخول مجددًا.' : 'إذا كان البريد مسجلًا فستصلك تعليمات الاستعادة عند تفعيل خدمة البريد.',
+              confirm
+                  ? 'تم تحديث كلمة المرور؛ سجّل الدخول مجددًا.'
+                  : 'إذا كان البريد مسجلًا فستصلك تعليمات الاستعادة عند تفعيل خدمة البريد.',
             ),
           ),
         );

@@ -287,7 +287,10 @@ class AppState extends ChangeNotifier {
     if (result.response.length > 160 || result.observation.length > 500) {
       throw StateError('النص أطول من الحد المسموح.');
     }
-    final next = a.copyWith(results: {...a.results, itemId: result}, status: AssessmentStatus.draft);
+    final next = a.copyWith(
+      results: {...a.results, itemId: result},
+      status: AssessmentStatus.draft,
+    );
     await _put('assessment', a.id, next.toJson(), parentId: a.studentId);
   });
   Future<void> saveSummary({
@@ -304,8 +307,9 @@ class AppState extends ChangeNotifier {
     if (strengths.length > 350 || needs.length > 350) {
       throw StateError('النص أطول من الحد المسموح.');
     }
-    final allVisited = tasksForAge(a.ageGroup)
-        .every((t) => a.results.containsKey(t.id));
+    final allVisited = tasksForAge(
+      a.ageGroup,
+    ).every((t) => a.results.containsKey(t.id));
     final performed = a.results.values.where(
       (r) => r.execution == ItemExecution.performed,
     );
@@ -468,54 +472,56 @@ class AppState extends ChangeNotifier {
       notifyListeners();
     }
   });
-  Future<void> resolveConflict(String id, {required bool keepLocal}) =>
-      _serial(() async {
-        final conflict = _conflicts[id];
-        if (conflict == null) {
-          return;
-        }
-        final server = SyncRecord.fromJson(
-          Map<String, dynamic>.from(conflict['server'] as Map),
-        );
-        final local = _records[id]!;
-        if (keepLocal &&
-            (server.deletedAt != null || server.data['status'] == 'approved')) {
-          throw StateError(
-            'لا يمكن الكتابة فوق حذف أو اعتماد. احتفظ بالنسخة المؤرشفة وأنشئ سجلًا جديدًا.',
-          );
-        }
-        final outbox = _outbox.where((o) => o['entityId'] != id).toList();
-        final conflicts = {..._conflicts}..remove(id);
-        if (keepLocal) {
-          outbox.add(_operation(local, server.revision));
-        }
-        await _commit(
-          records: {
-            ..._records,
-            id: keepLocal
-                ? SyncRecord(
-                    id: id,
-                    kind: local.kind,
-                    parentId: local.parentId,
-                    data: local.data,
-                    revision: server.revision,
-                    createdAt: local.createdAt,
-                    updatedAt: _now,
-                  )
-                : server,
-          },
-          outbox: outbox,
-          conflicts: conflicts,
-          history: [
-            ..._history,
-            {
-              ...conflict,
-              'resolution': keepLocal ? 'local' : 'server',
-              'resolvedAt': _now,
-            },
-          ],
-        );
-      });
+  Future<void> resolveConflict(
+    String id, {
+    required bool keepLocal,
+  }) => _serial(() async {
+    final conflict = _conflicts[id];
+    if (conflict == null) {
+      return;
+    }
+    final server = SyncRecord.fromJson(
+      Map<String, dynamic>.from(conflict['server'] as Map),
+    );
+    final local = _records[id]!;
+    if (keepLocal &&
+        (server.deletedAt != null || server.data['status'] == 'approved')) {
+      throw StateError(
+        'لا يمكن الكتابة فوق حذف أو اعتماد. احتفظ بالنسخة المؤرشفة وأنشئ سجلًا جديدًا.',
+      );
+    }
+    final outbox = _outbox.where((o) => o['entityId'] != id).toList();
+    final conflicts = {..._conflicts}..remove(id);
+    if (keepLocal) {
+      outbox.add(_operation(local, server.revision));
+    }
+    await _commit(
+      records: {
+        ..._records,
+        id: keepLocal
+            ? SyncRecord(
+                id: id,
+                kind: local.kind,
+                parentId: local.parentId,
+                data: local.data,
+                revision: server.revision,
+                createdAt: local.createdAt,
+                updatedAt: _now,
+              )
+            : server,
+      },
+      outbox: outbox,
+      conflicts: conflicts,
+      history: [
+        ..._history,
+        {
+          ...conflict,
+          'resolution': keepLocal ? 'local' : 'server',
+          'resolvedAt': _now,
+        },
+      ],
+    );
+  });
   Future<void> deleteLocalAfterAccountDeletion() => _serial(() async {
     await _store.clear();
     _records = {};

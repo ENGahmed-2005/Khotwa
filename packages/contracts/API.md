@@ -32,7 +32,22 @@ parentId=studentId. Original template/age group frozen after creation. Approval 
 Template 1.1 fixes original imported 1.0 grouped words: 1d1,1d2,1d3,1d4 separate objective items; remaining IDs 1a,1b,1c,2a,2b,3a,3b,3c,3d,4a,4b,4c,4d,5a,5b,6a,6b,6c,6d. V1.0 legacy snapshots must be preserved, not silently upgraded.
 
 ### initialAssessment (next slice, schema details require integrator coordination)
-Reserved, not accepted until a validated schema exists. Same for plan/session. No generic pass-through JSON writes.
+Reserved, not accepted until a validated schema exists. Sessions are also reserved. Plans are written by dedicated reviewed routes below; generic sync writes cannot supply a plan or approval. No pass-through JSON writes.
+
+## Reviewed AI plan routes (synthetic development)
+
+These authenticated routes require the `specialist` role. Server flags `AI_ENABLED=true` and `AI_SYNTHETIC_ONLY=true` plus a server-only Gemini key enable synthetic development. User authorization to test Gemini does not approve real-data processing. Only an approved, owned academic assessment is currently accepted; free alternative assessment remains pending.
+
+- `GET /v1/ai/skills?assessmentId=UUID` returns `{skills:[{skillId,label,evidence:'approvedAcademicAssessment'}]}` derived from performed items in the approved assessment. It does not convert test performance into normative thresholds.
+- `POST /v1/ai/preview` accepts `{studentId,assessmentId,skills:[{skillId,level:'mastered'|'developing'|'needsSupport',evidence:'approvedAcademicAssessment'}],durationWeeks,sessionsPerWeek,availableTools:['board'|'pencils'|'cards'|'paper'|'colors'],syntheticDataConfirmed:true}`. It validates consent, reviewed strengths/needs, at least one performed item and one selected development need. Returns `{payload,hash,previewToken,expiresAt}`. Payload contains only controlled skills/levels, schedule and tool identifiers. No student/account ID, code, demographics, assessment answers, observations or free text goes to Gemini.
+- `POST /v1/ai/generate` accepts `{previewToken,confirmed:true,confirmedHash,syntheticDataConfirmed:true,operationId:UUID}`. Signed preview binds owner/source revisions/hash and expires after ten minutes for new work. Source is checked before and after provider response. Returns `{record:Envelope}` with `kind:'plan'`, student parent and `data.status:'draft'`. Model response cannot approve a plan. Output schema, skills/schedule/tools, prohibited content, unprovided numeric baseline and follow-up date are checked server-side.
+- `POST /v1/plans/:id/approve` accepts `{revision:positiveInteger,confirmed:true}`. Only the authenticated owning specialist can approve the reviewed revision; server records actor/time and history. Returns `{record:Envelope}`. Repeating or approving a stale revision fails instead of silently accepting it.
+
+Generation operation receipts share owner-scoped encrypted persistence and prevent a second provider call for the same operation. A completed receipt can be recovered after preview expiry; deleted plans cannot be recovered through old receipts. Changed request under the same operation ID fails. A known failed operation returns `AI_PREVIOUS_FAILED`; create a fresh preview and explicitly confirm a new operation. Provider failures never produce fallback plans. A process crash while pending currently needs operator review: no automatic lease/recovery worker is implemented, so this remains an acceptance gap.
+
+`GET /v1/records?kind=plan` and sync pull expose only the caller's plan records. Plan content includes needs/strengths summaries, general goal, descriptive performance level, tools, measurement tools, duration/frequency, goals with behavior/condition/criterion/timeframe, strategies/recommendations and proposed follow-up. Four mastery criterion variants are validated (percentage, trials, consistency, independence). Full plan editing/customized templates and additional version routes remain pending.
+
+Native plan inputs, signed preview, operation ID and cached plans use the same AES-GCM store factory with owner namespace `<ownerId>-plan-inputs`. Account deletion clears both record and plan stores after successful server deletion. Consent to send is never restored automatically from disk. Browser preview uses temporary memory only.
 
 ## Error responses
 `{error:{code,message}}` with safe Arabic-facing messages. 400 invalid, 401 unauthenticated, 404 missing/unowned, 409 duplicate/conflict, 429 throttled, 503 dependency unavailable. No stack, password, token, input payload or student text in logs.

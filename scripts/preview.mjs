@@ -29,7 +29,16 @@ const server = createServer((req, res) => {
   try { path = resolve(root, '.' + decodeURIComponent(pathname)); }
   catch { res.writeHead(400); res.end(); return; }
   if (path !== root && !path.startsWith(root + sep)) { res.writeHead(403); res.end(); return; }
-  if (!existsSync(path) || !statSync(path).isFile()) path = resolve(root, 'index.html');
+  if (!existsSync(path) || !statSync(path).isFile()) {
+    // Only navigation requests receive the SPA entrypoint. A missing asset must
+    // remain a 404 so the renderer does not try to parse HTML as JSON or WASM.
+    if (extname(path) || pathname.startsWith('/assets/') || pathname.startsWith('/canvaskit/')) {
+      res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' });
+      res.end('Preview asset not found');
+      return;
+    }
+    path = resolve(root, 'index.html');
+  }
   res.writeHead(200, { 'content-type': types[extname(path)] ?? 'application/octet-stream', 'cache-control': 'no-store', 'x-content-type-options': 'nosniff' });
   if (req.method === 'HEAD') res.end(); else createReadStream(path).pipe(res);
 });

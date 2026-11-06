@@ -243,8 +243,9 @@ class StudentDetailScreen extends StatelessWidget {
                   children: [
                     Text(
                       'رمز الملف: ${student.code}',
-                      style: Theme.of(context).textTheme.titleLarge
-                          ?.copyWith(fontWeight: FontWeight.bold),
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     const SizedBox(height: 8),
                     Text('الصف: ${student.grade} · العمر: ${student.ageLabel}'),

@@ -159,8 +159,9 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
   Widget build(BuildContext context) {
     final tasks = _tasks;
     final task = _task;
-    final card = cardsForAge(_assessment.ageGroup)
-        .firstWhere((card) => card.number == task.cardNumber);
+    final card = cardsForAge(
+      _assessment.ageGroup,
+    ).firstWhere((card) => card.number == task.cardNumber);
     return Scaffold(
       appBar: AppBar(
         title: Text('التقييم · ${_index + 1} / ${tasks.length}'),
@@ -202,8 +203,9 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
                 children: [
                   Text(
                     task.title,
-                    style: Theme.of(context).textTheme.titleLarge
-                        ?.copyWith(fontWeight: FontWeight.bold),
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   const SizedBox(height: 14),
                   SelectableText(
@@ -674,8 +676,9 @@ class _AssessmentSummaryScreenState extends State<AssessmentSummaryScreen> {
           children: [
             Text(
               domain,
-              style: Theme.of(context).textTheme.titleMedium
-                  ?.copyWith(fontWeight: FontWeight.bold),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 4),
             Text(

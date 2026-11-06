@@ -62,36 +62,39 @@ PlanPreview syntheticPreview({bool expired = false}) => PlanPreview(
 );
 
 void main() {
-  test('preview requires synthetic confirmation and an assessed development need before transport', () async {
-    var requests = 0;
-    final plans = PlanApi(
-      api: ApiClient(
-        baseUrl: 'https://example.test',
-        client: MockClient((_) async {
-          requests++;
-          return http.Response('{}', 200);
-        }),
-      ),
-      tokenForRequest: () => 'synthetic-token',
-    );
-    for (final confirmed in [false, true]) {
-      await expectLater(
-        plans.preview(
-          studentId: 'student',
-          assessmentId: 'assessment',
-          skills: [
-            {'skillId': 'reading.letters', 'level': 'mastered'},
-          ],
-          durationWeeks: 6,
-          sessionsPerWeek: 2,
-          availableTools: ['cards'],
-          syntheticDataConfirmed: confirmed,
+  test(
+    'preview requires synthetic confirmation and an assessed development need before transport',
+    () async {
+      var requests = 0;
+      final plans = PlanApi(
+        api: ApiClient(
+          baseUrl: 'https://example.test',
+          client: MockClient((_) async {
+            requests++;
+            return http.Response('{}', 200);
+          }),
         ),
-        throwsA(isA<ApiException>()),
+        tokenForRequest: () => 'synthetic-token',
       );
-    }
-    expect(requests, 0);
-  });
+      for (final confirmed in [false, true]) {
+        await expectLater(
+          plans.preview(
+            studentId: 'student',
+            assessmentId: 'assessment',
+            skills: [
+              {'skillId': 'reading.letters', 'level': 'mastered'},
+            ],
+            durationWeeks: 6,
+            sessionsPerWeek: 2,
+            availableTools: ['cards'],
+            syntheticDataConfirmed: confirmed,
+          ),
+          throwsA(isA<ApiException>()),
+        );
+      }
+      expect(requests, 0);
+    },
+  );
 
   test('no generation request without both explicit confirmations', () async {
     var requests = 0;
