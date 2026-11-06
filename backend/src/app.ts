@@ -8,6 +8,7 @@ import { PayloadCipher } from './crypto.js';
 import { ApiError } from './errors.js';
 import { RecordStore } from './records.js';
 import { pushSchema, recordKind, uuid } from './schemas.js';
+import { registerAiRoutes, type AiConfig } from './ai/routes.js';
 
 export interface ApplicationServices {
   auth: AuthService;
@@ -21,6 +22,7 @@ export interface AppOptions {
   clock?: Clock;
   authRateLimit?: number;
   globalRateLimit?: number;
+  ai?: AiConfig;
   /** Additional routes share the same owner-scoped authentication and ciphertext helpers. */
   extend?: (app: FastifyInstance, services: ApplicationServices) => void | Promise<void>;
 }
@@ -79,6 +81,7 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
     z.strictObject({}).parse(request.query);
     return { records: await records.list(user.id, undefined, true), fullSnapshot: true };
   });
+  registerAiRoutes(app, { prisma: options.prisma, auth, records, storageKey: options.storageKey, clock: options.clock, config: options.ai });
   if (options.extend) await options.extend(app, { auth, records, authenticate: (request: FastifyRequest) => auth.requireUser(request) });
   return app;
 }
