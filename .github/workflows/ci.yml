@@ -91,7 +91,7 @@ jobs:
       - run: flutter test --coverage
       - name: Build Android debug APK
         if: matrix.platform == 'android'
-        run: flutter build apk --debug
+        run: flutter build apk --debug --dart-define=API_BASE_URL=http://127.0.0.1:3000
       - name: Build iOS without signing
         if: matrix.platform == 'ios'
         run: flutter build ios --debug --no-codesign
