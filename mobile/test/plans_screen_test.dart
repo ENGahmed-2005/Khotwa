@@ -108,6 +108,7 @@ void main() {
             return http.Response(
               jsonEncode({'record': syntheticPlan(approved: true)}),
               200,
+              headers: {'content-type': 'application/json; charset=utf-8'},
             );
           }
           return http.Response(
@@ -115,6 +116,7 @@ void main() {
               'records': [syntheticPlan()],
             }),
             200,
+            headers: {'content-type': 'application/json; charset=utf-8'},
           );
         }),
       );

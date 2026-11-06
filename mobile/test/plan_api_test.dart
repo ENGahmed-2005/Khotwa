@@ -140,7 +140,11 @@ void main() {
             if (bodies.length == 1) {
               throw Exception('network response lost');
             }
-            return http.Response(jsonEncode({'record': syntheticPlan()}), 200);
+            return http.Response(
+              jsonEncode({'record': syntheticPlan()}),
+              200,
+              headers: {'content-type': 'application/json; charset=utf-8'},
+            );
           }),
         ),
         tokenForRequest: () => 'synthetic-token',
@@ -179,8 +183,11 @@ void main() {
       api: ApiClient(
         baseUrl: 'https://example.test',
         client: MockClient(
-          (_) async =>
-              http.Response(jsonEncode({'record': syntheticPlan()}), 200),
+          (_) async => http.Response(
+            jsonEncode({'record': syntheticPlan()}),
+            200,
+            headers: {'content-type': 'application/json; charset=utf-8'},
+          ),
         ),
       ),
       tokenForRequest: () => 'synthetic-token',
@@ -211,6 +218,7 @@ void main() {
             return http.Response(
               jsonEncode({'record': syntheticPlan(approved: true)}),
               200,
+              headers: {'content-type': 'application/json; charset=utf-8'},
             );
           }),
         ),
@@ -246,6 +254,7 @@ void main() {
               ],
             }),
             200,
+            headers: {'content-type': 'application/json; charset=utf-8'},
           ),
         ),
       ),

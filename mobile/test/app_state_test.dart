@@ -60,6 +60,7 @@ class SyncServer {
             'fullSnapshot': true,
           }),
           200,
+          headers: {'content-type': 'application/json; charset=utf-8'},
         );
       }
       final operation = Map<String, dynamic>.from(
@@ -72,6 +73,7 @@ class SyncServer {
             'results': [receipts[operationId]],
           }),
           200,
+          headers: {'content-type': 'application/json; charset=utf-8'},
         );
       }
       final id = operation['entityId'] as String;
@@ -114,6 +116,7 @@ class SyncServer {
           'results': [result],
         }),
         200,
+        headers: {'content-type': 'application/json; charset=utf-8'},
       );
     }),
   );

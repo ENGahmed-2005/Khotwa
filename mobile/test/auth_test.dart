@@ -204,7 +204,14 @@ void main() {
         Directionality.of(tester.element(find.text('خطوة'))),
         TextDirection.rtl,
       );
-      expect(find.text('إنشاء حساب جديد'), findsOneWidget);
+      await tester.scrollUntilVisible(
+        find.text('إنشاء حساب جديد'),
+        150,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('إنشاء حساب جديد'));
+      await tester.pumpAndSettle();
+      expect(find.text('إنشاء حساب المختصة'), findsOneWidget);
     },
   );
 }

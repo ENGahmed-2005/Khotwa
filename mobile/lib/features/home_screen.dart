@@ -8,6 +8,7 @@ import '../core/auth_state.dart';
 import '../models/assessment.dart';
 import '../widgets/common.dart';
 import 'students_screen.dart';
+import 'plans_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key, required this.state, required this.auth});
@@ -227,11 +228,27 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           onTap: () => setState(() => _tab = 1),
         ),
       ),
+      Card(
+        child: ListTile(
+          leading: const Icon(Icons.auto_awesome_outlined),
+          title: const Text('الخطط العلاجية الذكية'),
+          subtitle: const Text(
+            'معاينة البيانات وتوليد مسودة ثم مراجعتها واعتمادها',
+          ),
+          trailing: const Icon(Icons.chevron_left),
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute<void>(
+              builder: (_) => PlansScreen(auth: widget.auth),
+            ),
+          ),
+        ),
+      ),
       const Card(
         child: Padding(
           padding: EdgeInsets.all(20),
           child: Text(
-            'الخطط الذكية والجلسات والتقارير والتقييم التربوي الحر قيد التطوير، وليست متاحة في هذا التسليم.',
+            'الجلسات والتقارير والتقييم التربوي الحر وتعديل إصدارات الخطط قيد التطوير.',
           ),
         ),
       ),
