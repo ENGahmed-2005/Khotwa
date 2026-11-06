@@ -6,43 +6,55 @@
       "id": "FR-01",
       "description": "إنشاء حساب مستخدم جديد بالبريد الإلكتروني وكلمة المرور.",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "backend/src/app.ts; backend/test/integration.test.ts; 70 backend tests PASS 2026-11-05; password-reset delivery and native deletion acceptance pending"
+      ]
     },
     {
       "id": "FR-02",
       "description": "تسجيل الدخول والخروج بشكل آمن.",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "backend/src/app.ts; backend/test/integration.test.ts; 70 backend tests PASS 2026-11-05; password-reset delivery and native deletion acceptance pending"
+      ]
     },
     {
       "id": "FR-03",
       "description": "استعادة الحساب وكلمة المرور.",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "backend/src/app.ts; backend/test/integration.test.ts; 70 backend tests PASS 2026-11-05; password-reset delivery and native deletion acceptance pending"
+      ]
     },
     {
       "id": "FR-04",
       "description": "عزل بيانات كل مستخدم بأمان تام، بحيث لا يصل أي مستخدم إلى بيانات مستخدم آخر إلا بمشاركة صريحة تمنحها مالكة الملف (المرحلة الثانية). [س49]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "backend/src/app.ts; backend/test/integration.test.ts; 70 backend tests PASS 2026-11-05; password-reset delivery and native deletion acceptance pending"
+      ]
     },
     {
       "id": "FR-05",
       "description": "إدارة الأدوار والصلاحيات وفق المصفوفة في القسم 2.1.4. [س48، س49]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "backend/src/app.ts; backend/test/integration.test.ts; 70 backend tests PASS 2026-11-05; password-reset delivery and native deletion acceptance pending"
+      ]
     },
     {
       "id": "FR-06",
       "description": "توفير خيار حذف الحساب والبيانات. [س50]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "backend/src/app.ts; backend/test/integration.test.ts; 70 backend tests PASS 2026-11-05; password-reset delivery and native deletion acceptance pending"
+      ]
     },
     {
       "id": "FR-07",
@@ -62,15 +74,19 @@
       "id": "FR-09",
       "description": "عرض شاشة البداية متضمنة اسم التطبيق وأيقونته والشعار «لكل طالب طريقته في التعلم، ولكل خطوة أثر في التقدم» وزر «ابدأ الآن».",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "mobile/lib/main.dart; mobile/lib/features/home_screen.dart; Arabic RTL source integrated; updated Flutter tests pending"
+      ]
     },
     {
       "id": "FR-10",
       "description": "توفير صفحة رئيسية تتيح الوصول إلى الخدمات الخمس الرئيسية.",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "mobile/lib/main.dart; mobile/lib/features/home_screen.dart; Arabic RTL source integrated; updated Flutter tests pending"
+      ]
     },
     {
       "id": "FR-11",
@@ -83,85 +99,109 @@
       "id": "FR-12",
       "description": "توفير شريط تنقل سفلي مرن (Bottom Nav).",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "mobile/lib/main.dart; mobile/lib/features/home_screen.dart; Arabic RTL source integrated; updated Flutter tests pending"
+      ]
     },
     {
       "id": "FR-13",
       "description": "دعم كامل للغة العربية والاتجاه من اليمين إلى اليسار (RTL).",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "mobile/lib/main.dart; mobile/lib/features/home_screen.dart; Arabic RTL source integrated; updated Flutter tests pending"
+      ]
     },
     {
       "id": "FR-14",
       "description": "اعتماد المصطلحات المدرسية الدارجة في الواجهة، مثل «مستوى الأداء» بدل «خط الأساس / خط البداية»، وتسميات الدعم «كلي – جزئي – لفظي – مستقل». [س31، س57]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "mobile/lib/main.dart; mobile/lib/features/home_screen.dart; Arabic RTL source integrated; updated Flutter tests pending"
+      ]
     },
     {
       "id": "FR-15",
       "description": "حفظ بيانات الطلبة والخطط والجلسات محلياً على الجهاز بتشفير، والسماح بإدخال ملف الطالب وتسجيل الجلسات واستعراض الخطط المعتمدة والرسوم البيانية دون اتصال. [س5]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "mobile/lib/core/app_state.dart; encrypted_file_store.dart; backend/src/records.ts; native device interruption tests pending"
+      ]
     },
     {
       "id": "FR-16",
       "description": "مزامنة تلقائية عند عودة الاتصال، وإظهار حالة المزامنة لكل سجل (تمت / بانتظار المزامنة). [س5]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "mobile/lib/core/app_state.dart; encrypted_file_store.dart; backend/src/records.ts; native device interruption tests pending"
+      ]
     },
     {
       "id": "FR-17",
       "description": "معالجة تعارض التعديلات عند المزامنة دون فقدان أي بيانات، مع تنبيه المستخدمة عند الحاجة. [س5]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "mobile/lib/core/app_state.dart; encrypted_file_store.dart; backend/src/records.ts; native device interruption tests pending"
+      ]
     },
     {
       "id": "FR-18",
       "description": "اشتراط الاتصال لتوليد الخطة والأنشطة فقط؛ وعند انقطاعه تُحفظ المدخلات ويُعرض خيار إعادة المحاولة دون فقدانها. [س5]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "mobile/lib/core/app_state.dart; encrypted_file_store.dart; backend/src/records.ts; native device interruption tests pending"
+      ]
     },
     {
       "id": "FR-19",
       "description": "إنشاء ملف طالب برمز مشفّر (كود) دون الاسم الحقيقي، وعدم تخزين الاسم في التطبيق إطلاقاً؛ ويُحفظ الربط بين الرمز والاسم خارج التطبيق لدى المختصة. [س18، س53]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "mobile/lib/features/students_screen.dart; backend/src/schemas.ts; student/consent core implemented; complete intake fields pending"
+      ]
     },
     {
       "id": "FR-20",
       "description": "إقرار الموافقة: قبل توليد أي خطة يؤكد المستخدم الحصول على موافقة ولي الأمر أو الإدارة وفق تعليمات مؤسسته، ويُسجَّل الإقرار وتاريخه في ملف الطالب. [س45، س46]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "mobile/lib/features/students_screen.dart; backend/src/schemas.ts; student/consent core implemented; complete intake fields pending"
+      ]
     },
     {
       "id": "FR-21",
       "description": "نموذج إدخال موجّه بخطوات تحاكي مسار عمل المختصة: ملاحظة الأداء داخل الصف، فالصعوبات، فمعلومات الأسرة والمعلمين، فالتقييم الأولي (ومن طرقه بطاقات التقييم الأكاديمي)، فنقاط القوة والاحتياج. [س7، ت]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "mobile/lib/features/students_screen.dart; backend/src/schemas.ts; student/consent core implemented; complete intake fields pending"
+      ]
     },
     {
       "id": "FR-22",
       "description": "إدخال البيانات الأساسية: الصف الدراسي، والعمر، والجنس، وسبب الإحالة. وتُعامل هذه البيانات شبه تعريفية، فتُستبعد من قوالب المكتبة ولا تُدرج في التقرير افتراضياً. [س12]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "mobile/lib/features/students_screen.dart; backend/src/schemas.ts; student/consent core implemented; complete intake fields pending"
+      ]
     },
     {
       "id": "FR-23",
       "description": "إدخال المدة المقترحة للخطة (عدد الأسابيع، والجلسات الأسبوعية، وزمن الجلسة)، بقيم افتراضية 6–8 أسابيع و2–3 جلسات أسبوعياً قابلة للتعديل بحسب المجال وصعوبة المهارة. [س22]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "mobile/lib/features/students_screen.dart; backend/src/schemas.ts; student/consent core implemented; complete intake fields pending"
+      ]
     },
     {
       "id": "FR-24",
@@ -244,64 +284,82 @@
       "id": "FR-35",
       "description": "عرض ملخص بالحقول التي ستُرسل إلى نموذج الذكاء الاصطناعي مع تذكير بعدم تضمين أسماء أو بيانات تعريفية، واشتراط تأكيد المستخدمة قبل الإرسال، وعرض تحذير ثابت قرب الحقول النصية الحرة. [س44]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "backend/src/planning/; mobile/lib/features/plans_screen.dart; 22 backend domain tests PASS; Gemini integration and full plan edit/version acceptance pending"
+      ]
     },
     {
       "id": "FR-36",
       "description": "توليد مسودة خطة علاجية عبر واجهة API من البيانات التربوية المجهّلة وحدها.",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "backend/src/planning/; mobile/lib/features/plans_screen.dart; 22 backend domain tests PASS; Gemini integration and full plan edit/version acceptance pending"
+      ]
     },
     {
       "id": "FR-37",
       "description": "تضمين الخطة المولّدة: ملخص الاحتياج التعليمي ونقاط القوة، والمهارات ذات الأولوية والهدف العام، ومستوى الأداء الأولي، والوسائل والأدوات التعليمية، وأدوات القياس ومعايير تحقق الأهداف (مكوّنات أساسية). [س19]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "backend/src/planning/; mobile/lib/features/plans_screen.dart; 22 backend domain tests PASS; Gemini integration and full plan edit/version acceptance pending"
+      ]
     },
     {
       "id": "FR-38",
       "description": "تضمين الخطة المولّدة كذلك: الأهداف الإجرائية، والأنشطة والاستراتيجيات المقترحة، والمدة وآلية تنفيذ الجلسات، وتوصيات المتابعة، وتاريخ المتابعة القادم. ويُمكن إخفاء المكوّنات غير الأساسية (الأنشطة، والمدة وآلية الجلسات، والتوصيات) في خطة بعينها، أما الأهداف فلازمة لارتباط الجلسات بها. [س19، س52]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "backend/src/planning/; mobile/lib/features/plans_screen.dart; 22 backend domain tests PASS; Gemini integration and full plan edit/version acceptance pending"
+      ]
     },
     {
       "id": "FR-39",
       "description": "صياغة كل هدف إجرائي من أربعة عناصر: سلوك قابل للملاحظة، وشرط الأداء، ومعيار الإتقان، والإطار الزمني. مثال: «أن يتعرف الطالب على حرف الباء من بين ثلاثة حروف معروضة أمامه بنسبة إتقان 80% خلال أسبوعين»، و«أن يكتب الطالب اسمه بشكل صحيح باستخدام القلم في 4 محاولات من أصل 5 خلال ثلاثة أسابيع». [س10، س20]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "backend/src/planning/; mobile/lib/features/plans_screen.dart; 22 backend domain tests PASS; Gemini integration and full plan edit/version acceptance pending"
+      ]
     },
     {
       "id": "FR-40",
       "description": "فحص جودة الهدف تلقائياً: التحقق من وجود العناصر الأربعة وإبراز النقص للمختصة، وبقاء الهدف واضحاً ومحدداً وقابلاً للقياس ومناسباً لقدرات الطالب. [س10، س20]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "backend/src/planning/; mobile/lib/features/plans_screen.dart; 22 backend domain tests PASS; Gemini integration and full plan edit/version acceptance pending"
+      ]
     },
     {
       "id": "FR-41",
       "description": "دعم معايير الإتقان التالية: نسبة دقة (قيمة افتراضية مقترحة 80% كما في مثالها)، وعدد المحاولات الصحيحة من إجمالي المحاولات (مثل 4 من 5)، وثبات الأداء عبر عدد من الجلسات، ومستوى الاستقلالية (قلة الدعم). [س20، س21]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "backend/src/planning/; mobile/lib/features/plans_screen.dart; 22 backend domain tests PASS; Gemini integration and full plan edit/version acceptance pending"
+      ]
     },
     {
       "id": "FR-42",
       "description": "تحديد إطار زمني لكل هدف (من أسبوعين إلى ثلاثة أسابيع في أمثلتها) ضمن مدة الخطة الكلية. [س20، س22]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "backend/src/planning/; mobile/lib/features/plans_screen.dart; 22 backend domain tests PASS; Gemini integration and full plan edit/version acceptance pending"
+      ]
     },
     {
       "id": "FR-43",
       "description": "مراعاة الفروق الفردية: صياغة الخطة بحسب مستوى الطالب وحده دون مقارنته بغيره. [س41، س44]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "backend/src/planning/; mobile/lib/features/plans_screen.dart; 22 backend domain tests PASS; Gemini integration and full plan edit/version acceptance pending"
+      ]
     },
     {
       "id": "FR-44",
@@ -321,71 +379,91 @@
       "id": "FR-46",
       "description": "توفير أزرار التحكم بالخطة: تعديل – اعتماد – حفظ.",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "backend/src/planning/; mobile/lib/features/plans_screen.dart; 22 backend domain tests PASS; Gemini integration and full plan edit/version acceptance pending"
+      ]
     },
     {
       "id": "FR-47",
       "description": "وسم كل عنصر ولّده الذكاء الاصطناعي بوسم نصي «مقترح» حتى تعتمده المختصة، مع حفظ مصدره في سجل الإصدارات. [س42]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "backend/src/planning/; mobile/lib/features/plans_screen.dart; 22 backend domain tests PASS; Gemini integration and full plan edit/version acceptance pending"
+      ]
     },
     {
       "id": "FR-48",
       "description": "عدم الافتراض: منع اختلاق أي نتائج تقييم أو معلومات غير مدخلة.",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "backend/src/planning/; mobile/lib/features/plans_screen.dart; 22 backend domain tests PASS; Gemini integration and full plan edit/version acceptance pending"
+      ]
     },
     {
       "id": "FR-49",
       "description": "شفافية مصدر البيانات: التمييز الواضح بين مدخلات المختصة واقتراحات الذكاء الاصطناعي. [س42]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "backend/src/planning/; mobile/lib/features/plans_screen.dart; 22 backend domain tests PASS; Gemini integration and full plan edit/version acceptance pending"
+      ]
     },
     {
       "id": "FR-50",
       "description": "عدم التشخيص: حظر إصدار أي تشخيص طبي أو نفسي أو رسمي لصعوبات التعلم، وحظر تصنيف الطالب بمسمى صعوبة تعلم. [س40]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "backend/src/planning/; mobile/lib/features/plans_screen.dart; 22 backend domain tests PASS; Gemini integration and full plan edit/version acceptance pending"
+      ]
     },
     {
       "id": "FR-51",
       "description": "عدم الأحكام العامة: حظر وصف شخصية الطالب أو سلوكه بأحكام عامة، وحظر التنبؤ بمستقبله أو اقتراح أدوية أو علاجات طبية. [س40، س44]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "backend/src/planning/; mobile/lib/features/plans_screen.dart; 22 backend domain tests PASS; Gemini integration and full plan edit/version acceptance pending"
+      ]
     },
     {
       "id": "FR-52",
       "description": "قاموس مصطلحات: حظر الألفاظ السلبية (مثل ضعيف، فاشل، كسول) وفحص المخرجات قبل عرضها واستبدالها بصياغات تربوية إيجابية مثل «يحتاج إلى دعم إضافي». [س41]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "backend/src/planning/; mobile/lib/features/plans_screen.dart; 22 backend domain tests PASS; Gemini integration and full plan edit/version acceptance pending"
+      ]
     },
     {
       "id": "FR-53",
       "description": "الاعتماد البشري المباشر: اعتبار الخطة المولّدة «مسودة»، وعدم اعتمادها أو إرسالها للتنفيذ إلا بموافقة وإجراء صريح من المختصة، بما يحفظ دورها في اتخاذ القرار. [س44]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "backend/src/planning/; mobile/lib/features/plans_screen.dart; 22 backend domain tests PASS; Gemini integration and full plan edit/version acceptance pending"
+      ]
     },
     {
       "id": "FR-54",
       "description": "طلب الاستكمال: مطالبة المستخدمة ببيانات إضافية عند وجود نقص في المدخلات الأساسية. [س23]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "backend/src/planning/; mobile/lib/features/plans_screen.dart; 22 backend domain tests PASS; Gemini integration and full plan edit/version acceptance pending"
+      ]
     },
     {
       "id": "FR-55",
       "description": "العدالة وتكافؤ الفرص: ألا تتفاوت جودة الأهداف والأنشطة المقترحة بين طالب وآخر بسبب الجنس أو أي بيانات شبه تعريفية، وأن تُختبر المخرجات للتحقق من ذلك. [س44]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "backend/src/planning/; mobile/lib/features/plans_screen.dart; 22 backend domain tests PASS; Gemini integration and full plan edit/version acceptance pending"
+      ]
     },
     {
       "id": "FR-56",
@@ -713,134 +791,172 @@
       "id": "FR-102",
       "description": "إتاحة وحدة «التقييم الأكاديمي الأولي» في النسخة الأولى، لتقييم اللغة العربية والرياضيات باستخدام ست بطاقات موزعة بالتساوي بين فئتي 6–8 و9–12 سنة، مع الإبقاء على التقييم التربوي الحر. [ت]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "mobile/lib/data/assessment_templates.dart; mobile/lib/models/assessment.dart; backend/test/schemas.test.ts; native academic-card acceptance and source review pending"
+      ]
     },
     {
       "id": "FR-103",
       "description": "تحديد فئة البطاقة تلقائياً من العمر بالسنوات والأشهر، والسماح للمختصة باختيار بطاقة أخرى عند مسوغ تربوي موثق؛ وعند الأعمار خارج 6–12 سنة يظهر مسار التقييم اليدوي دون فرض بطاقة غير مناسبة. [ت]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "mobile/lib/data/assessment_templates.dart; mobile/lib/models/assessment.dart; backend/test/schemas.test.ts; native academic-card acceptance and source review pending"
+      ]
     },
     {
       "id": "FR-104",
       "description": "ربط كل تقييم بملف الطالب المجهّل، وتاريخ التقييم، والصف، والمختصة المنفذة، وإصدار القالب، وحالة التقييم (مسودة / مكتمل / معتمد)، دون الاسم الحقيقي أو تاريخ الميلاد أو بيانات التشخيص الصحي. [ت]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "mobile/lib/data/assessment_templates.dart; mobile/lib/models/assessment.dart; backend/test/schemas.test.ts; native academic-card acceptance and source review pending"
+      ]
     },
     {
       "id": "FR-105",
       "description": "تضمين بطاقة 1 للفئة 6–8 سنوات مهام حذف الصوت الأول من «سَمَاء»، وإبدال النون بالصاد في «نَامَ»، وتجميع أصوات «ق–ل–م»، وقراءة «دَرَجَ، بَاب، شَجَرَة، مُسْتَشْفَى» بالترتيب. [ت]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "mobile/lib/data/assessment_templates.dart; mobile/lib/models/assessment.dart; backend/test/schemas.test.ts; native academic-card acceptance and source review pending"
+      ]
     },
     {
       "id": "FR-106",
       "description": "تضمين بطاقة 2 للفئة 6–8 سنوات إملاء الجملة «كَتَبَ أَمِيرٌ الدَّرْسَ فِي الدَّفْتَرِ» دون تشكيل، ورصد مسك القلم واتجاه الكتابة والنقاط والتاء والتنوين بملاحظات تربوية منظّمة. [ت]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "mobile/lib/data/assessment_templates.dart; mobile/lib/models/assessment.dart; backend/test/schemas.test.ts; native academic-card acceptance and source review pending"
+      ]
     },
     {
       "id": "FR-107",
       "description": "تضمين بطاقة 3 للفئة 6–8 سنوات العد القفزي (2، 4، 6، ...)، والحساب (5 + 3 و7 − 2)، والمسألة اللفظية عن 3 تفاحات أضيفت إليها تفاحتان، مع تسجيل طريقة الحل ذهنياً أو بالرسم أو بالمحسوسات. [ت]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "mobile/lib/data/assessment_templates.dart; mobile/lib/models/assessment.dart; backend/test/schemas.test.ts; native academic-card acceptance and source review pending"
+      ]
     },
     {
       "id": "FR-108",
       "description": "تضمين بطاقة 4 للفئة 9–12 سنة قراءة نص سفر أحمد وعائلته بصوت مرتفع، وتسجيل زمن القراءة والأخطاء، ثم أسئلة الفهم المباشر والاستنتاجي واستخراج ضد «شروق». [ت]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "mobile/lib/data/assessment_templates.dart; mobile/lib/models/assessment.dart; backend/test/schemas.test.ts; native academic-card acceptance and source review pending"
+      ]
     },
     {
       "id": "FR-109",
       "description": "تضمين بطاقة 5 للفئة 9–12 سنة إملاء جملة «الْقَاضِي الصَّادِقُ يَحْكُمُ بِالْعَدْلِ بَيْنَ النَّاسِ فِي كُلِّ وَقْتٍ»، وتعبيراً من جملتين أو ثلاث عن الفصل المفضل مع بيان سبب. [ت]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "mobile/lib/data/assessment_templates.dart; mobile/lib/models/assessment.dart; backend/test/schemas.test.ts; native academic-card acceptance and source review pending"
+      ]
     },
     {
       "id": "FR-110",
       "description": "تضمين بطاقة 6 للفئة 9–12 سنة الضرب 7 × 8، والقيمة المنزلية للرقم 5 في 354، وكسر ربع الدائرة المظلّل، ومسألة 50 ديناراً مطروحاً منها ثمن كتاب وحقيبة (15 و20 ديناراً). [ت]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "mobile/lib/data/assessment_templates.dart; mobile/lib/models/assessment.dart; backend/test/schemas.test.ts; native academic-card acceptance and source review pending"
+      ]
     },
     {
       "id": "FR-111",
       "description": "عرض نصوص المهام وتعليمات إجرائها للمختصة بصورة متدرجة، مع مفاتيح إجابات مرجعية مخفية عن واجهة العرض للطفل، وعدم تقديم الإجابة له أثناء الاختبار. [ت]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "mobile/lib/data/assessment_templates.dart; mobile/lib/models/assessment.dart; backend/test/schemas.test.ts; native academic-card acceptance and source review pending"
+      ]
     },
     {
       "id": "FR-112",
       "description": "تسجيل لكل بند: حالته (أُجري / لم يُجرَ / تعذّر)، واستجابة الطفل بصيغة غير تعريفية أو اختيار التصحيح، وحكم المختصة (صحيح مستقل / صحيح بمساعدة أو جزئي / غير صحيح / غير قابل للتصحيح)، ونوع الدعم وملاحظات الأداء. [ت]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "mobile/lib/data/assessment_templates.dart; mobile/lib/models/assessment.dart; backend/test/schemas.test.ts; native academic-card acceptance and source review pending"
+      ]
     },
     {
       "id": "FR-113",
       "description": "إتاحة تسجيل زمن القراءة بالثواني، وعدد الكلمات المقروءة وأخطاء القراءة وتصحيح الذات يدوياً، دون تعيين عتبات طلاقة معيارية أو تصنيف الطفل آلياً اعتماداً على هذه الأرقام. [ت]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "mobile/lib/data/assessment_templates.dart; mobile/lib/models/assessment.dart; backend/test/schemas.test.ts; native academic-card acceptance and source review pending"
+      ]
     },
     {
       "id": "FR-114",
       "description": "توفير حقول ملاحظة مهيكلة لمسك القلم واتجاه الكتابة وأخطاء الإملاء ولطريقة حل المسألة؛ وعدم اعتبار طريقة مسك معينة أو استخدام الرسم دليلاً تشخيصياً بحد ذاته. [ت]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "mobile/lib/data/assessment_templates.dart; mobile/lib/models/assessment.dart; backend/test/schemas.test.ts; native academic-card acceptance and source review pending"
+      ]
     },
     {
       "id": "FR-115",
       "description": "عرض نتائج مفصلة حسب المجال والبند ونقاط القوة ومجالات الاحتياج، مع عدد البنود الصحيحة من البنود التي أُجريت والقابلة للتصحيح فقط؛ ولا يُنشأ مجموع موحد أو معيار إتقان تشخيصي دون سلم تصحيح معتمد. [ت]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "mobile/lib/data/assessment_templates.dart; mobile/lib/models/assessment.dart; backend/test/schemas.test.ts; native academic-card acceptance and source review pending"
+      ]
     },
     {
       "id": "FR-116",
       "description": "الحفاظ على التصحيح البشري المباشر للقراءة والإملاء والتعبير، وعدم احتساب أحكام الأداء أو توليد استنتاجات من صور أو تسجيلات صوتية في النسخة الأولى. [ت]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "mobile/lib/data/assessment_templates.dart; mobile/lib/models/assessment.dart; backend/test/schemas.test.ts; native academic-card acceptance and source review pending"
+      ]
     },
     {
       "id": "FR-117",
       "description": "السماح بإيقاف التقييم واستكماله أو إعادة تقييمه بتاريخه، مع حفظ الحالات غير المنفذة وأسبابها وعدم معاملتها خطأً أو إدخالها في المقام الحسابي. [ت]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "mobile/lib/data/assessment_templates.dart; mobile/lib/models/assessment.dart; backend/test/schemas.test.ts; native academic-card acceptance and source review pending"
+      ]
     },
     {
       "id": "FR-118",
       "description": "اشتراط مراجعة المختصة ملخص التقييم واعتماده قبل استعماله مصدراً لاقتراح مهارات أو أهداف خطة علاجية، مع إظهار الشواهد وعدم اختلاق نتائج في البنود غير المجراة. [ت]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "mobile/lib/data/assessment_templates.dart; mobile/lib/models/assessment.dart; backend/test/schemas.test.ts; native academic-card acceptance and source review pending"
+      ]
     },
     {
       "id": "FR-119",
       "description": "إتاحة ربط الملخص المعتمد بنتائج «التقييم الأولي» في ملف الطالب وبالأهداف العلاجية دون تغيير نسب دقة الجلسات اللاحقة؛ وتبقى النتائج المرجعية منفصلة عن أداء جلسات التدخل. [ت]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "mobile/lib/data/assessment_templates.dart; mobile/lib/models/assessment.dart; backend/test/schemas.test.ts; native academic-card acceptance and source review pending"
+      ]
     },
     {
       "id": "FR-120",
       "description": "معاينة البيانات التعليمية المُختصرة قبل إرسالها إلى الذكاء الاصطناعي، وإرسال المجالات والمهارات والمستويات المعتمدة فقط قدر الإمكان؛ ويُمنع الإرسال التلقائي للنصوص الحرة أو الاستجابات الخام. [ت]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "backend/src/planning/; mobile/lib/features/plans_screen.dart; 22 backend domain tests PASS; Gemini integration and full plan edit/version acceptance pending"
+      ]
     },
     {
       "id": "FR-121",
@@ -853,29 +969,37 @@
       "id": "FR-122",
       "description": "إصدار نسخ ثابتة من قوالب البطاقات ومفاتيح إجاباتها وسلالم تصحيحها، وحفظ إصدار القالب الذي استُخدم لكل تقييم حتى لا تتغير نتائج تقييم سابق عند تحديث المحتوى. [ت]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "mobile/lib/data/assessment_templates.dart; mobile/lib/models/assessment.dart; backend/test/schemas.test.ts; native academic-card acceptance and source review pending"
+      ]
     },
     {
       "id": "FR-123",
       "description": "قصر إنشاء وتعديل واعتماد التقييم على مالكة ملف الطالب أو مخوّل ذي صلاحية صريحة عند تفعيل المشاركة؛ وتسجيل تاريخ الإجراء ومنفذه، ومنع ظهور بيانات تقييم طالب لمستخدم آخر. [ت]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "mobile/lib/data/assessment_templates.dart; mobile/lib/models/assessment.dart; backend/test/schemas.test.ts; native academic-card acceptance and source review pending"
+      ]
     },
     {
       "id": "FR-124",
       "description": "استبعاد حقلي اسم الطفل وتاريخ ميلاده والسؤال عن الأمراض أو الاضطرابات المشخصة من التطبيق وقاعدة البيانات والتقارير والطلبات إلى مزود الذكاء الاصطناعي؛ ويظل أي استفسار طبي في السجل الورقي الخارجي الخاضع لإجراءات المؤسسة. [ت]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "mobile/lib/data/assessment_templates.dart; mobile/lib/models/assessment.dart; backend/test/schemas.test.ts; native academic-card acceptance and source review pending"
+      ]
     },
     {
       "id": "FR-125",
       "description": "توفير نسختين قابلتين للتثبيت من تطبيق «خطوة»، إحداهما لنظام Android والأخرى لنظام iOS، منذ إصدار MVP الأول، مع عدم حصر أي وظيفة أساسية في نظام دون الآخر. [قرار مالك المشروع 1.3]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "mobile/lib/data/assessment_templates.dart; mobile/lib/models/assessment.dart; backend/test/schemas.test.ts; native academic-card acceptance and source review pending"
+      ]
     },
     {
       "id": "FR-126",

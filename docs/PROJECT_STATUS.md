@@ -1,6 +1,6 @@
 # Khotwa execution status
 
-Date: 2026-11-05 (Asia/Hebron). Stage: first functional slice IN_PROGRESS; not MVP acceptance.
+Date: 2026-11-06 (Asia/Hebron). Stage: first functional slice IN_PROGRESS; not MVP acceptance.
 
 Repository initially empty (unborn master, no remote). Imported existing development archive, five working instructions, and actual SRS v1.3. Active branch feat/fnd-02-foundation. Source requirements extracted from DOCX without modifying original.
 
@@ -14,6 +14,10 @@ Implemented first slice: account registration/login/logout/reset adapter/account
 
 Active parallel ownership: feat/ai-01-gemini in ../khotwa-ai owns Gemini gateway/routes/tests; feat/ai-02-plans-ui in ../khotwa-plans-ui owns plan API/screen/tests; root owns integration/navigation/auth cache deletion/docs. Native runners/lockfile and build recovery are being integrated on the foundation feature branch. No merge to main.
 
-Current verification gaps: latest preview CI at e7345fd failed; logs being inspected before opening preview. Android/iOS folders and lockfile recovered from generated CI artifact, pending reviewed commit/build. Local Flutter caches remain incomplete; no local Flutter success claimed. AI provider implementation and UI are in progress; real provider call not yet verified. Remaining MVP includes free initial assessment, full plan editing/version flow, activities, session UI/API, charts, Arabic PDF/Word and field validation.
+Native source reviewed and committed at 260e249: Android/iOS runners and dependency lockfile, disabled Android backups, Arabic labels, Internet permission and iOS keychain entitlement; XML/plist parsing passed. No successful native build claimed yet. Flutter preview CI at e7345fd and 260e249: analyze PASS; tests 23 PASS / 5 FAIL. Four failures traced to mock responses defaulting to Latin-1 for Arabic JSON; fixtures now declare UTF-8 JSON, preserving production checks. Fifth test now scrolls to and opens actual registration form. Corrections and plan UI integrated at c278df3; re-test pending.
+
+Plan UI integrated at 75d886f with 10 additional tests: server-backed skill selection, exact payload preview, explicit confirmation, draft review/approve, encrypted per-owner retry inputs and cached plans. Account deletion clears this additional namespace only after successful server deletion; rejected deletion and other-owner preservation regression added in 2bb333b. UI navigation is available from home. These tests have not yet passed a Flutter runner. Gemini routes/provider/test integration remains isolated in ../khotwa-ai; connectivity timed out before provider response, so credential validity and live generation remain unverified.
+
+Current verification gaps: local Flutter caches still being provisioned; no local Flutter success claimed. Remaining MVP includes complete intake/free initial assessment, full plan editing/version flow, activities, session UI/API, charts, Arabic PDF/Word and physical-device validation. The academic-card route is the first generation source; alternative assessment is not yet accepted. No real student data or production approval.
 
 Toolchain being provisioned locally. Android/iOS runtime acceptance, external AI, reports and field specialist review remain unverified. No deployment or real student data.
