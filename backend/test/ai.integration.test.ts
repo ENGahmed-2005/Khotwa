@@ -3,7 +3,8 @@ import { PrismaClient } from '@prisma/client';
 import type { FastifyInstance } from 'fastify';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { buildApp } from '../src/app.js';
-import { PayloadCipher } from '../src/crypto.js';
+import { canonicalJson, PayloadCipher, tokenHash } from '../src/crypto.js';
+import { AI_OPERATION_LEASE_MS } from '../src/ai/routes.js';
 import type { GenerationInput } from '../src/planning/domain.js';
 import type { Envelope, SyncResult } from '../src/records.js';
 import { assessmentFixture, fixtureTime, operationFixture, studentFixture } from './fixtures.js';
@@ -58,6 +59,131 @@ beforeAll(async () => {
   if (!url) throw new Error('TEST_DATABASE_URL is required; AI database integration tests are never skipped or mocked.');
   prisma = new PrismaClient({ datasources: { db: { url } }, log: [] });
   await prisma.$connect();
+});
+
+describe('explicit cancellation and bounded durable generation leases', () => {
+  it('requires authenticated owning specialists for status and cancellation', async () => {
+    const operationId = randomUUID();
+    for (const route of [{ method: 'GET' as const, url: `/v1/ai/operations/${operationId}` },
+      { method: 'POST' as const, url: `/v1/ai/operations/${operationId}/cancel`, payload: { confirmed: true } }]) {
+      expect((await app.inject(route)).statusCode).toBe(401);
+    }
+    const owner = await register();
+    const other = await register();
+    const data = await source(owner);
+    const generated = await draft(owner, data);
+    for (const route of [{ method: 'GET' as const, url: `/v1/ai/operations/${generated.input.operationId}` },
+      { method: 'POST' as const, url: `/v1/ai/operations/${generated.input.operationId}/cancel`, payload: { confirmed: true } }]) {
+      expect((await app.inject({ ...route, headers: headers(other) })).statusCode).toBe(404);
+      await prisma.user.update({ where: { id: other.user.id }, data: { role: 'viewer' } });
+      expect((await app.inject({ ...route, headers: headers(other) })).statusCode).toBe(403);
+      await prisma.user.update({ where: { id: other.user.id }, data: { role: 'specialist' } });
+    }
+  });
+
+  it('cancels through another server instance and prevents a late result from creating a plan', async () => {
+    const owner = await register();
+    const data = await source(owner);
+    const input = generationInput(await preview(owner, data));
+    let release!: () => void;
+    const barrier = new Promise<void>(resolve => { release = resolve; });
+    generate.mockImplementationOnce(async () => { await barrier; return aiContent(); });
+    const first = app.inject({ method: 'POST', url: '/v1/ai/generate', headers: headers(owner), payload: input }).then(value => value);
+    await vi.waitFor(() => expect(generate).toHaveBeenCalledTimes(1));
+    const replica = await buildApp({ prisma, storageKey, clock: () => now });
+    try {
+      const status = await replica.inject({ url: `/v1/ai/operations/${input.operationId}`, headers: headers(owner) });
+      expect(status.json()).toMatchObject({ state: 'pending', canCancel: true, startedAt: now.toISOString(), leaseExpiresAt: new Date(now.getTime() + AI_OPERATION_LEASE_MS).toISOString() });
+      const cancel = (confirmed: boolean) => replica.inject({ method: 'POST', url: `/v1/ai/operations/${input.operationId}/cancel`, headers: headers(owner), payload: { confirmed } });
+      expect((await cancel(false)).statusCode).toBe(400);
+      const cancelled = await cancel(true);
+      expect(cancelled.statusCode).toBe(200);
+      expect((await cancel(true)).json()).toEqual(cancelled.json());
+      release();
+      const response = await first;
+      expect(response.statusCode).toBe(409);
+      expect(response.json().error.code).toBe('AI_OPERATION_CANCELLED');
+      expect(await prisma.record.count({ where: { ownerId: owner.user.id, kind: 'plan' } })).toBe(0);
+      expect((await app.inject({ method: 'POST', url: '/v1/ai/generate', headers: headers(owner), payload: input })).json().error.code).toBe('AI_OPERATION_CANCELLED');
+      expect(generate).toHaveBeenCalledTimes(1);
+      expect((await draft(owner, data)).record.data.status).toBe('draft');
+      expect(generate).toHaveBeenCalledTimes(2);
+      expect((await replica.inject({ url: `/v1/ai/operations/${input.operationId}`, headers: headers(owner) })).json().state).toBe('cancelled');
+    } finally { release(); await first; await replica.close(); }
+  });
+
+  it('does not turn cancellation into failure when a provider rejects later', async () => {
+    const owner = await register();
+    const data = await source(owner);
+    const input = generationInput(await preview(owner, data));
+    let release!: () => void;
+    const barrier = new Promise<void>(resolve => { release = resolve; });
+    generate.mockImplementationOnce(async () => { await barrier; throw new Error('SYNTHETIC-LATE-PROVIDER-SECRET'); });
+    const first = app.inject({ method: 'POST', url: '/v1/ai/generate', headers: headers(owner), payload: input }).then(value => value);
+    await vi.waitFor(() => expect(generate).toHaveBeenCalledTimes(1));
+    try {
+      expect((await app.inject({ method: 'POST', url: `/v1/ai/operations/${input.operationId}/cancel`, headers: headers(owner), payload: { confirmed: true } })).statusCode).toBe(200);
+    } finally { release(); }
+    const response = await first;
+    expect(response.statusCode).toBe(409);
+    expect(response.body).not.toContain('SYNTHETIC-LATE-PROVIDER-SECRET');
+    expect((await app.inject({ url: `/v1/ai/operations/${input.operationId}`, headers: headers(owner) })).json().state).toBe('cancelled');
+  });
+
+  it('expires legacy pending receipts after a crash without silently calling the provider again', async () => {
+    const owner = await register();
+    const data = await source(owner);
+    const input = generationInput(await preview(owner, data));
+    await prisma.syncOperation.create({ data: { ownerId: owner.user.id, operationId: input.operationId,
+      requestHash: tokenHash(canonicalJson({ namespace: 'ai-generate', ...input })),
+      createdAt: new Date(now.getTime() - AI_OPERATION_LEASE_MS - 1),
+      encryptedResult: cipher.encrypt({ namespace: 'ai-generate', state: 'pending' }, `operation:${owner.user.id}:${input.operationId}`) } });
+    const status = await app.inject({ url: `/v1/ai/operations/${input.operationId}`, headers: headers(owner) });
+    expect(status.json()).toMatchObject({ state: 'expired', canCancel: true });
+    const replay = await app.inject({ method: 'POST', url: '/v1/ai/generate', headers: headers(owner), payload: input });
+    expect(replay.statusCode).toBe(409);
+    expect(replay.json().error.code).toBe('AI_OPERATION_EXPIRED');
+    expect(generate).not.toHaveBeenCalled();
+    expect((await app.inject({ method: 'POST', url: `/v1/ai/operations/${input.operationId}/cancel`, headers: headers(owner), payload: { confirmed: true } })).statusCode).toBe(200);
+    expect((await draft(owner, data)).record.data.status).toBe('draft');
+    expect(generate).toHaveBeenCalledTimes(1);
+  });
+
+  it('discards an expired in-flight result while a fresh explicitly confirmed operation succeeds', async () => {
+    const owner = await register();
+    const data = await source(owner);
+    const input = generationInput(await preview(owner, data));
+    let release!: () => void;
+    const barrier = new Promise<void>(resolve => { release = resolve; });
+    generate.mockImplementationOnce(async () => { await barrier; return aiContent(); });
+    const first = app.inject({ method: 'POST', url: '/v1/ai/generate', headers: headers(owner), payload: input }).then(value => value);
+    await vi.waitFor(() => expect(generate).toHaveBeenCalledTimes(1));
+    try {
+      now = new Date(now.getTime() + AI_OPERATION_LEASE_MS + 1);
+      const fresh = await draft(owner, data);
+      expect(fresh.input.operationId).not.toBe(input.operationId);
+      release();
+      const late = await first;
+      expect(late.statusCode).toBe(409);
+      expect(late.json().error.code).toBe('AI_OPERATION_EXPIRED');
+      expect(await prisma.record.count({ where: { ownerId: owner.user.id, kind: 'plan' } })).toBe(1);
+      expect((await app.inject({ url: `/v1/ai/operations/${input.operationId}`, headers: headers(owner) })).json().state).toBe('expired');
+      expect(generate).toHaveBeenCalledTimes(2);
+    } finally { release(); await first; }
+  });
+
+  it('refuses to cancel a committed result and keeps its existing draft intact', async () => {
+    const owner = await register();
+    const data = await source(owner);
+    const generated = await draft(owner, data);
+    const result = await app.inject({ method: 'POST', url: `/v1/ai/operations/${generated.input.operationId}/cancel`, headers: headers(owner), payload: { confirmed: true } });
+    expect(result.statusCode).toBe(409);
+    expect(result.json().error.code).toBe('AI_OPERATION_FINISHED');
+    const status = await app.inject({ url: `/v1/ai/operations/${generated.input.operationId}`, headers: headers(owner) });
+    expect(status.json()).toMatchObject({ state: 'completed', recordId: generated.record.id, canCancel: false });
+    expect((await app.inject({ url: `/v1/records/${generated.record.id}`, headers: headers(owner) })).json().record).toEqual(generated.record);
+    expect(generate).toHaveBeenCalledTimes(1);
+  });
 });
 beforeEach(async () => {
   now = new Date(startTime);
@@ -144,7 +270,7 @@ describe('AI owner boundaries and consent on real PostgreSQL', () => {
     }
     const valid = generationInput(value);
     expect((await app.inject({ method: 'POST', url: '/v1/ai/generate', headers: headers(account), payload: valid })).statusCode).toBe(201);
-    expect(generate).toHaveBeenCalledWith(aiInput);
+    expect(generate).toHaveBeenCalledWith(aiInput, expect.any(AbortSignal));
     expect(JSON.stringify(generate.mock.calls)).not.toContain('SYNTHETIC-PRIVATE');
     expect(JSON.stringify(generate.mock.calls)).not.toContain(data.student.code);
     expect(JSON.stringify(generate.mock.calls)).not.toContain(data.student.id);

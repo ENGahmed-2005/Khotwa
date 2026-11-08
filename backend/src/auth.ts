@@ -8,6 +8,8 @@ import { credentialsSchema, emailSchema, passwordSchema } from './schemas.js';
 export interface ResetDelivery {
   /** Adapter must deliver privately. Never log or return this token in an API response. */
   sendPasswordReset(message: { email: string; token: string; expiresAt: Date }): Promise<void>;
+  /** Check SMTP availability before looking up the account, so outages do not reveal membership. */
+  verifyAvailability?(): Promise<void>;
 }
 export type Clock = () => Date;
 export function publicUser(user: Pick<User, 'id' | 'email' | 'role'>) { return { id: user.id, email: user.email, role: user.role }; }
@@ -70,6 +72,8 @@ export class AuthService {
       const { email } = z.strictObject({ email: emailSchema }).parse(request.body);
       // Fail consistently, including unknown addresses, when no mail integration exists.
       if (!this.resetDelivery) throw new ApiError(503, 'RESET_DELIVERY_UNAVAILABLE', 'خدمة استعادة الحساب غير مهيأة حاليًا.');
+      try { await this.resetDelivery.verifyAvailability?.(); }
+      catch { throw new ApiError(503, 'RESET_DELIVERY_UNAVAILABLE', 'خدمة استعادة الحساب غير متاحة حاليًا. حاول لاحقًا.'); }
       const user = await this.prisma.user.findUnique({ where: { email } });
       if (user) {
         const token = newToken();
@@ -78,7 +82,8 @@ export class AuthService {
         try { await this.resetDelivery.sendPasswordReset({ email, token, expiresAt }); }
         catch {
           await this.prisma.passwordReset.deleteMany({ where: { id: reset.id } });
-          throw new ApiError(503, 'RESET_DELIVERY_UNAVAILABLE', 'تعذر توصيل رسالة الاستعادة. حاول لاحقًا.');
+          // Recipient-specific rejection must not disclose that an account exists.
+          await this.prisma.auditEvent.create({ data: { ownerId: user.id, action: 'account.reset_delivery_failed' } });
         }
       }
       return reply.code(202).send({ message: 'إن كان الحساب مسجلاً، ستصلك تعليمات الاستعادة.' });

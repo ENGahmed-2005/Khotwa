@@ -16,7 +16,10 @@ import { generateRequestSchema, payloadFromRequest, previewRequestSchema, Previe
 
 export interface AiConfig { enabled: boolean; syntheticOnly: boolean; provider: PlanProvider; model: string }
 export interface AiRouteOptions { prisma: PrismaClient; auth: AuthService; records: RecordStore; storageKey: Buffer; clock?: Clock; config?: AiConfig }
-type Receipt = { namespace: 'ai-generate'; state: 'pending' | 'completed' | 'failed'; record?: Envelope; error?: { code: string; message: string } };
+export const AI_OPERATION_LEASE_MS = 10 * 60 * 1000;
+type Receipt = { namespace: 'ai-generate'; state: 'pending' | 'completed' | 'failed' | 'cancelled';
+  startedAt?: string; leaseExpiresAt?: string; cancelledAt?: string;
+  record?: Envelope; error?: { code: string; message: string } };
 interface StoredPlan extends PlanVersion {
   history: PlanVersion[];
   generation: { model: string; assessmentId: string; assessmentRevision: number; payloadHash: string };
@@ -27,6 +30,14 @@ export function registerAiRoutes(app: FastifyInstance, options: AiRouteOptions) 
   const now = options.clock ?? (() => new Date());
   const signer = new PreviewSigner(options.storageKey);
   const receiptContext = (ownerId: string, operationId: string) => `operation:${ownerId}:${operationId}`;
+  const active = new Map<string, AbortController>();
+  function leaseExpiry(receipt: Receipt, createdAt: Date): Date {
+    const stored = receipt.leaseExpiresAt ? Date.parse(receipt.leaseExpiresAt) : Number.NaN;
+    return new Date(Number.isFinite(stored) ? stored : createdAt.getTime() + AI_OPERATION_LEASE_MS);
+  }
+  function isExpired(receipt: Receipt, createdAt: Date) { return receipt.state === 'pending' && leaseExpiry(receipt, createdAt) <= now(); }
+  function cancelledError() { return new ApiError(409, 'AI_OPERATION_CANCELLED', 'أُلغي هذا الطلب؛ لن تُحفظ نتيجته. أنشئ معاينة جديدة وأكّد عملية جديدة للمحاولة.'); }
+  function expiredError() { return new ApiError(409, 'AI_OPERATION_EXPIRED', 'انتهت مدة انتظار هذا الطلب ولن تُحفظ نتيجة متأخرة. يمكنك إلغاءه ثم مراجعة معاينة جديدة.'); }
   async function requireSpecialist(request: FastifyRequest) {
     const user = await auth.requireUser(request);
     if (user.role !== 'specialist') throw new ApiError(403, 'SPECIALIST_REQUIRED', 'يلزم حساب مختصة مخوّل لإعداد الخطة واعتمادها.');
@@ -67,6 +78,44 @@ export function registerAiRoutes(app: FastifyInstance, options: AiRouteOptions) 
     return current;
   }
   const limit = { config: { rateLimit: { max: 12, timeWindow: '1 minute' } } };
+
+  app.get('/v1/ai/operations/:operationId', async request => {
+    const user = await requireSpecialist(request);
+    const { operationId } = z.strictObject({ operationId: z.uuid() }).parse(request.params);
+    const row = await prisma.syncOperation.findUnique({ where: { ownerId_operationId: { ownerId: user.id, operationId } } });
+    if (!row) throw missing();
+    const receipt = records.cipher.decrypt<Receipt>(row.encryptedResult, receiptContext(user.id, operationId));
+    if (receipt.namespace !== 'ai-generate') throw missing();
+    const state = isExpired(receipt, row.createdAt) ? 'expired' : receipt.state;
+    return { operationId, state, startedAt: receipt.startedAt ?? row.createdAt.toISOString(),
+      leaseExpiresAt: leaseExpiry(receipt, row.createdAt).toISOString(), canCancel: receipt.state === 'pending',
+      ...(receipt.cancelledAt ? { cancelledAt: receipt.cancelledAt } : {}),
+      ...(receipt.record ? { recordId: receipt.record.id } : {}),
+      ...(receipt.error ? { error: receipt.error } : {}) };
+  });
+
+  app.post('/v1/ai/operations/:operationId/cancel', async request => {
+    const user = await requireSpecialist(request);
+    const { operationId } = z.strictObject({ operationId: z.uuid() }).parse(request.params);
+    z.strictObject({ confirmed: z.literal(true) }).parse(request.body);
+    const result = await prisma.$transaction(async tx => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${user.id}))`;
+      const row = await tx.syncOperation.findUnique({ where: { ownerId_operationId: { ownerId: user.id, operationId } } });
+      if (!row) throw missing();
+      const context = receiptContext(user.id, operationId);
+      const receipt = records.cipher.decrypt<Receipt>(row.encryptedResult, context);
+      if (receipt.namespace !== 'ai-generate') throw missing();
+      if (receipt.state === 'completed' || receipt.state === 'failed') throw new ApiError(409, 'AI_OPERATION_FINISHED', 'انتهى هذا الطلب بالفعل؛ راجع نتيجته قبل بدء عملية أخرى.');
+      if (receipt.state === 'cancelled') return { operationId, state: 'cancelled', cancelledAt: receipt.cancelledAt, canCancel: false };
+      const cancelledAt = now().toISOString();
+      await tx.syncOperation.update({ where: { ownerId_operationId: { ownerId: user.id, operationId } },
+        data: { encryptedResult: records.cipher.encrypt({ ...receipt, state: 'cancelled', cancelledAt } satisfies Receipt, context) } });
+      await tx.auditEvent.create({ data: { ownerId: user.id, action: 'ai.generation_cancelled', entityId: operationId } });
+      return { operationId, state: 'cancelled', cancelledAt, canCancel: false };
+    }, { timeout: 15000 });
+    active.get(`${user.id}:${operationId}`)?.abort();
+    return result;
+  });
 
   app.get('/v1/ai/skills', async request => {
     const user = await requireSpecialist(request);
@@ -121,19 +170,33 @@ export function registerAiRoutes(app: FastifyInstance, options: AiRouteOptions) 
           return receipt.record;
         }
         if (receipt.state === 'failed') throw new ApiError(502, 'AI_PREVIOUS_FAILED', 'فشل هذا الطلب السابق ولم تُحفظ خطة. راجع المدخلات وأنشئ معاينة جديدة للمحاولة بإجراء صريح.');
+        if (receipt.state === 'cancelled') throw cancelledError();
+        if (isExpired(receipt, prior.createdAt)) throw expiredError();
         throw new ApiError(409, 'AI_IN_PROGRESS', 'طلب التوليد قيد التنفيذ أو لم تُعرف نتيجته بعد انقطاعه. حدّث قائمة الخطط وراجع حالته؛ لن يُرسل مرة أخرى تلقائيًا.');
       }
       if (claims.expiresAt <= now().getTime()) throw new ApiError(409, 'PREVIEW_EXPIRED', 'انتهت صلاحية المعاينة. أنشئ معاينة جديدة.');
       await checkCurrentSource(user.id, claims, tx);
-      await tx.syncOperation.create({ data: { ownerId: user.id, operationId: input.operationId, requestHash, encryptedResult: records.cipher.encrypt({ namespace: 'ai-generate', state: 'pending' } satisfies Receipt, context) } });
+      await tx.syncOperation.create({ data: { ownerId: user.id, operationId: input.operationId, requestHash,
+        encryptedResult: records.cipher.encrypt({ namespace: 'ai-generate', state: 'pending', startedAt: now().toISOString(),
+          leaseExpiresAt: new Date(now().getTime() + AI_OPERATION_LEASE_MS).toISOString() } satisfies Receipt, context) } });
       await tx.auditEvent.create({ data: { ownerId: user.id, action: 'ai.generation_requested', entityId: claims.assessmentId } });
       return null;
     }, { timeout: 15000 });
     if (replay) return { record: replay };
 
+    const controller = new AbortController();
+    const activeKey = `${user.id}:${input.operationId}`;
+    active.set(activeKey, controller);
+    const leaseTimer = setTimeout(() => controller.abort(), AI_OPERATION_LEASE_MS);
+    leaseTimer.unref();
     try {
+      const current = await prisma.syncOperation.findUnique({ where: { ownerId_operationId: { ownerId: user.id, operationId: input.operationId } } });
+      if (!current) throw missing();
+      const receipt = records.cipher.decrypt<Receipt>(current.encryptedResult, context);
+      if (receipt.state === 'cancelled' || controller.signal.aborted) throw cancelledError();
+      if (isExpired(receipt, current.createdAt)) throw expiredError();
       // The durable claim is committed before calling the provider; a retry never repeats the external call.
-      const raw = await policy.provider.generate(structuredClone(claims.payload));
+      const raw = await policy.provider.generate(structuredClone(claims.payload), controller.signal);
       let draft: PlanVersion;
       try {
         const content = validateGeneratedPlan(raw, claims.payload);
@@ -150,19 +213,41 @@ export function registerAiRoutes(app: FastifyInstance, options: AiRouteOptions) 
       const plan: StoredPlan = { ...draft, history: [], generation: { model: policy.model, assessmentId: claims.assessmentId, assessmentRevision: claims.assessmentRevision, payloadHash: claims.hash } };
       const record = await prisma.$transaction(async tx => {
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${user.id}))`;
+        const operation = await tx.syncOperation.findUnique({ where: { ownerId_operationId: { ownerId: user.id, operationId: input.operationId } } });
+        if (!operation) throw missing();
+        const receipt = records.cipher.decrypt<Receipt>(operation.encryptedResult, context);
+        if (receipt.state === 'cancelled') throw cancelledError();
+        if (isExpired(receipt, operation.createdAt)) throw expiredError();
+        if (receipt.namespace !== 'ai-generate' || receipt.state !== 'pending' || operation.requestHash !== requestHash) throw new ApiError(409, 'AI_OPERATION_CHANGED', 'تغيرت حالة الطلب؛ راجع نتيجته قبل المحاولة.');
         await checkCurrentSource(user.id, claims, tx);
         const row = await tx.record.create({ data: { id: plan.id, ownerId: user.id, kind: 'plan', parentId: claims.studentId,
           encryptedPayload: records.cipher.encrypt(plan, records.recordContext(user.id, plan.id)) } });
         const envelope = records.toEnvelope(row);
-        await tx.syncOperation.update({ where: { ownerId_operationId: { ownerId: user.id, operationId: input.operationId } }, data: { encryptedResult: records.cipher.encrypt({ namespace: 'ai-generate', state: 'completed', record: envelope } satisfies Receipt, context) } });
+        await tx.syncOperation.update({ where: { ownerId_operationId: { ownerId: user.id, operationId: input.operationId } }, data: { encryptedResult: records.cipher.encrypt({ ...receipt, state: 'completed', record: envelope } satisfies Receipt, context) } });
         await tx.auditEvent.create({ data: { ownerId: user.id, action: 'ai.draft_created', entityId: row.id } });
         return envelope;
       }, { timeout: 15000 });
       return reply.code(201).send({ record });
     } catch (error) {
       const safe = error instanceof ApiError ? error : new ApiError(502, 'AI_PROVIDER_UNAVAILABLE', 'تعذر التوليد؛ لم تُحفظ خطة. أنشئ معاينة جديدة لإعادة المحاولة.');
-      await prisma.syncOperation.updateMany({ where: { ownerId: user.id, operationId: input.operationId }, data: { encryptedResult: records.cipher.encrypt({ namespace: 'ai-generate', state: 'failed', error: { code: safe.code, message: safe.message } } satisfies Receipt, context) } });
-      throw safe;
+      const finalError = await prisma.$transaction(async tx => {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${user.id}))`;
+        const operation = await tx.syncOperation.findUnique({ where: { ownerId_operationId: { ownerId: user.id, operationId: input.operationId } } });
+        if (!operation) return safe;
+        const receipt = records.cipher.decrypt<Receipt>(operation.encryptedResult, context);
+        if (receipt.state === 'cancelled') return cancelledError();
+        if (isExpired(receipt, operation.createdAt)) return expiredError();
+        // Cancellation/completion won the lock: never overwrite their durable result.
+        if (receipt.namespace === 'ai-generate' && receipt.state === 'pending' && operation.requestHash === requestHash) {
+          await tx.syncOperation.update({ where: { ownerId_operationId: { ownerId: user.id, operationId: input.operationId } },
+            data: { encryptedResult: records.cipher.encrypt({ ...receipt, state: 'failed', error: { code: safe.code, message: safe.message } } satisfies Receipt, context) } });
+        }
+        return safe;
+      }, { timeout: 15000 });
+      throw finalError;
+    } finally {
+      clearTimeout(leaseTimer);
+      if (active.get(activeKey) === controller) active.delete(activeKey);
     }
   });
 
