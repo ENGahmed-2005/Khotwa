@@ -64,7 +64,7 @@ jobs:
           app="build/ios/iphoneos/Runner.app"
           test -s "$app/Runner"
           plutil -lint "$app/Info.plist"
-          xcrun lipo -verify_arch arm64 "$app/Runner"
+          xcrun lipo "$app/Runner" -verify_arch arm64
           stage="$RUNNER_TEMP/khotwa-ios-package-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
           output="$GITHUB_WORKSPACE/delivery/ios"
           mkdir -p "$stage/Payload" "$output"
