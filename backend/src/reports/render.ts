@@ -44,7 +44,7 @@ function listHtml(values: string[]) {
   return values.length ? `<ul>${values.map(value => `<li>${escapeHtml(value)}</li>`).join('')}</ul>` : '<p>لم تسجل عناصر في الخطة المعتمدة.</p>';
 }
 function headerHtml(studentCode: string, serial: string, settings: ReportSettings) {
-  return `<div style="font-family:Arial,sans-serif;font-size:13px;direction:rtl;width:100%;padding:0 16mm;line-height:1.7;color:black"><div>${escapeHtml(settings.institutionTitle || 'خطوة')} | رمز الطالب <span dir="ltr">${escapeHtml(studentCode)}</span></div><div>رقم التقرير <span dir="ltr">${escapeHtml(serial)}</span> | صفحة <span class="pageNumber"></span> من <span class="totalPages"></span></div></div>`;
+  return `<div style="font-family:Arial,sans-serif;font-size:13px;direction:rtl;width:100%;padding:0 16mm;line-height:1.7;color:black"><div style="float:left;margin-right:8px">${logoHtml(settings)}</div><div>${escapeHtml(settings.institutionTitle || 'خطوة')} | رمز الطالب <span dir="ltr">${escapeHtml(studentCode)}</span></div><div>رقم التقرير <span dir="ltr">${escapeHtml(serial)}</span> | صفحة <span class="pageNumber"></span> من <span class="totalPages"></span></div></div>`;
 }
 async function pdfFromPage(page: Page, bodyHtml: string, studentCode: string, serial: string, settings: ReportSettings): Promise<Buffer> {
   await page.setContent(`<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"/><style>${await stylesheet()}</style></head><body>${bodyHtml}</body></html>`, { waitUntil: 'load' });
