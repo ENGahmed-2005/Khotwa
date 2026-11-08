@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import { unzipSync, strFromU8 } from 'fflate';
 import { mkdir, writeFile } from 'node:fs/promises';
-import { emptySettings, exportRequestSchema, batchRequestSchema, reportSnapshot, criterionPercent, type ReportDocument } from '../src/reports/model.js';
+import { emptySettings, exportRequestSchema, batchRequestSchema, reportSnapshot, criterionPercent, referenceHeadings, type ReportDocument, type StudentReference } from '../src/reports/model.js';
 import { goalCharts } from '../src/reports/charts.js';
 import { renderActivityPdf, renderReport, reportHtml, normalizeLogo } from '../src/reports/render.js';
 import { approvedActivity, reportFixtures } from './reports.fixtures.js';
@@ -13,8 +13,45 @@ function document(overrides: Partial<ReportDocument> = {}) {
   const request = exportRequestSchema.parse(selected);
   return { ...reportSnapshot(request, fixtures.studentRecord, fixtures.planRecord, fixtures.sessionRecords, emptySettings(), `KH-RPT-${randomUUID().toUpperCase()}`, new Date('2026-11-08T10:00:00Z')).document, ...overrides };
 }
+function withReference(reference?: StudentReference) {
+  const content = { ...fixtures.planRecord.data.content as ReportDocument['content'], generalGoal: 'يدعم التدريب مشاركة الطالب في التعلم' };
+  const plan = { ...fixtures.planRecord, data: { ...fixtures.planRecord.data, content,
+    ...(reference === undefined ? {} : { presentation: { studentReference: reference } }) } };
+  return reportSnapshot(exportRequestSchema.parse(selected), fixtures.studentRecord, plan, fixtures.sessionRecords, emptySettings(), 'KH-RPT-REFERENCE-CHECK', new Date('2026-11-08T10:00:00Z')).document;
+}
+const referenceCases = [
+  { reference: 'الطالب' as const, stem: 'reference-student', plan: 'الخطة الفردية للطالب', goals: 'الأهداف الإجرائية للطالب' },
+  { reference: 'الطالبة' as const, stem: 'reference-student-female', plan: 'الخطة الفردية للطالبة', goals: 'الأهداف الإجرائية للطالبة' },
+  { reference: 'الطالب/الطالبة' as const, stem: 'reference-neutral', plan: 'الخطة الفردية للطالب أو الطالبة', goals: 'الأهداف الإجرائية للطالب أو الطالبة' },
+];
+const referenceExpectations: { stem: string; plan: string; goals: string }[] = [];
 
 describe('report selection and descriptive data boundary', () => {
+  it.each(referenceCases)('uses only fixed presentation headings for $reference and preserves recorded content and calculations', ({ reference, plan, goals }) => {
+    const before = JSON.stringify(fixtures.planRecord.data);
+    const baseline = withReference(), report = withReference(reference);
+    expect(report.studentReference).toBe(reference);
+    expect(report.content).toEqual(baseline.content);
+    expect(report.content.generalGoal).toBe('يدعم التدريب مشاركة الطالب في التعلم');
+    expect(report.goals).toEqual(baseline.goals);
+    expect(report.attendance).toEqual(baseline.attendance);
+    expect(report.optionalSections).toEqual(baseline.optionalSections);
+    expect(report).not.toHaveProperty('gender');
+    expect(referenceHeadings(reference)).toEqual({ plan, goals });
+    const html = reportHtml(report);
+    expect(html).toContain(plan); expect(html).toContain(goals);
+    expect(html).toContain(report.content.generalGoal);
+    expect(JSON.stringify(fixtures.planRecord.data)).toBe(before);
+  });
+  it('uses neutral legacy presentation and rejects an unvalidated plan reference', () => {
+    expect(withReference().studentReference).toBe('الطالب/الطالبة');
+    const plan = { ...fixtures.planRecord, data: { ...fixtures.planRecord.data, presentation: { studentReference: 'UNREVIEWED_REFERENCE' } } };
+    expect(() => reportSnapshot(exportRequestSchema.parse(selected), fixtures.studentRecord, plan, fixtures.sessionRecords, emptySettings(), 'serial', new Date())).toThrow();
+    const genderOnStudent = { ...fixtures.studentRecord, data: { ...fixtures.studentRecord.data, gender: 'female' } };
+    const report = reportSnapshot(exportRequestSchema.parse(selected), genderOnStudent, fixtures.planRecord, fixtures.sessionRecords, emptySettings(), 'serial', new Date()).document;
+    expect(report.studentReference).toBe('الطالب/الطالبة');
+    expect(report).not.toHaveProperty('gender');
+  });
   it('projects the selected student, period, approved plan and sessions without demographic or free observation fields', () => {
     const report = document();
     expect(report.grade).toBeNull();
@@ -61,6 +98,19 @@ describe('report selection and descriptive data boundary', () => {
 });
 
 describe('actual Arabic document renderers', () => {
+  it.each(referenceCases)('writes the approved $reference headings into real Word and PDF fixtures', async ({ reference, stem, plan, goals }) => {
+    const report = { ...withReference(reference), type: 'plan' as const, serial: `KH-RPT-${randomUUID().toUpperCase()}` };
+    const [pdf, docx] = await Promise.all([renderReport(report, 'pdf'), renderReport(report, 'docx')]);
+    const xml = strFromU8(unzipSync(docx)['word/document.xml']!);
+    expect(xml).toContain(plan); expect(xml).toContain(goals);
+    expect(xml).toContain('يدعم التدريب مشاركة الطالب في التعلم');
+    expect(pdf.subarray(0, 5).toString()).toBe('%PDF-');
+    await mkdir('../.artifacts/reports', { recursive: true });
+    await writeFile(`../.artifacts/reports/${stem}.pdf`, pdf);
+    await writeFile(`../.artifacts/reports/${stem}.docx`, docx);
+    referenceExpectations.push({ stem, plan, goals });
+    await writeFile('../.artifacts/reports/REFERENCE_EXPECTATIONS.json', JSON.stringify(referenceExpectations, null, 2));
+  }, 60000);
   it.each(['progress', 'parent', 'administration', 'plan'] as const)('creates real PDF and editable DOCX for %s', async type => {
     const report = document({ type });
     const [pdf, docx] = await Promise.all([renderReport(report, 'pdf'), renderReport(report, 'docx')]);

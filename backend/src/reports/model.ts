@@ -5,6 +5,8 @@ import { ApiError } from '../errors.js';
 
 export const reportTypeSchema = z.enum(['progress', 'parent', 'administration', 'plan']);
 export type ReportType = z.infer<typeof reportTypeSchema>;
+export const studentReferenceSchema = z.enum(['الطالب', 'الطالبة', 'الطالب/الطالبة']);
+export type StudentReference = z.infer<typeof studentReferenceSchema>;
 const exportSelectionSchema = z.strictObject({
   studentId: z.uuid(), planId: z.uuid(), type: reportTypeSchema,
   periodStart: z.iso.date(), periodEnd: z.iso.date(),
@@ -32,6 +34,7 @@ export interface ReportGoal {
 }
 export interface ReportDocument {
   type: ReportType; serial: string; studentCode: string; grade: string | null;
+  studentReference: StudentReference;
   exportedOn: string; periodStart: string; periodEnd: string;
   settings: ReportSettings; content: PlanContent; goals: ReportGoal[];
   attendance: { completed: number; scheduled: number; percent: number | null };
@@ -49,6 +52,7 @@ export function reportSnapshot(request: ExportRequest, student: Envelope, plan: 
   }
   const studentData = z.object({ id: z.uuid(), code: z.string().regex(/^ST-[A-F0-9]{8}$/), grade: z.string(), consentConfirmed: z.literal(true) }).parse(student.data);
   const planData = z.object({ id: z.uuid(), studentId: z.uuid(), status: z.literal('approved'), content: planContentSchema,
+    presentation: z.strictObject({ studentReference: studentReferenceSchema }).optional(),
     templateOptions: z.union([
       z.object({ showStrategies: z.boolean(), showRecommendations: z.boolean(), showSessionSchedule: z.boolean() }).transform(value => ({ strategies: value.showStrategies, recommendations: value.showRecommendations, sessionSchedule: value.showSessionSchedule })),
       z.object({ strategies: z.boolean(), recommendations: z.boolean(), sessionSchedule: z.boolean() }),
@@ -75,6 +79,7 @@ export function reportSnapshot(request: ExportRequest, student: Envelope, plan: 
     sessions: sessions.filter(session => session.goalId === goal.id) }));
   return { studentId: student.id, planId: plan.id, studentRevision: student.revision, planRevision: plan.revision,
     document: { type: request.type, serial, studentCode: studentData.code, grade: request.includeGrade ? studentData.grade : null,
+      studentReference: planData.data.presentation?.studentReference ?? 'الطالب/الطالبة',
       exportedOn: now.toISOString().slice(0, 10), periodStart: request.periodStart, periodEnd: request.periodEnd, settings, content, goals,
       attendance: attendance(sessions), optionalSections: planData.data.templateOptions ?? { strategies: true, recommendations: true, sessionSchedule: true } } };
 }
@@ -102,6 +107,15 @@ export const statusLabel = (status: InterventionSession['status']) => ({ complet
 export const percentLabel = (percent: number | null) => percent === null ? 'غير متاح' : `${Number(percent.toFixed(2))}%`;
 export const accuracyLabel = (session: InterventionSession) => percentLabel(sessionAccuracy(session));
 export const titleForType = (type: ReportType) => ({ progress: 'تقرير التقدم الدوري', parent: 'تقرير المتابعة لولي الأمر', administration: 'ملخص المتابعة للإدارة', plan: 'الخطة العلاجية المعتمدة' })[type];
+
+/** Fixed presentation labels only. Recorded educational content and measurements are never conjugated. */
+export function referenceHeadings(reference: StudentReference) {
+  return {
+    'الطالب': { plan: 'الخطة الفردية للطالب', goals: 'الأهداف الإجرائية للطالب' },
+    'الطالبة': { plan: 'الخطة الفردية للطالبة', goals: 'الأهداف الإجرائية للطالبة' },
+    'الطالب/الطالبة': { plan: 'الخطة الفردية للطالب أو الطالبة', goals: 'الأهداف الإجرائية للطالب أو الطالبة' },
+  }[studentReferenceSchema.parse(reference)];
+}
 
 /** A second output boundary; it cannot identify every name and does not replace specialist review. */
 export function reviewSafeText(texts: string[]): void {

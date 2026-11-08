@@ -4,7 +4,7 @@ import { chromium, type Browser, type Page } from 'playwright-core';
 import { AlignmentType, BorderStyle, Document, Header, HeadingLevel, ImageRun, Packer, PageNumber, Paragraph, Table, TableCell, TableRow, TextRun, WidthType, type ParagraphChild } from 'docx';
 import { ApiError } from '../errors.js';
 import { escapeHtml, goalCharts } from './charts.js';
-import { accuracyLabel, percentLabel, reviewSafeText, statusLabel, supportLabel, titleForType, type InstitutionLogo, type ReportDocument, type ReportSettings } from './model.js';
+import { accuracyLabel, percentLabel, referenceHeadings, reviewSafeText, statusLabel, supportLabel, titleForType, type InstitutionLogo, type ReportDocument, type ReportSettings } from './model.js';
 
 let fontPromise: Promise<Buffer> | undefined;
 function fontData() {
@@ -38,7 +38,7 @@ async function stylesheet() {
     th{background:#eceff0;font-weight:700}thead{display:table-header-group}tr{break-inside:avoid}
     figure{margin:12px 0;break-inside:avoid}figure svg{display:block;width:100%;height:auto}.muted{font-size:12px;color:#333}
     .metric{font-weight:700}.manual{padding:9px 0;border-bottom:1px dotted #555}.section{margin:12px 0}.metadata{font-size:13px}
-    .logo{float:left;max-height:48px;max-width:100px}ul,ol{padding-right:22px}li{margin:4px 0}@page{size:Letter}`;
+    .logo{float:left;max-height:48px;max-width:100px}.reference-heading{font-family:Arial,sans-serif}ul,ol{padding-right:22px}li{margin:4px 0}@page{size:Letter}`;
 }
 function listHtml(values: string[]) {
   return values.length ? `<ul>${values.map(value => `<li>${escapeHtml(value)}</li>`).join('')}</ul>` : '<p>لم تسجل عناصر في الخطة المعتمدة.</p>';
@@ -59,7 +59,8 @@ export async function renderArabicPdf(input: { bodyHtml: string; studentCode: st
   finally { await browser.close(); }
 }
 export function reportHtml(report: ReportDocument): string {
-  const title = titleForType(report.type);
+  const headings = referenceHeadings(report.studentReference);
+  const title = report.type === 'plan' ? headings.plan : titleForType(report.type);
   const intro = report.type === 'parent'
     ? 'تعرض هذه المتابعة ما تدربت عليه المهارة وما سُجّل من أداء خلال الفترة. النسبة تعني الإجابات الصحيحة من فرص التدريب المسجلة، ولا تقارن أداء الطفل بأطفال آخرين.'
     : report.type === 'administration'
@@ -67,7 +68,7 @@ export function reportHtml(report: ReportDocument): string {
     : report.type === 'plan' ? 'نسخة الخطة التي راجعتها المختصة واعتمدتها؛ تعرض الأهداف ومعاييرها وخطوات المتابعة.'
     : 'يعرض التقرير الأهداف المعتمدة والتدخلات التربوية والجلسات المسجلة. دقة الجلسة هي الصحيح مقسومًا على المحاولات المنفذة، وتبقى نتائج التقييم الأولي منفصلة عنها.';
   const metadata = `<p class="metadata">رمز الطالب <bdi>${escapeHtml(report.studentCode)}</bdi>${report.grade === null ? '' : ' | الصف ' + escapeHtml(report.grade)}<br/>الفترة <bdi>${report.periodStart}</bdi> إلى <bdi>${report.periodEnd}</bdi> | التصدير <bdi>${report.exportedOn}</bdi></p>`;
-  const overview = `<h2>ملخص الخطة المعتمدة</h2><p><strong>الهدف العام </strong>${escapeHtml(report.content.generalGoal)}</p><p><strong>نقاط القوة </strong>${escapeHtml(report.content.strengthsSummary)}</p><p><strong>الاحتياج التعليمي </strong>${escapeHtml(report.content.needsSummary)}</p><p><strong>مستوى الأداء الأولي </strong>${escapeHtml(report.content.baseline)}</p>`;
+  const overview = `<h2 class="reference-heading">ملخص ${escapeHtml(headings.plan)}</h2><p><strong>الهدف العام </strong>${escapeHtml(report.content.generalGoal)}</p><p><strong>نقاط القوة </strong>${escapeHtml(report.content.strengthsSummary)}</p><p><strong>الاحتياج التعليمي </strong>${escapeHtml(report.content.needsSummary)}</p><p><strong>مستوى الأداء الأولي </strong>${escapeHtml(report.content.baseline)}</p>`;
   const attendanceHtml = report.type === 'plan' ? '' : `<h2>الانتظام خلال الفترة</h2><p>${report.attendance.completed} جلسات منفذة من ${report.attendance.scheduled} جلسات تشمل الحضور والغياب. نسبة الانتظام <bdi class="metric">${percentLabel(report.attendance.percent)}</bdi>. الجلسات الملغاة خارج مقام الانتظام، والغياب والإلغاء لا ينتجان نسبة أداء.</p>`;
   const goals = report.goals.map((goal, index) => {
     const title = `<h2>الهدف ${index + 1}</h2><p>${escapeHtml(goal.behavior)} ${escapeHtml(goal.condition)}</p><p><strong>المعيار </strong>${escapeHtml(goal.criterion)} | الإطار الزمني ${goal.timeframeWeeks} أسابيع</p>`;
@@ -79,7 +80,7 @@ export function reportHtml(report: ReportDocument): string {
   const strategies = report.optionalSections.strategies ? `<h2>التدخلات التربوية</h2>${listHtml(report.content.strategies)}` : '';
   const recommendations = report.optionalSections.recommendations ? `<h2>توصيات المتابعة</h2>${listHtml(report.content.recommendations)}` : '';
   const schedule = report.optionalSections.sessionSchedule ? `<p>مدة الخطة ${report.content.durationWeeks} أسابيع | ${report.content.sessionsPerWeek} جلسات أسبوعيًا</p>` : '';
-  return `${logoHtml(report.settings)}<h1>${title}</h1>${metadata}<p>${intro}</p><p class="manual">الاسم يكتب يدويًا بعد الطباعة أو في نسخة Word: ........................................</p>${overview}${attendanceHtml}${goals}${strategies}<h2>الوسائل وأدوات المتابعة</h2>${listHtml(report.content.tools)}${listHtml(report.content.measurementTools)}${schedule}${recommendations}<p><strong>المتابعة القادمة </strong><bdi>${report.content.nextFollowUp}</bdi></p>`;
+  return `${logoHtml(report.settings)}<h1${report.type === 'plan' ? ' class="reference-heading"' : ''}>${title}</h1>${metadata}<p>${intro}</p><p class="manual">الاسم يكتب يدويًا بعد الطباعة أو في نسخة Word: ........................................</p>${overview}${attendanceHtml}<h2 class="reference-heading">${escapeHtml(headings.goals)}</h2>${goals}${strategies}<h2>الوسائل وأدوات المتابعة</h2>${listHtml(report.content.tools)}${listHtml(report.content.measurementTools)}${schedule}${recommendations}<p><strong>المتابعة القادمة </strong><bdi>${report.content.nextFollowUp}</bdi></p>`;
 }
 
 function textRuns(text: string, bold = false, size = 24): TextRun[] {
@@ -108,15 +109,17 @@ export async function renderReport(report: ReportDocument, format: 'pdf' | 'docx
   try {
     const page = await privatePage(browser);
     if (format === 'pdf') return await pdfFromPage(page, reportHtml(report), report.studentCode, report.serial, report.settings);
-    const children: (Paragraph | Table)[] = [paragraph(titleForType(report.type), { title: true }),
+    const headings = referenceHeadings(report.studentReference);
+    const children: (Paragraph | Table)[] = [paragraph(report.type === 'plan' ? headings.plan : titleForType(report.type), { title: true }),
       paragraph(`رمز الطالب ${report.studentCode}${report.grade === null ? '' : ' | الصف ' + report.grade}`),
       paragraph(`الفترة ${report.periodStart} إلى ${report.periodEnd} | التصدير ${report.exportedOn}`),
       paragraph('الاسم يكتب بعد الطباعة أو في هذه النسخة خارج التطبيق: ........................................'),
       paragraph(report.type === 'parent' ? 'تعرض المتابعة ما سُجّل من تدريب وأداء. النسبة هي الصحيح من فرص التدريب، ولا تقارن الطفل بأطفال آخرين.' : 'تعرض الوثيقة الخطة المعتمدة وبيانات الجلسات المسجلة، مع فصلها عن نتائج التقييم الأولي.'),
-      paragraph('ملخص الخطة المعتمدة', { heading: true }), paragraph(`الهدف العام ${report.content.generalGoal}`),
+      paragraph(`ملخص ${headings.plan}`, { heading: true }), paragraph(`الهدف العام ${report.content.generalGoal}`),
       paragraph(`نقاط القوة ${report.content.strengthsSummary}`), paragraph(`الاحتياج التعليمي ${report.content.needsSummary}`), paragraph(`مستوى الأداء الأولي ${report.content.baseline}`)];
     if (report.type !== 'plan') children.push(paragraph('الانتظام خلال الفترة', { heading: true }),
       paragraph(`${report.attendance.completed} جلسات منفذة من ${report.attendance.scheduled} جلسات حضور وغياب. الانتظام ${percentLabel(report.attendance.percent)}. الجلسات الملغاة خارج المقام، والغياب والإلغاء لا ينتجان نسبة أداء.`));
+    children.push(paragraph(headings.goals, { heading: true }));
     for (const [index, goal] of report.goals.entries()) {
       children.push(paragraph(`الهدف ${index + 1}`, { heading: true }), paragraph(`${goal.behavior} ${goal.condition}`), paragraph(`المعيار ${goal.criterion} | الإطار الزمني ${goal.timeframeWeeks} أسابيع`));
       if (report.type === 'plan') continue;
