@@ -1,0 +1,96 @@
+name: Arabic report visual QA
+
+on:
+  push:
+    branches: ['feat/fnd-02-foundation']
+    paths:
+      - 'backend/src/reports/**'
+      - 'backend/test/reports*'
+      - 'backend/package.json'
+      - 'backend/package-lock.json'
+      - '.github/workflows/reports-qa.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: khotwa-reports-qa-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  reports-visual-qa:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      NODE_ENV: test
+      PRISMA_SKIP_POSTINSTALL_GENERATE: 'true'
+    defaults:
+      run:
+        shell: bash
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install actual Word and PDF rendering tools
+        run: |
+          sudo apt-get -o Acquire::Retries=3 update
+          sudo apt-get -o Acquire::Retries=3 install --yes --no-install-recommends libreoffice-writer poppler-utils fonts-noto-core fonts-liberation2
+          mkdir -p "$HOME/.local/share/fonts/khotwa"
+          cp src/reports/assets/NotoSansArabic.ttf "$HOME/.local/share/fonts/khotwa/"
+          fc-cache -f
+          soffice --version
+          pdftoppm -v
+      - name: Verify the installed Chrome executable
+        run: |
+          chrome="$(command -v google-chrome)"
+          test -x "$chrome"
+          "$chrome" --version
+          echo "KHOTWA_CHROMIUM_EXECUTABLE=$chrome" >> "$GITHUB_ENV"
+      - name: Install locked Node dependencies
+        run: npm ci
+      - name: Install the verified Python PDF reader version
+        run: python -m pip install --disable-pip-version-check pypdf==6.10.0
+      - name: Generate synthetic PDF and DOCX fixtures with real Chrome
+        run: |
+          mkdir -p ../.artifacts/reports
+          npm exec -- vitest run test/reports.model.test.ts --reporter=verbose --reporter=json --outputFile=../.artifacts/reports/TEST_RESULTS.json
+      - name: Render Word and verify every page identifier
+        run: python test/reports.visual.py --directory ../.artifacts/reports
+      - name: Render original PDF fixtures for visual comparison
+        run: |
+          mkdir -p ../.artifacts/reports/pdf-render
+          for pdf in ../.artifacts/reports/*.pdf; do
+            filename="$(basename "$pdf" .pdf)"
+            pdftoppm -png -scale-to 1500 "$pdf" "../.artifacts/reports/pdf-render/$filename"
+          done
+      - name: Record the verified result and remaining visual review
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          results = json.loads(Path('../.artifacts/reports/word-render/QA.json').read_text())
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a', encoding='utf-8') as output:
+              output.write('### Arabic report QA\n\n')
+              output.write(f'Rendered {len(results)} editable Word fixtures through LibreOffice.\n\n')
+              output.write('Every converted page contains its student code and unique report serial.\n\n')
+              output.write('The artifact contains actual PDF/DOCX files, original-PDF and Word PNGs, test results and QA metadata.\n\n')
+              output.write('Review the PNGs before accepting Arabic layout. This job does not build a mobile app or verify a physical device.\n')
+          PY
+      - name: Preserve report evidence including failed QA output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: khotwa-reports-visual-qa-${{ github.sha }}-${{ github.run_attempt }}
+          path: .artifacts/reports/
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 6
