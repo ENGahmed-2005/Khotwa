@@ -27,7 +27,8 @@ type Receipt = { namespace: 'plan-version'; record: Envelope };
 function snapshot(plan: PlanVersion): PlanVersion {
   return { id: plan.id, studentId: plan.studentId, version: plan.version, status: plan.status, source: plan.source,
     suggested: plan.suggested, content: structuredClone(plan.content), createdAt: plan.createdAt,
-    approvedAt: plan.approvedAt, approvedBy: plan.approvedBy, previousVersionId: plan.previousVersionId };
+    approvedAt: plan.approvedAt, approvedBy: plan.approvedBy, previousVersionId: plan.previousVersionId,
+    ...(plan.presentation ? { presentation: structuredClone(plan.presentation) } : {}) };
 }
 
 function contentFields(content: PlanVersion['content']): Record<string, unknown> {

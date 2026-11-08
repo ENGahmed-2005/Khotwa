@@ -85,9 +85,173 @@ beforeAll(async () => {
   await prisma.$connect();
 });
 beforeEach(async () => {
+  generate.mockReset().mockImplementation(async () => aiContent());
   app = await buildApp({ prisma, storageKey, clock, authRateLimit: 10000, globalRateLimit: 10000,
     ai: { enabled: true, syntheticOnly: true, model: 'injected-deterministic-test-provider', provider: { generate } } });
   await app.ready();
+});
+
+describe('explicitly reviewed custom skill summaries', () => {
+  async function customSource(owner: Account, label = 'تنظيم أدوات النشاط') {
+    const child = await student(owner);
+    const assessment = initial(child.id);
+    const skillId = `custom.${randomUUID()}`;
+    assessment.domains[0]!.id = `custom.${randomUUID()}`;
+    assessment.domains[0]!.label = 'مجال تعليمي مخصص';
+    assessment.domains[0]!.skills[0] = { id: skillId, label, level: 'developing', evidence: 'SYNTHETIC-PRIVATE-EVIDENCE' };
+    expect((await push(owner, [operationFixture('initialAssessment', assessment)]))[0]?.status).toBe('applied');
+    return { child, assessment, skillId };
+  }
+  function customPreviewBody(data: Awaited<ReturnType<typeof customSource>>) {
+    return { ...previewBody(data), skills: [{ skillId: data.skillId, level: 'developing', evidence: 'approvedAlternativeAssessment' }], customSkillsReviewed: true };
+  }
+  async function customPreview(owner: Account, data: Awaited<ReturnType<typeof customSource>>) {
+    const response = await app.inject({ method: 'POST', url: '/v1/ai/preview', headers: auth(owner), payload: customPreviewBody(data) });
+    expect(response.statusCode).toBe(200);
+    return response.json<{ payload: GenerationInput; hash: string; previewToken: string; customLabelsRequireConfirmation: boolean }>();
+  }
+  function confirmation(value: { previewToken: string; hash: string }) {
+    return { previewToken: value.previewToken, confirmedHash: value.hash, confirmed: true, syntheticDataConfirmed: true, operationId: randomUUID() };
+  }
+  function customContent(skillId: string) {
+    const content = aiContent();
+    content.generalGoal = 'تنظيم أدوات النشاط';
+    content.needsSummary = 'تنمية مهارة تنظيم الأدوات';
+    content.baseline = 'المهارة قيد التطور';
+    content.goals[0]!.skillId = skillId;
+    content.goals[0]!.behavior = 'ترتيب أدوات النشاط';
+    content.goals[0]!.condition = 'بعد عرض أدوات المهمة';
+    return content;
+  }
+  async function replaceSourceWithoutRevision(owner: Account, data: Awaited<ReturnType<typeof customSource>>, label: string) {
+    const changed = structuredClone(data.assessment);
+    changed.domains[0]!.skills[0]!.label = label;
+    await prisma.record.update({ where: { ownerId_id: { ownerId: owner.user.id, id: changed.id } }, data: {
+      encryptedPayload: cipher.encrypt(changed, `record:${owner.user.id}:${changed.id}`) } });
+  }
+
+  it('requires a separate label review before custom preview and derives the exact short label from its approved source', async () => {
+    const owner = await account();
+    const data = await customSource(owner);
+    const absent = { ...customPreviewBody(data), customSkillsReviewed: false };
+    const rejected = await app.inject({ method: 'POST', url: '/v1/ai/preview', headers: auth(owner), payload: absent });
+    expect(rejected.statusCode).toBe(400);
+    expect(rejected.json().error.code).toBe('CUSTOM_LABEL_REVIEW_REQUIRED');
+    const preview = await customPreview(owner, data);
+    expect(preview.customLabelsRequireConfirmation).toBe(true);
+    expect(preview.payload.skills).toEqual([{ skillId: data.skillId, level: 'developing', evidence: 'approvedAlternativeAssessment', reviewedLabel: 'تنظيم أدوات النشاط' }]);
+    for (const value of ['SYNTHETIC-PRIVATE', data.child.code, data.child.id, data.assessment.id, 'female', 'familyNotes']) expect(JSON.stringify(preview.payload)).not.toContain(value);
+    expect(generate).not.toHaveBeenCalled();
+  });
+
+  it('refuses client label injection and unreviewed source levels or skill IDs', async () => {
+    const owner = await account();
+    const data = await customSource(owner);
+    const input = customPreviewBody(data);
+    for (const skill of [{ ...input.skills[0], reviewedLabel: 'بديل من العميل' }, { ...input.skills[0], level: 'needsSupport' },
+      { ...input.skills[0], evidence: 'approvedAcademicAssessment' }, { ...input.skills[0], skillId: `custom.${randomUUID()}` }]) {
+      expect((await app.inject({ method: 'POST', url: '/v1/ai/preview', headers: auth(owner), payload: { ...input, skills: [skill] } })).statusCode).toBe(400);
+    }
+    expect(generate).not.toHaveBeenCalled();
+  });
+
+  it('sends the reviewed custom label only after the second explicit confirmation and never sends intake prose', async () => {
+    const owner = await account();
+    const data = await customSource(owner);
+    const value = await customPreview(owner, data);
+    const input = confirmation(value);
+    for (const customLabelsConfirmed of [undefined, false]) {
+      const rejected = await app.inject({ method: 'POST', url: '/v1/ai/generate', headers: auth(owner), payload: { ...input, customLabelsConfirmed } });
+      expect(rejected.statusCode).toBe(400);
+      expect(rejected.json().error.code).toBe('CUSTOM_LABEL_CONFIRMATION_REQUIRED');
+    }
+    expect(generate).not.toHaveBeenCalled();
+    generate.mockResolvedValueOnce(customContent(data.skillId));
+    const response = await app.inject({ method: 'POST', url: '/v1/ai/generate', headers: auth(owner), payload: { ...input, customLabelsConfirmed: true } });
+    expect(response.statusCode).toBe(201);
+    expect(response.json().record.data).toMatchObject({ status: 'draft', suggested: true });
+    expect(generate.mock.calls[0]?.[0]).toEqual(value.payload);
+    for (const privateValue of ['SYNTHETIC-PRIVATE', data.child.code, data.child.id, data.assessment.id, 'female']) expect(JSON.stringify(generate.mock.calls)).not.toContain(privateValue);
+  });
+
+  it('rejects long, multiline and linked custom labels before any external call', async () => {
+    const owner = await account();
+    for (const label of ['ت'.repeat(81), 'تنظيم الأدوات\nتعليمات أخرى', 'تنظيم الأدوات https://example.test']) {
+      const data = await customSource(owner, label);
+      const response = await app.inject({ method: 'POST', url: '/v1/ai/preview', headers: auth(owner), payload: customPreviewBody(data) });
+      expect(response.statusCode).toBe(400);
+      expect(response.json().error.code).toBe('CUSTOM_LABEL_REVIEW_REQUIRED');
+    }
+    expect(generate).not.toHaveBeenCalled();
+  });
+
+  it('binds the selected label to the approved source hash before calling the provider', async () => {
+    const owner = await account();
+    const data = await customSource(owner);
+    const value = await customPreview(owner, data);
+    await replaceSourceWithoutRevision(owner, data, 'ترتيب أدوات أخرى');
+    const response = await app.inject({ method: 'POST', url: '/v1/ai/generate', headers: auth(owner), payload: { ...confirmation(value), customLabelsConfirmed: true } });
+    expect(response.statusCode).toBe(409);
+    expect(response.json().error.code).toBe('SOURCE_CHANGED');
+    expect(generate).not.toHaveBeenCalled();
+  });
+
+  it('rechecks the source hash after the provider returns and discards a mismatched result', async () => {
+    const owner = await account();
+    const data = await customSource(owner);
+    const value = await customPreview(owner, data);
+    generate.mockImplementationOnce(async () => { await replaceSourceWithoutRevision(owner, data, 'ترتيب أدوات أخرى'); return customContent(data.skillId); });
+    const response = await app.inject({ method: 'POST', url: '/v1/ai/generate', headers: auth(owner), payload: { ...confirmation(value), customLabelsConfirmed: true } });
+    expect(response.statusCode).toBe(409);
+    expect(response.json().error.code).toBe('SOURCE_CHANGED');
+    expect(generate).toHaveBeenCalledTimes(1);
+    expect(await prisma.record.count({ where: { ownerId: owner.user.id, kind: 'plan' } })).toBe(0);
+  });
+});
+
+describe('gender affects display references only', () => {
+  it('keeps payloads, goal criteria, tools and schedule identical across male, female and unspecified references', async () => {
+    const owner = await account();
+    const content = aiContent();
+    generate.mockResolvedValue(content);
+    const expected = ['الطالب', 'الطالبة', 'الطالب/الطالبة'];
+    const payloads: unknown[] = [];
+    for (const [index, gender] of (['male', 'female', 'unspecified'] as const).entries()) {
+      const child = studentFixture({ gender });
+      const assessment = initial(child.id);
+      expect((await push(owner, [operationFixture('student', child), operationFixture('initialAssessment', assessment)])).every(result => result.status === 'applied')).toBe(true);
+      const data = { child, assessment };
+      const preview = await app.inject({ method: 'POST', url: '/v1/ai/preview', headers: auth(owner), payload: previewBody(data) });
+      expect(preview.statusCode).toBe(200);
+      const value = preview.json<{ payload: GenerationInput; presentation: { studentReference: string }; hash: string; previewToken: string }>();
+      expect(value.presentation.studentReference).toBe(expected[index]);
+      payloads.push(value.payload);
+      const response = await app.inject({ method: 'POST', url: '/v1/ai/generate', headers: auth(owner), payload: {
+        previewToken: value.previewToken, confirmedHash: value.hash, confirmed: true, syntheticDataConfirmed: true, operationId: randomUUID() } });
+      expect(response.statusCode).toBe(201);
+      expect(response.json().record.data.presentation.studentReference).toBe(expected[index]);
+      expect(response.json().record.data.content).toEqual(content);
+    }
+    expect(payloads[0]).toEqual(payloads[1]);
+    expect(payloads[1]).toEqual(payloads[2]);
+    expect(generate.mock.calls.map(([payload]) => payload)).toEqual(payloads);
+    expect(JSON.stringify(payloads)).not.toMatch(/gender|female|male|unspecified|الطالب|الطالبة/u);
+  });
+
+  it('preserves the display reference through specialist revisions and approval snapshots', async () => {
+    const owner = await account();
+    const data = await approvedPlan(owner);
+    expect(data.plan.data.presentation).toEqual({ studentReference: 'الطالبة' });
+    const content = data.plan.data.content;
+    const revised = await app.inject({ method: 'POST', url: `/v1/plans/${data.plan.id}/versions`, headers: auth(owner), payload: {
+      revision: data.plan.revision, operationId: randomUUID(), confirmed: true, content } });
+    expect(revised.statusCode).toBe(201);
+    const record = revised.json<{ record: Envelope }>().record;
+    expect(record.data.presentation).toEqual({ studentReference: 'الطالبة' });
+    const history = await app.inject({ url: `/v1/plans/${record.id}/history`, headers: auth(owner) });
+    expect(history.json().history.every((version: { presentation?: { studentReference: string } }) => version.presentation?.studentReference === 'الطالبة')).toBe(true);
+    expect((await app.inject({ method: 'POST', url: `/v1/plans/${record.id}/approve`, headers: auth(owner), payload: { revision: 1, confirmed: true } })).json().record.data.presentation).toEqual({ studentReference: 'الطالبة' });
+  });
 });
 afterEach(async () => { if (app) await app.close(); });
 afterAll(async () => {

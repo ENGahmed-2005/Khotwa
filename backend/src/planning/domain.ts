@@ -42,6 +42,11 @@ export interface PlanVersion {
   suggested: boolean; content: PlanContent;
   createdAt: string; approvedAt: string | null; approvedBy: string | null;
   previousVersionId: string | null;
+  /** A display reference only. Gender never changes goals, criteria, tools or AI input. */
+  presentation?: { studentReference: 'الطالب' | 'الطالبة' | 'الطالب/الطالبة' };
+}
+export function studentPresentation(gender?: 'male' | 'female' | 'unspecified'): NonNullable<PlanVersion['presentation']> {
+  return { studentReference: gender === 'female' ? 'الطالبة' : gender === 'male' ? 'الطالب' : 'الطالب/الطالبة' };
 }
 
 export function createDraft(input: unknown, studentId: string, source: PlanVersion['source'], now = new Date()): PlanVersion {
@@ -54,7 +59,8 @@ export function createDraft(input: unknown, studentId: string, source: PlanVersi
 /** Always creates a separate immutable history entry; never changes the input object. */
 export function revisePlan(previous: PlanVersion, input: unknown, now = new Date()): PlanVersion {
   return { ...createDraft(input, previous.studentId, 'specialist', now),
-    version: previous.version + 1, previousVersionId: previous.id };
+    version: previous.version + 1, previousVersionId: previous.id,
+    ...(previous.presentation ? { presentation: structuredClone(previous.presentation) } : {}) };
 }
 
 /** Called only after authenticated owner authorization; model output cannot invoke it. */
@@ -67,10 +73,16 @@ export function approvePlan(plan: PlanVersion, actorId: string, explicitlyConfir
 }
 
 // Controlled identifiers only. Provider sees no student code, account, age, raw answer or free text.
-export const aiSkillSchema = z.strictObject({
+export const aiSkillReferenceSchema = z.strictObject({
   skillId: z.string().regex(/^[a-z][a-z0-9_.-]{1,80}$/),
   level: z.enum(['mastered', 'developing', 'needsSupport']),
   evidence: z.enum(['approvedAcademicAssessment', 'approvedAlternativeAssessment']),
+});
+export const customSkillId = z.string().refine(value => value.startsWith('custom.') && z.uuid({ version: 'v4' }).safeParse(value.slice(7)).success, 'Custom skills use an anonymous generated identifier');
+export const reviewedSkillLabel = educationalText.min(1).max(80).refine(value => !/[\r\n]|https?:|www\.|<|>/iu.test(value), 'Use one short, reviewed educational label without links');
+export const aiSkillSchema = aiSkillReferenceSchema.extend({ reviewedLabel: reviewedSkillLabel.optional() }).superRefine((skill, context) => {
+  const custom = customSkillId.safeParse(skill.skillId).success;
+  if (custom !== (skill.reviewedLabel !== undefined)) context.addIssue({ code: 'custom', path: ['reviewedLabel'], message: 'Only custom skills require an explicitly reviewed label' });
 });
 export const generationInputSchema = z.strictObject({
   skills: z.array(aiSkillSchema).min(1).max(40),

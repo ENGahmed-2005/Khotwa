@@ -1,4 +1,5 @@
 import type { InitialAssessment } from './schema.js';
+import { customSkillId } from '../planning/domain.js';
 
 /** Educational suggestions from SRS FR-28/30, never standardized scales or diagnoses. */
 export const educationalCatalog = [
@@ -37,7 +38,7 @@ export const educationalSkillLabels = new Map<string, string>(educationalCatalog
 
 export function skillsForInitialAssessment(assessment: InitialAssessment) {
   return assessment.domains.flatMap(domain => domain.skills)
-    .filter(skill => educationalSkillLabels.has(skill.id))
-    .map(skill => ({ skillId: skill.id, label: educationalSkillLabels.get(skill.id)!, level: skill.level,
+    .filter(skill => educationalSkillLabels.has(skill.id) || customSkillId.safeParse(skill.id).success)
+    .map(skill => ({ skillId: skill.id, label: educationalSkillLabels.get(skill.id) ?? skill.label, level: skill.level,
       evidence: assessment.method === 'academicCards' ? 'approvedAcademicAssessment' as const : 'approvedAlternativeAssessment' as const }));
 }

@@ -9,7 +9,7 @@ import { assessmentSchema, studentSchema } from '../schemas.js';
 import { initialAssessmentSchema } from '../intake/schema.js';
 import { skillsForInitialAssessment } from '../intake/catalog.js';
 import { RecordStore, type Envelope } from '../records.js';
-import { approvePlan, createDraft, prepareGeneration, type PlanVersion } from '../planning/domain.js';
+import { approvePlan, createDraft, customSkillId, prepareGeneration, reviewedSkillLabel, studentPresentation, type PlanVersion } from '../planning/domain.js';
 import { validateGeneratedPlan, type PlanProvider } from '../planning/gateway.js';
 import { skillsForAssessment, toolLabels } from './catalog.js';
 import { generateRequestSchema, payloadFromRequest, previewRequestSchema, PreviewSigner, type PreviewClaims } from './preview.js';
@@ -62,11 +62,16 @@ export function registerAiRoutes(app: FastifyInstance, options: AiRouteOptions) 
         const reference = await tx.record.findUnique({ where: { ownerId_id: { ownerId, id: assessment.academicAssessmentId! } } });
         if (!reference || reference.deletedAt || reference.kind !== 'assessment' || reference.parentId !== studentId || assessmentSchema.parse(records.toEnvelope(reference).data).status !== 'approved') throw new ApiError(409, 'SOURCE_NOT_READY', 'مصدر التقييم الأكاديمي غير متاح.');
       }
-      return { studentRow, assessmentRow, skills: skillsForInitialAssessment(assessment), evidence: assessment.method === 'academicCards' ? 'approvedAcademicAssessment' : 'approvedAlternativeAssessment' };
+      return { studentRow, student, assessmentRow, skills: skillsForInitialAssessment(assessment), evidence: assessment.method === 'academicCards' ? 'approvedAcademicAssessment' : 'approvedAlternativeAssessment' };
     }
     const assessment = assessmentSchema.parse(records.toEnvelope(assessmentRow).data);
     if (!student.consentConfirmed || assessment.status !== 'approved' || !assessment.strengths.trim() || !assessment.needs.trim() || !Object.values(assessment.results).some(result => result.execution === 'performed')) throw new ApiError(409, 'SOURCE_NOT_READY', 'أكمل الموافقة واعتماد التقييم ونقاط القوة والاحتياج أولًا.');
-    return { studentRow, assessmentRow, skills: skillsForAssessment(assessment), evidence: 'approvedAcademicAssessment' };
+    return { studentRow, student, assessmentRow, skills: skillsForAssessment(assessment), evidence: 'approvedAcademicAssessment' };
+  }
+  function skillSourceHash(skills: readonly { skillId: string; label: string; evidence: string; level?: unknown }[]) {
+    const projection = skills.map(skill => ({ skillId: skill.skillId, label: skill.label, evidence: skill.evidence, level: skill.level ?? null }))
+      .sort((a, b) => a.skillId.localeCompare(b.skillId));
+    return tokenHash(canonicalJson(projection));
   }
   function verifyHash(claims: PreviewClaims, confirmedHash: string) {
     const hash = createHash('sha256').update(JSON.stringify(claims.payload)).digest('hex');
@@ -75,6 +80,7 @@ export function registerAiRoutes(app: FastifyInstance, options: AiRouteOptions) 
   async function checkCurrentSource(ownerId: string, claims: PreviewClaims, tx: Prisma.TransactionClient | PrismaClient = prisma) {
     const current = await source(ownerId, claims.studentId, claims.assessmentId, tx);
     if (current.studentRow.revision !== claims.studentRevision || current.assessmentRow.revision !== claims.assessmentRevision) throw new ApiError(409, 'SOURCE_CHANGED', 'تغير مصدر الخطة. راجع البيانات وأنشئ معاينة جديدة.');
+    if (claims.sourceHash && claims.sourceHash !== skillSourceHash(current.skills)) throw new ApiError(409, 'SOURCE_CHANGED', 'تغيرت المهارات أو تسمياتها المراجعة. أنشئ معاينة جديدة.');
     return current;
   }
   const limit = { config: { rateLimit: { max: 12, timeWindow: '1 minute' } } };
@@ -138,14 +144,23 @@ export function registerAiRoutes(app: FastifyInstance, options: AiRouteOptions) 
       const levels = new Map(current.skills.map(item => [item.skillId, 'level' in item ? item.level : null]));
       if (payload.skills.some(skill => levels.get(skill.skillId) !== skill.level)) throw new ApiError(400, 'INVALID_SKILLS', 'استخدم مستويات الأداء المراجعة في التقييم المعتمد.');
     }
+    for (const skill of payload.skills) {
+      if (!customSkillId.safeParse(skill.skillId).success) continue;
+      if (input.customSkillsReviewed !== true) throw new ApiError(400, 'CUSTOM_LABEL_REVIEW_REQUIRED', 'راجعي التسميات التعليمية المخصصة وأكّدي خلوها من الهوية والبيانات الطبية قبل المعاينة.');
+      const sourceSkill = current.skills.find(item => item.skillId === skill.skillId);
+      const label = reviewedSkillLabel.safeParse(sourceSkill?.label);
+      if (!label.success) throw new ApiError(400, 'CUSTOM_LABEL_REVIEW_REQUIRED', 'يلزم اسم تعليمي مراجع من سطر واحد، لا يتجاوز ثمانين محرفًا ودون هوية أو روابط.');
+      skill.reviewedLabel = label.data;
+    }
     let preview;
     try { preview = prepareGeneration(payload, { consentConfirmed: true, assessmentApproved: true, hasReviewedStrengths: true, hasReviewedNeeds: true, hasBaseline: true }, new Set(current.skills.map(skill => skill.skillId))); }
     catch { throw new ApiError(400, 'INVALID_SKILLS', 'اختر مهارات التقييم وحدد احتياجًا واحدًا على الأقل.'); }
     const expiresAt = new Date(now().getTime() + 10 * 60 * 1000);
     const previewToken = signer.sign({ version: 1, ownerId: user.id, studentId: input.studentId, assessmentId: input.assessmentId,
       studentRevision: current.studentRow.revision, assessmentRevision: current.assessmentRow.revision,
-      expiresAt: expiresAt.getTime(), payload: preview.payload, hash: preview.hash });
-    return { ...preview, previewToken, expiresAt: expiresAt.toISOString() };
+      expiresAt: expiresAt.getTime(), payload: preview.payload, hash: preview.hash, sourceHash: skillSourceHash(current.skills) });
+    return { ...preview, previewToken, expiresAt: expiresAt.toISOString(), presentation: studentPresentation(current.student.gender),
+      customLabelsRequireConfirmation: preview.payload.skills.some(skill => skill.reviewedLabel !== undefined) };
   });
 
   app.post('/v1/ai/generate', limit, async (request, reply) => {
@@ -154,6 +169,7 @@ export function registerAiRoutes(app: FastifyInstance, options: AiRouteOptions) 
     const input = generateRequestSchema.parse(request.body);
     const claims = signer.verify(input.previewToken, user.id);
     verifyHash(claims, input.confirmedHash);
+    if (claims.payload.skills.some(skill => skill.reviewedLabel !== undefined) && (!claims.sourceHash || input.customLabelsConfirmed !== true)) throw new ApiError(400, 'CUSTOM_LABEL_CONFIRMATION_REQUIRED', 'أكّدي إرسال التسميات التعليمية المخصصة الظاهرة في هذه المعاينة نفسها.');
     const requestHash = tokenHash(canonicalJson({ namespace: 'ai-generate', ...input }));
     const context = receiptContext(user.id, input.operationId);
     const replay = await prisma.$transaction(async tx => {
@@ -219,7 +235,8 @@ export function registerAiRoutes(app: FastifyInstance, options: AiRouteOptions) 
         if (receipt.state === 'cancelled') throw cancelledError();
         if (isExpired(receipt, operation.createdAt)) throw expiredError();
         if (receipt.namespace !== 'ai-generate' || receipt.state !== 'pending' || operation.requestHash !== requestHash) throw new ApiError(409, 'AI_OPERATION_CHANGED', 'تغيرت حالة الطلب؛ راجع نتيجته قبل المحاولة.');
-        await checkCurrentSource(user.id, claims, tx);
+        const source = await checkCurrentSource(user.id, claims, tx);
+        plan.presentation = studentPresentation(source.student.gender);
         const row = await tx.record.create({ data: { id: plan.id, ownerId: user.id, kind: 'plan', parentId: claims.studentId,
           encryptedPayload: records.cipher.encrypt(plan, records.recordContext(user.id, plan.id)) } });
         const envelope = records.toEnvelope(row);
@@ -263,7 +280,8 @@ export function registerAiRoutes(app: FastifyInstance, options: AiRouteOptions) 
       const plan = records.toEnvelope(row).data as unknown as StoredPlan;
       if (plan.status !== 'draft') throw new ApiError(409, 'PLAN_ALREADY_APPROVED', 'الخطة معتمدة بالفعل.');
       const approved = approvePlan(plan, user.id, true, now());
-      const snapshot: PlanVersion = { id: plan.id, studentId: plan.studentId, version: plan.version, status: plan.status, source: plan.source, suggested: plan.suggested, content: plan.content, createdAt: plan.createdAt, approvedAt: plan.approvedAt, approvedBy: plan.approvedBy, previousVersionId: plan.previousVersionId };
+      const snapshot: PlanVersion = { id: plan.id, studentId: plan.studentId, version: plan.version, status: plan.status, source: plan.source, suggested: plan.suggested, content: plan.content, createdAt: plan.createdAt, approvedAt: plan.approvedAt, approvedBy: plan.approvedBy, previousVersionId: plan.previousVersionId,
+        ...(plan.presentation ? { presentation: plan.presentation } : {}) };
       const saved: StoredPlan = { ...approved, version: plan.version + 1, history: [...plan.history, snapshot], generation: plan.generation };
       const updated = await tx.record.update({ where: { ownerId_id: { ownerId: user.id, id } }, data: { revision: { increment: 1 }, encryptedPayload: records.cipher.encrypt(saved, records.recordContext(user.id, id)) } });
       await tx.auditEvent.create({ data: { ownerId: user.id, action: 'plan.approved', entityId: id } });
