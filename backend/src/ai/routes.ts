@@ -6,6 +6,8 @@ import type { AuthService, Clock } from '../auth.js';
 import { canonicalJson, tokenHash } from '../crypto.js';
 import { ApiError, missing } from '../errors.js';
 import { assessmentSchema, studentSchema } from '../schemas.js';
+import { initialAssessmentSchema } from '../intake/schema.js';
+import { skillsForInitialAssessment } from '../intake/catalog.js';
 import { RecordStore, type Envelope } from '../records.js';
 import { approvePlan, createDraft, prepareGeneration, type PlanVersion } from '../planning/domain.js';
 import { validateGeneratedPlan, type PlanProvider } from '../planning/gateway.js';
@@ -40,11 +42,20 @@ export function registerAiRoutes(app: FastifyInstance, options: AiRouteOptions) 
       tx.record.findUnique({ where: { ownerId_id: { ownerId, id: studentId } } }),
       tx.record.findUnique({ where: { ownerId_id: { ownerId, id: assessmentId } } }),
     ]);
-    if (!studentRow || studentRow.kind !== 'student' || studentRow.deletedAt || !assessmentRow || assessmentRow.kind !== 'assessment' || assessmentRow.parentId !== studentId || assessmentRow.deletedAt) throw missing();
+    if (!studentRow || studentRow.kind !== 'student' || studentRow.deletedAt || !assessmentRow || !['assessment', 'initialAssessment'].includes(assessmentRow.kind) || assessmentRow.parentId !== studentId || assessmentRow.deletedAt) throw missing();
     const student = studentSchema.parse(records.toEnvelope(studentRow).data);
+    if (assessmentRow.kind === 'initialAssessment') {
+      const assessment = initialAssessmentSchema.parse(records.toEnvelope(assessmentRow).data);
+      if (!student.consentConfirmed || assessment.status !== 'approved') throw new ApiError(409, 'SOURCE_NOT_READY', 'أكمل الموافقة واعتماد التقييم الأولي أولًا.');
+      if (assessment.method === 'academicCards') {
+        const reference = await tx.record.findUnique({ where: { ownerId_id: { ownerId, id: assessment.academicAssessmentId! } } });
+        if (!reference || reference.deletedAt || reference.kind !== 'assessment' || reference.parentId !== studentId || assessmentSchema.parse(records.toEnvelope(reference).data).status !== 'approved') throw new ApiError(409, 'SOURCE_NOT_READY', 'مصدر التقييم الأكاديمي غير متاح.');
+      }
+      return { studentRow, assessmentRow, skills: skillsForInitialAssessment(assessment), evidence: assessment.method === 'academicCards' ? 'approvedAcademicAssessment' : 'approvedAlternativeAssessment' };
+    }
     const assessment = assessmentSchema.parse(records.toEnvelope(assessmentRow).data);
     if (!student.consentConfirmed || assessment.status !== 'approved' || !assessment.strengths.trim() || !assessment.needs.trim() || !Object.values(assessment.results).some(result => result.execution === 'performed')) throw new ApiError(409, 'SOURCE_NOT_READY', 'أكمل الموافقة واعتماد التقييم ونقاط القوة والاحتياج أولًا.');
-    return { studentRow, assessmentRow, assessment, skills: skillsForAssessment(assessment) };
+    return { studentRow, assessmentRow, skills: skillsForAssessment(assessment), evidence: 'approvedAcademicAssessment' };
   }
   function verifyHash(claims: PreviewClaims, confirmedHash: string) {
     const hash = createHash('sha256').update(JSON.stringify(claims.payload)).digest('hex');
@@ -62,7 +73,7 @@ export function registerAiRoutes(app: FastifyInstance, options: AiRouteOptions) 
     requirePolicy();
     const { assessmentId } = z.strictObject({ assessmentId: z.uuid() }).parse(request.query);
     const row = await records.get(user.id, assessmentId);
-    if (row.kind !== 'assessment' || !row.parentId || row.deletedAt) throw missing();
+    if (!['assessment', 'initialAssessment'].includes(row.kind) || !row.parentId || row.deletedAt) throw missing();
     const verified = await source(user.id, row.parentId, assessmentId);
     return { skills: verified.skills };
   });
@@ -73,7 +84,11 @@ export function registerAiRoutes(app: FastifyInstance, options: AiRouteOptions) 
     const input = previewRequestSchema.parse(request.body);
     const current = await source(user.id, input.studentId, input.assessmentId);
     const payload = payloadFromRequest(input);
-    if (payload.skills.some(skill => skill.evidence !== 'approvedAcademicAssessment') || new Set(payload.skills.map(skill => skill.skillId)).size !== payload.skills.length) throw new ApiError(400, 'INVALID_SKILLS', 'اختر مهارات موثقة مختلفة من التقييم المعتمد.');
+    if (payload.skills.some(skill => skill.evidence !== current.evidence) || new Set(payload.skills.map(skill => skill.skillId)).size !== payload.skills.length) throw new ApiError(400, 'INVALID_SKILLS', 'اختر مهارات موثقة مختلفة من التقييم المعتمد.');
+    if (current.assessmentRow.kind === 'initialAssessment') {
+      const levels = new Map(current.skills.map(item => [item.skillId, 'level' in item ? item.level : null]));
+      if (payload.skills.some(skill => levels.get(skill.skillId) !== skill.level)) throw new ApiError(400, 'INVALID_SKILLS', 'استخدم مستويات الأداء المراجعة في التقييم المعتمد.');
+    }
     let preview;
     try { preview = prepareGeneration(payload, { consentConfirmed: true, assessmentApproved: true, hasReviewedStrengths: true, hasReviewedNeeds: true, hasBaseline: true }, new Set(current.skills.map(skill => skill.skillId))); }
     catch { throw new ApiError(400, 'INVALID_SKILLS', 'اختر مهارات التقييم وحدد احتياجًا واحدًا على الأقل.'); }

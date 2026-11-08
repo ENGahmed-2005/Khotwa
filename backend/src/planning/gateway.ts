@@ -17,7 +17,7 @@ function inspectStrings(value: unknown): void {
 }
 
 /** Lexical check is one layer, not a claim to detect every name or clinical inference. */
-export function validateGeneratedPlan(raw: unknown, payload: GenerationInput) {
+export function validateEducationalPlan(raw: unknown) {
   const content = planContentSchema.parse(raw);
   // Dates/UUIDs are system types, never scan them as free educational prose.
   inspectStrings({ needs: content.needsSummary, strengths: content.strengthsSummary,
@@ -25,6 +25,11 @@ export function validateGeneratedPlan(raw: unknown, payload: GenerationInput) {
     measurement: content.measurementTools, strategies: content.strategies,
     recommendations: content.recommendations,
     goals: content.goals.map(goal => ({ behavior: goal.behavior, condition: goal.condition })) });
+  return content;
+}
+
+export function validateGeneratedPlan(raw: unknown, payload: GenerationInput) {
+  const content = validateEducationalPlan(raw);
   const allowedSkills = new Set(payload.skills.map(skill => skill.skillId));
   if (content.goals.some(goal => !allowedSkills.has(goal.skillId))) throw new Error('Provider invented an unapproved skill');
   if (content.durationWeeks !== payload.durationWeeks || content.sessionsPerWeek !== payload.sessionsPerWeek) throw new Error('Provider changed reviewed schedule');

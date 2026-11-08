@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { z } from 'zod';
+import { educationalText } from '../intake/schema.js';
 
 const text = z.string().trim().min(1).max(2000);
 const support = z.enum(['independent', 'verbal', 'partial', 'full']);
@@ -101,6 +102,8 @@ export const sessionSchema = z.strictObject({
   // Institution-selected label; no unapproved scale is silently declared standard.
   engagement: z.string().trim().min(1).max(100).nullable(),
   durationMinutes: z.int().min(1).max(1440).nullable(),
+  createdAt: z.iso.datetime({ offset: true }).optional(),
+  activityId: z.uuid().nullable().optional(), notes: educationalText.optional(), privacyReviewed: z.literal(true).optional(),
 }).superRefine((session, context) => {
   if (session.status === 'completed') {
     if (!session.total || session.correct === null || session.correct > session.total || session.support === null || session.engagement === null) {

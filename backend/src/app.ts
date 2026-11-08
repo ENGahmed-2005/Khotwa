@@ -9,6 +9,8 @@ import { ApiError } from './errors.js';
 import { RecordStore } from './records.js';
 import { pushSchema, recordKind, uuid } from './schemas.js';
 import { registerAiRoutes, type AiConfig } from './ai/routes.js';
+import { registerPlanVersionRoutes } from './planning/versions.js';
+import { educationalCatalog } from './intake/catalog.js';
 
 export interface ApplicationServices {
   auth: AuthService;
@@ -63,6 +65,11 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
     const { kind } = z.strictObject({ kind: recordKind.optional() }).parse(request.query);
     return { records: await records.list(user.id, kind) };
   });
+  app.get('/v1/assessment-catalog', async request => {
+    await auth.requireUser(request);
+    return { domains: educationalCatalog.map(domain => ({ id: domain.id, label: domain.label,
+      skills: domain.skills.map(([id, label]) => ({ id, label })) })) };
+  });
   app.get('/v1/records/:id', async request => {
     const user = await auth.requireUser(request);
     const { id } = z.strictObject({ id: uuid }).parse(request.params);
@@ -70,6 +77,7 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   });
   app.post('/v1/sync/push', async request => {
     const user = await auth.requireUser(request);
+    if (user.role !== 'specialist') throw new ApiError(403, 'SPECIALIST_REQUIRED', 'يلزم حساب مختصة مخوّل لحفظ الملفات والتقييمات والجلسات.');
     const { operations } = pushSchema.parse(request.body);
     const results = [];
     // Apply in client order so parents exist before children. Receipts permit safe retry after partial transport failure.
@@ -82,6 +90,7 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
     return { records: await records.list(user.id, undefined, true), fullSnapshot: true };
   });
   registerAiRoutes(app, { prisma: options.prisma, auth, records, storageKey: options.storageKey, clock: options.clock, config: options.ai });
+  registerPlanVersionRoutes(app, { prisma: options.prisma, auth, records, clock: options.clock });
   if (options.extend) await options.extend(app, { auth, records, authenticate: (request: FastifyRequest) => auth.requireUser(request) });
   return app;
 }

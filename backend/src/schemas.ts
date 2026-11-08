@@ -1,9 +1,12 @@
 import { z } from 'zod';
+import { educationalText } from './intake/schema.js';
+import { sessionSchema } from './planning/domain.js';
+export { initialAssessmentSchema } from './intake/schema.js';
 
 export const uuid = z.uuid({ version: 'v4' });
 export const timestamp = z.iso.datetime({ offset: true });
 const text = z.string().max(2000);
-export const recordKind = z.enum(['student', 'assessment', 'initialAssessment', 'plan', 'session']);
+export const recordKind = z.enum(['student', 'assessment', 'initialAssessment', 'plan', 'session', 'activity', 'activityTools', 'institutionProfile', 'reportExport']);
 export const passwordSchema = z.string().min(12).max(128);
 export const emailSchema = z.email().max(254).transform(value => value.trim().toLowerCase());
 export const credentialsSchema = z.strictObject({ email: emailSchema, password: passwordSchema });
@@ -13,8 +16,16 @@ export const studentSchema = z.strictObject({
   id: uuid, code: z.string().regex(/^ST-[A-F0-9]{8}$/), grade: z.enum(schoolGrades),
   ageYears: z.number().int().min(3).max(21), ageMonths: z.number().int().min(0).max(11),
   consentConfirmed: z.literal(true), consentDate: timestamp, createdAt: timestamp,
+  gender: z.enum(['male', 'female', 'unspecified']).optional(),
+  referralReason: educationalText.optional(), classroomObservation: educationalText.optional(),
+  difficulties: educationalText.optional(), familyNotes: educationalText.optional(), teacherNotes: educationalText.optional(),
+  proposedDurationWeeks: z.int().min(1).max(104).optional(),
+  sessionsPerWeek: z.int().min(1).max(14).optional(), sessionMinutes: z.int().min(1).max(240).optional(),
 });
 export type StudentData = z.infer<typeof studentSchema>;
+export const interventionRecordSchema = sessionSchema.safeExtend({
+  createdAt: timestamp, activityId: uuid.nullable(), notes: educationalText, privacyReviewed: z.literal(true),
+});
 
 export const itemResultSchema = z.strictObject({
   execution: z.enum(['notDone', 'performed', 'unable']),

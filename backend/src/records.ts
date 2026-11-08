@@ -2,7 +2,10 @@ import { Prisma, type PrismaClient, type Record as DatabaseRecord } from '@prism
 import { z } from 'zod';
 import { canonicalJson, PayloadCipher, tokenHash } from './crypto.js';
 import { ApiError, missing } from './errors.js';
-import { assessmentSchema, recommendedAgeGroup, studentSchema, type Operation, type StudentData, type AssessmentData } from './schemas.js';
+import { assessmentSchema, interventionRecordSchema, recommendedAgeGroup, studentSchema, type Operation, type StudentData, type AssessmentData } from './schemas.js';
+import { initialAssessmentSchema, type InitialAssessment } from './intake/schema.js';
+import { skillsForAssessment } from './ai/catalog.js';
+import { validateSession, type PlanVersion } from './planning/domain.js';
 import type { Clock } from './auth.js';
 
 export interface Envelope {
@@ -83,6 +86,8 @@ export class RecordStore {
     if (operation.action === 'upsert') {
       if (operation.kind === 'student') studentSchema.parse(operation.data);
       else if (operation.kind === 'assessment') assessmentSchema.parse(operation.data);
+      else if (operation.kind === 'initialAssessment') initialAssessmentSchema.parse(operation.data);
+      else if (operation.kind === 'session') interventionRecordSchema.parse(operation.data);
       else throw new ApiError(400, 'KIND_NOT_AVAILABLE', 'هذا النوع ينتظر تفعيل عقد بياناته.');
     } else if (Object.keys(operation.data).length) throw new ApiError(400, 'INVALID_INPUT', 'عملية الحذف لا تقبل بيانات إضافية.');
     const existing = await tx.record.findUnique({ where: { ownerId_id: { ownerId, id: operation.entityId } } });
@@ -112,7 +117,7 @@ export class RecordStore {
     const row = existing
       ? await tx.record.update({ where: { ownerId_id: { ownerId, id: operation.entityId } }, data: { encryptedPayload, revision: { increment: 1 } } })
       : await tx.record.create({ data: { id: operation.entityId, ownerId, kind: operation.kind, parentId: operation.parentId, encryptedPayload } });
-    await tx.auditEvent.create({ data: { ownerId, entityId: row.id, action: operation.kind === 'assessment' && data.status === 'approved' ? 'assessment.approved' : 'record.saved' } });
+    await tx.auditEvent.create({ data: { ownerId, entityId: row.id, action: ['assessment', 'initialAssessment'].includes(operation.kind) && data.status === 'approved' ? `${operation.kind}.approved` : 'record.saved' } });
     return { operationId: operation.operationId, status: 'applied', record: this.toEnvelope(row) };
   }
 
@@ -141,6 +146,49 @@ export class RecordStore {
         const previous = this.toEnvelope(existing).data as AssessmentData;
         if (previous.status === 'approved') throw new ApiError(409, 'ASSESSMENT_IMMUTABLE', 'التقييم المعتمد محفوظ؛ أنشئ إعادة تقييم جديدة.');
         if (previous.templateVersion !== data.templateVersion || previous.ageGroup !== data.ageGroup || previous.createdAt !== data.createdAt) throw new ApiError(400, 'TEMPLATE_IMMUTABLE', 'إصدار التقييم وفئته وتاريخ إنشائه ثابتة.');
+      }
+      return data;
+    }
+    if (operation.kind === 'initialAssessment') {
+      const data = initialAssessmentSchema.parse(operation.data);
+      if (data.id !== operation.entityId || data.studentId !== operation.parentId) throw new ApiError(400, 'INVALID_RELATION', 'ارتباط التقييم الأولي غير صالح.');
+      const student = await tx.record.findUnique({ where: { ownerId_id: { ownerId, id: data.studentId } } });
+      if (!student || student.kind !== 'student' || student.deletedAt) throw missing();
+      if (data.assessedOn > this.clock().toISOString().slice(0, 10)) throw new ApiError(400, 'FUTURE_ASSESSMENT', 'لا تسجّل أداءً في تاريخ مستقبلي.');
+      if (existing) {
+        const previous = this.toEnvelope(existing).data as unknown as InitialAssessment;
+        if (previous.status === 'approved') throw new ApiError(409, 'ASSESSMENT_IMMUTABLE', 'التقييم المعتمد محفوظ؛ أنشئ إعادة تقييم جديدة.');
+        if (previous.createdAt !== data.createdAt) throw new ApiError(400, 'IMMUTABLE_IDENTITY', 'تاريخ الإنشاء ثابت.');
+      }
+      if (data.status === 'approved' && data.method === 'academicCards') {
+        const row = await tx.record.findUnique({ where: { ownerId_id: { ownerId, id: data.academicAssessmentId! } } });
+        if (!row || row.deletedAt || row.kind !== 'assessment' || row.parentId !== data.studentId) throw missing();
+        const academic = assessmentSchema.parse(this.toEnvelope(row).data);
+        if (academic.status !== 'approved') throw new ApiError(409, 'SOURCE_NOT_READY', 'اعتمد ملخص البطاقة المرتبطة أولًا.');
+        const allowed = new Set<string>(skillsForAssessment(academic).map(skill => skill.skillId));
+        if (data.domains.some(domain => domain.skills.some(skill => !allowed.has(skill.id)))) throw new ApiError(400, 'INVALID_SKILLS', 'لا تنسب إلى البطاقة مهارة لم تُجرَ؛ استخدم تقييمًا بديلًا موثقًا عند الحاجة.');
+      }
+      return data;
+    }
+    if (operation.kind === 'session') {
+      const data = interventionRecordSchema.parse(operation.data);
+      if (data.id !== operation.entityId || data.studentId !== operation.parentId) throw new ApiError(400, 'INVALID_RELATION', 'ارتباط الجلسة غير صالح.');
+      const [student, plan] = await Promise.all([
+        tx.record.findUnique({ where: { ownerId_id: { ownerId, id: data.studentId } } }),
+        tx.record.findUnique({ where: { ownerId_id: { ownerId, id: data.planVersionId } } }),
+      ]);
+      if (!student || student.deletedAt || student.kind !== 'student' || !plan || plan.deletedAt || plan.kind !== 'plan' || plan.parentId !== data.studentId) throw missing();
+      try { validateSession(data, this.toEnvelope(plan).data as unknown as PlanVersion, this.clock().toISOString().slice(0, 10)); }
+      catch { throw new ApiError(400, 'INVALID_SESSION', 'راجع تاريخ الجلسة والهدف المعتمد والمحاولات والأداء.'); }
+      if (existing) {
+        const previous = this.toEnvelope(existing).data;
+        if (previous.createdAt !== data.createdAt || previous.planVersionId !== data.planVersionId || previous.goalId !== data.goalId) throw new ApiError(400, 'IMMUTABLE_RELATION', 'ارتباط الجلسة بالخطة والهدف وتاريخ الإنشاء ثابت.');
+      }
+      if (data.activityId) {
+        const activity = await tx.record.findUnique({ where: { ownerId_id: { ownerId, id: data.activityId } } });
+        if (!activity || activity.deletedAt || activity.kind !== 'activity' || activity.parentId !== data.studentId) throw missing();
+        const content = this.toEnvelope(activity).data;
+        if (content.planId !== data.planVersionId || content.goalId !== data.goalId) throw new ApiError(400, 'INVALID_RELATION', 'النشاط يجب أن يرتبط بهدف الجلسة وخطتها.');
       }
       return data;
     }
