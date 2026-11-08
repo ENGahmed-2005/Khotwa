@@ -12,6 +12,58 @@ import 'app_state_test.dart' show FakeStore;
 import 'encrypted_store_test.dart' show MemorySecrets;
 
 void main() {
+  testWidgets(
+    'locking an account destroys routes that contain its student data',
+    (tester) async {
+      final auth = AuthState(
+        api: ApiClient(
+          baseUrl: 'https://example.test',
+          client: MockClient((request) async {
+            if (request.url.path.endsWith('/login')) {
+              return http.Response(
+                jsonEncode({
+                  'token': 'synthetic-token',
+                  'expiresAt': '2099-01-01T00:00:00Z',
+                  'user': {
+                    'id': 'owner-a',
+                    'email': 'synthetic@example.test',
+                    'role': 'specialist',
+                  },
+                }),
+                200,
+                headers: {'content-type': 'application/json; charset=utf-8'},
+              );
+            }
+            return http.Response(jsonEncode({'records': []}), 200);
+          }),
+        ),
+        secrets: MemorySecrets(),
+        storeForOwner: (_) async => FakeStore(),
+      );
+      await auth.authenticate(
+        email: 'synthetic@example.test',
+        password: 'SyntheticPass123!',
+        register: false,
+      );
+      await tester.pumpWidget(KhotwaApp(auth: auth));
+      await tester.pumpAndSettle();
+      tester
+          .state<NavigatorState>(find.byType(Navigator).first)
+          .push(
+            MaterialPageRoute<void>(
+              builder: (_) =>
+                  const Scaffold(body: Text('تفاصيل ملف اصطناعي خاص بالحساب')),
+            ),
+          );
+      await tester.pumpAndSettle();
+      expect(find.text('تفاصيل ملف اصطناعي خاص بالحساب'), findsOneWidget);
+      await auth.lock();
+      await tester.pumpAndSettle();
+      expect(find.text('تفاصيل ملف اصطناعي خاص بالحساب'), findsNothing);
+      expect(find.text('البريد الإلكتروني للمختصة'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
   test(
     'account deletion clears its records and plan cache only after server success',
     () async {
@@ -57,6 +109,10 @@ void main() {
       );
       final plans = await auth.storeForOwner('owner-a-plan-inputs');
       await plans.write('{"syntheticPlan":"draft"}');
+      final activities = await auth.storeForOwner('owner-a-activity-inputs');
+      final reports = await auth.storeForOwner('owner-a-report-inputs');
+      await activities.write('{"syntheticActivity":"draft"}');
+      await reports.write('{"syntheticReport":"draft"}');
       final otherPlans = await auth.storeForOwner('owner-b-plan-inputs');
       await otherPlans.write('{"syntheticPlan":"other-owner"}');
       await expectLater(
@@ -64,11 +120,15 @@ void main() {
         throwsA(isA<ApiException>()),
       );
       expect(await plans.read(), isNotNull);
+      expect(await activities.read(), isNotNull);
+      expect(await reports.read(), isNotNull);
       expect(auth.signedIn, isTrue);
       deleteAllowed = true;
       await auth.deleteAccount('SyntheticPass123!');
       expect(await stores['owner-a']!.read(), isNull);
       expect(await plans.read(), isNull);
+      expect(await activities.read(), isNull);
+      expect(await reports.read(), isNull);
       expect(await otherPlans.read(), isNotNull);
       expect(auth.signedIn, isFalse);
     },

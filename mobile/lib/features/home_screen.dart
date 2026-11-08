@@ -9,17 +9,27 @@ import '../models/assessment.dart';
 import '../widgets/common.dart';
 import 'students_screen.dart';
 import 'plans_screen.dart';
+import 'sessions_screen.dart';
+import 'progress_screen.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key, required this.state, required this.auth});
+  const HomeScreen({
+    super.key,
+    required this.state,
+    required this.auth,
+    this.activitiesBuilder,
+    this.reportsBuilder,
+  });
   final AppState state;
   final AuthState auth;
+  final WidgetBuilder? activitiesBuilder, reportsBuilder;
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   int _tab = 0;
+  int _guideStep = 0;
   @override
   void initState() {
     super.initState();
@@ -210,6 +220,54 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       ),
       const SizedBox(height: 18),
       const PrototypeNote(),
+      if (!widget.state.guideSeen)
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  'دليل البداية · ${_guideStep + 1} من 3',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+                Text(
+                  const [
+                    'أنشئي ملفًا برمز عشوائي. احفظي المطابقة مع الاسم على الورق خارج التطبيق، وأكدي الموافقة. لا تكتبي معلومات تعريفية أو صحية.',
+                    'سجّلي ملاحظات الأداء وتقييمًا تربويًا حرًا أو بطاقات مناسبة للعمر، ثم راجعي القوة والاحتياج واعتمدي المصدر.',
+                    'راجعي الحقول التي ستُرسل وأكديها لتوليد مسودة. عدّلي الأهداف واعتمدي الخطة قبل الجلسات. احفظي محليًا ثم زامني قبل الانتقال إلى جهاز آخر.',
+                  ][_guideStep],
+                ),
+                Wrap(
+                  spacing: 8,
+                  children: [
+                    if (_guideStep > 0)
+                      TextButton(
+                        onPressed: () => setState(() => _guideStep--),
+                        child: const Text('السابق'),
+                      ),
+                    FilledButton(
+                      onPressed: () async {
+                        if (_guideStep < 2) {
+                          setState(() => _guideStep++);
+                        } else {
+                          try {
+                            await widget.state.markGuideSeen();
+                          } catch (e) {
+                            if (mounted) showError(context, e);
+                          }
+                        }
+                      },
+                      child: Text(
+                        _guideStep < 2 ? 'التالي' : 'فهمت، أبدأ العمل',
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
       const SectionHeading('نظرة سريعة'),
       Card(
         child: Padding(
@@ -220,6 +278,32 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         ),
       ),
       const SectionHeading('ابدأ العمل'),
+      Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          FilledButton.icon(
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute<void>(
+                builder: (_) => PlansScreen(auth: widget.auth),
+              ),
+            ),
+            icon: const Icon(Icons.add),
+            label: const Text('إضافة خطة جديدة'),
+          ),
+          OutlinedButton.icon(
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute<void>(
+                builder: (_) => SessionsScreen(auth: widget.auth),
+              ),
+            ),
+            icon: const Icon(Icons.edit_calendar_outlined),
+            label: const Text('تسجيل جلسة سريع'),
+          ),
+        ],
+      ),
       Card(
         child: ListTile(
           leading: const Icon(Icons.assignment_outlined),
@@ -245,12 +329,56 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ),
         ),
       ),
-      const Card(
-        child: Padding(
-          padding: EdgeInsets.all(20),
-          child: Text(
-            'الجلسات والتقارير والتقييم التربوي الحر وتعديل إصدارات الخطط قيد التطوير.',
+      Card(
+        child: ListTile(
+          leading: const Icon(Icons.extension_outlined),
+          title: const Text('الأنشطة العلاجية'),
+          subtitle: const Text('أنشطة مرتبطة بأهداف معتمدة وأدوات متاحة'),
+          trailing: const Icon(Icons.chevron_left),
+          onTap: widget.activitiesBuilder == null
+              ? null
+              : () => Navigator.push(
+                  context,
+                  MaterialPageRoute<void>(builder: widget.activitiesBuilder!),
+                ),
+        ),
+      ),
+      Card(
+        child: ListTile(
+          leading: const Icon(Icons.bar_chart_outlined),
+          title: const Text('الجلسات ورحلة التقدم'),
+          subtitle: const Text('تسجيل دفعات الجلسات وقراءة الرسوم الوصفية'),
+          trailing: const Icon(Icons.chevron_left),
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute<void>(
+              builder: (_) => SessionsScreen(auth: widget.auth),
+            ),
           ),
+        ),
+      ),
+      OutlinedButton.icon(
+        onPressed: () => Navigator.push(
+          context,
+          MaterialPageRoute<void>(
+            builder: (_) => ProgressScreen(state: widget.state),
+          ),
+        ),
+        icon: const Icon(Icons.show_chart),
+        label: const Text('عرض رسوم التقدم'),
+      ),
+      Card(
+        child: ListTile(
+          leading: const Icon(Icons.description_outlined),
+          title: const Text('التقارير والتصدير'),
+          subtitle: const Text('تقارير عربية للطباعة والمراجعة'),
+          trailing: const Icon(Icons.chevron_left),
+          onTap: widget.reportsBuilder == null
+              ? null
+              : () => Navigator.push(
+                  context,
+                  MaterialPageRoute<void>(builder: widget.reportsBuilder!),
+                ),
         ),
       ),
       const SectionHeading('مسار الاستخدام'),

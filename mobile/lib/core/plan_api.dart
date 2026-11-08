@@ -5,12 +5,15 @@ class PlanSkill {
     required this.id,
     required this.label,
     required this.evidence,
+    this.assessedLevel,
   });
   final String id, label, evidence;
+  final String? assessedLevel;
   factory PlanSkill.fromJson(Map<String, dynamic> value) => PlanSkill(
     id: value['skillId'] as String,
     label: value['label'] as String,
     evidence: value['evidence'] as String,
+    assessedLevel: value['level'] as String?,
   );
 }
 
@@ -189,6 +192,42 @@ class PlanApi {
       Map<String, dynamic>.from(value['record'] as Map),
     );
   }
+
+  Future<PlanRecord> revise(
+    PlanRecord plan, {
+    required String operationId,
+    required Map<String, dynamic> content,
+    required Map<String, bool> templateOptions,
+    required bool confirmed,
+  }) async {
+    if (!confirmed) {
+      throw const ApiException(
+        'CONFIRMATION_REQUIRED',
+        'راجعي التعديلات وأكدي حفظ نسخة جديدة كمسودة.',
+      );
+    }
+    final value = await api.request(
+      'POST',
+      '/v1/plans/${Uri.encodeComponent(plan.id)}/versions',
+      token: _token,
+      data: {
+        'revision': plan.revision,
+        'operationId': operationId,
+        'confirmed': true,
+        'content': content,
+        'templateOptions': templateOptions,
+      },
+    );
+    return PlanRecord.fromJson(
+      Map<String, dynamic>.from(value['record'] as Map),
+    );
+  }
+
+  Future<Map<String, dynamic>> history(String planId) => api.request(
+    'GET',
+    '/v1/plans/${Uri.encodeComponent(planId)}/history',
+    token: _token,
+  );
 }
 
 String planErrorMessage(Object error) {

@@ -6,6 +6,7 @@ import '../models/assessment.dart';
 import '../models/student.dart';
 import '../widgets/common.dart';
 import 'assessment_screen.dart';
+import 'initial_assessment_screen.dart';
 
 class StudentsScreen extends StatelessWidget {
   const StudentsScreen({super.key, required this.state});
@@ -64,8 +65,9 @@ class StudentsScreen extends StatelessWidget {
 }
 
 class StudentFormScreen extends StatefulWidget {
-  const StudentFormScreen({super.key, required this.state});
+  const StudentFormScreen({super.key, required this.state, this.studentId});
   final AppState state;
+  final String? studentId;
 
   @override
   State<StudentFormScreen> createState() => _StudentFormScreenState();
@@ -77,6 +79,48 @@ class _StudentFormScreenState extends State<StudentFormScreen> {
   int _months = 0;
   bool _consent = false;
   bool _saving = false;
+  bool _privacy = false;
+  String _gender = 'unspecified';
+  int _weeks = 8, _sessions = 2, _minutes = 30;
+  final _referral = TextEditingController(),
+      _observation = TextEditingController(),
+      _difficulties = TextEditingController(),
+      _family = TextEditingController(),
+      _teacher = TextEditingController();
+  @override
+  void initState() {
+    super.initState();
+    if (widget.studentId != null) {
+      final old = widget.state.studentById(widget.studentId!);
+      _grade = old.grade;
+      _years = old.ageYears;
+      _months = old.ageMonths;
+      _consent = old.consentConfirmed;
+      _gender = old.gender;
+      _weeks = old.proposedDurationWeeks;
+      _sessions = old.sessionsPerWeek;
+      _minutes = old.sessionMinutes;
+      _referral.text = old.referralReason;
+      _observation.text = old.classroomObservation;
+      _difficulties.text = old.difficulties;
+      _family.text = old.familyNotes;
+      _teacher.text = old.teacherNotes;
+    }
+  }
+
+  @override
+  void dispose() {
+    for (final controller in [
+      _referral,
+      _observation,
+      _difficulties,
+      _family,
+      _teacher,
+    ]) {
+      controller.dispose();
+    }
+    super.dispose();
+  }
 
   Future<void> _submit() async {
     if (_saving) {
@@ -84,12 +128,48 @@ class _StudentFormScreenState extends State<StudentFormScreen> {
     }
     setState(() => _saving = true);
     try {
-      await widget.state.createStudent(
-        grade: _grade,
-        ageYears: _years,
-        ageMonths: _months,
-        consentConfirmed: _consent,
-      );
+      if (widget.studentId == null) {
+        await widget.state.createStudent(
+          grade: _grade,
+          ageYears: _years,
+          ageMonths: _months,
+          consentConfirmed: _consent,
+          gender: _gender,
+          referralReason: _referral.text,
+          classroomObservation: _observation.text,
+          difficulties: _difficulties.text,
+          familyNotes: _family.text,
+          teacherNotes: _teacher.text,
+          proposedDurationWeeks: _weeks,
+          sessionsPerWeek: _sessions,
+          sessionMinutes: _minutes,
+          privacyReviewed: _privacy,
+        );
+      } else {
+        final old = widget.state.studentById(widget.studentId!);
+        await widget.state.updateStudentIntake(
+          StudentRecord(
+            id: old.id,
+            code: old.code,
+            grade: _grade,
+            ageYears: _years,
+            ageMonths: _months,
+            consentConfirmed: _consent,
+            consentDate: old.consentDate,
+            createdAt: old.createdAt,
+            gender: _gender,
+            referralReason: _referral.text,
+            classroomObservation: _observation.text,
+            difficulties: _difficulties.text,
+            familyNotes: _family.text,
+            teacherNotes: _teacher.text,
+            proposedDurationWeeks: _weeks,
+            sessionsPerWeek: _sessions,
+            sessionMinutes: _minutes,
+          ),
+          privacyReviewed: _privacy,
+        );
+      }
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
       if (mounted) {
@@ -104,12 +184,16 @@ class _StudentFormScreenState extends State<StudentFormScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('ملف طالب جديد')),
+    appBar: AppBar(
+      title: Text(
+        widget.studentId == null ? 'ملف طالب جديد' : 'تحديث البيانات المجهّلة',
+      ),
+    ),
     body: ListView(
       padding: const EdgeInsets.all(18),
       children: [
         const PrototypeNote(),
-        const SectionHeading('البيانات الأساسية المجهّلة'),
+        const SectionHeading('١. البيانات الأساسية المجهّلة'),
         const Text(
           'يُنشأ رمز عشوائي تلقائيًا مثل ST-XXXXXXXX. احتفظي بربط الرمز بالاسم على الورق خارج التطبيق.',
         ),
@@ -154,6 +238,51 @@ class _StudentFormScreenState extends State<StudentFormScreen> {
           ],
         ),
         const SizedBox(height: 14),
+        DropdownButtonFormField<String>(
+          initialValue: _gender,
+          decoration: const InputDecoration(
+            labelText: 'الجنس لصياغة الطالب / الطالبة فقط',
+          ),
+          items: const [
+            DropdownMenuItem(value: 'unspecified', child: Text('غير محدد')),
+            DropdownMenuItem(value: 'male', child: Text('طالب')),
+            DropdownMenuItem(value: 'female', child: Text('طالبة')),
+          ],
+          onChanged: (v) => setState(() => _gender = v!),
+        ),
+        const SectionHeading('٢. ملاحظة الأداء الصفي والصعوبات'),
+        const Text(
+          'اكتبي وصفًا تربويًا بلا اسم أو تاريخ ميلاد أو بيانات اتصال أو تشخيص. معلومات التشخيص تبقى خارج التطبيق لدى المختصين.',
+        ),
+        _intakeText(_referral, 'سبب الإحالة'),
+        _intakeText(_observation, 'ملاحظة الأداء داخل الصف'),
+        _intakeText(_difficulties, 'الصعوبات التعليمية الملحوظة'),
+        const SectionHeading('٣. ملاحظات الأسرة والمعلمين (مستحسنة)'),
+        _intakeText(_family, 'ملاحظات الأسرة دون أسمائهم'),
+        _intakeText(_teacher, 'ملاحظات المعلمين دون أسمائهم'),
+        const SectionHeading('٤. المدة المقترحة والقابلة للتعديل'),
+        _numberChoice(
+          'مدة الخطة بالأسابيع',
+          _weeks,
+          104,
+          (v) => setState(() => _weeks = v),
+        ),
+        _numberChoice(
+          'الجلسات الأسبوعية',
+          _sessions,
+          14,
+          (v) => setState(() => _sessions = v),
+        ),
+        _numberChoice(
+          'زمن الجلسة بالدقائق',
+          _minutes,
+          240,
+          (v) => setState(() => _minutes = v),
+        ),
+        const Text(
+          'القيم المقترحة قابلة للتعديل وفق تقييمك، ولا تعني قرارًا علاجيًا آليًا.',
+        ),
+        const SectionHeading('٥. الموافقة والخصوصية'),
         CheckboxListTile(
           value: _consent,
           onChanged: (value) => setState(() => _consent = value ?? false),
@@ -166,6 +295,15 @@ class _StudentFormScreenState extends State<StudentFormScreen> {
           ),
         ),
         const SizedBox(height: 12),
+        CheckboxListTile(
+          value: _privacy,
+          onChanged: _saving
+              ? null
+              : (v) => setState(() => _privacy = v ?? false),
+          title: const Text(
+            'راجعت الحقول الحرة وأؤكد خلوها من الهوية والمعلومات الصحية',
+          ),
+        ),
         FilledButton(
           onPressed: _saving ? null : _submit,
           child: Padding(
@@ -173,7 +311,41 @@ class _StudentFormScreenState extends State<StudentFormScreen> {
             child: Text(_saving ? 'جارٍ الحفظ…' : 'حفظ الملف محليًا'),
           ),
         ),
+        const Text(
+          'بعد حفظ الملف: سجّلي التقييم الأولي وحددي القوة والاحتياج، ثم راجعي المصدر واعتمديه قبل توليد خطة.',
+        ),
       ],
+    ),
+  );
+  Widget _intakeText(TextEditingController controller, String label) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 8),
+    child: TextField(
+      controller: controller,
+      maxLines: 3,
+      maxLength: 2000,
+      decoration: InputDecoration(
+        labelText: label,
+        helperText:
+            'وصف أداء فقط؛ لا تُرسل هذه النصوص تلقائيًا للذكاء الاصطناعي',
+        border: const OutlineInputBorder(),
+      ),
+    ),
+  );
+  Widget _numberChoice(
+    String label,
+    int selected,
+    int limit,
+    ValueChanged<int> changed,
+  ) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 8),
+    child: DropdownButtonFormField<int>(
+      initialValue: selected,
+      decoration: InputDecoration(labelText: label),
+      items: [
+        for (var i = 1; i <= limit; i++)
+          DropdownMenuItem(value: i, child: Text('$i')),
+      ],
+      onChanged: (v) => changed(v!),
     ),
   );
 }
@@ -258,6 +430,17 @@ class StudentDetailScreen extends StatelessWidget {
               ),
             ),
             const SectionHeading('التقييم الأكاديمي الأولي'),
+            OutlinedButton.icon(
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute<void>(
+                  builder: (_) =>
+                      StudentFormScreen(state: state, studentId: studentId),
+                ),
+              ),
+              icon: const Icon(Icons.edit_outlined),
+              label: const Text('مراجعة الملاحظات والبيانات الأساسية'),
+            ),
             FilledButton.icon(
               onPressed: recommendedAgeGroup(student) == null
                   ? null
@@ -268,7 +451,49 @@ class StudentDetailScreen extends StatelessWidget {
             const SizedBox(height: 12),
             if (recommendedAgeGroup(student) == null)
               const Text(
-                'العمر خارج نطاق البطاقات 6–12 سنة؛ مسار التقييم التربوي الحر لم يُنفذ بعد.',
+                'العمر خارج نطاق البطاقات 6–12 سنة؛ استخدمي التقييم التربوي الحر أدناه.',
+              ),
+            const SectionHeading('التقييم الأولي الحر والقوة والاحتياج'),
+            OutlinedButton.icon(
+              onPressed: () async {
+                try {
+                  final value = await state.createInitialAssessment(studentId);
+                  if (context.mounted) {
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute<void>(
+                        builder: (_) => InitialAssessmentScreen(
+                          state: state,
+                          assessmentId: value.id,
+                        ),
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  if (context.mounted) showError(context, e);
+                }
+              },
+              icon: const Icon(Icons.checklist_outlined),
+              label: const Text('بدء تقييم تربوي أولي'),
+            ),
+            for (final initial in state.initialAssessmentsFor(studentId))
+              Card(
+                child: ListTile(
+                  title: Text(
+                    'تقييم ${initial.assessedOn} · ${initial.approved ? 'معتمد' : 'مسودة'}',
+                  ),
+                  subtitle: Text(syncStatusLabel(state.stateFor(initial.id))),
+                  trailing: const Icon(Icons.chevron_left),
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute<void>(
+                      builder: (_) => InitialAssessmentScreen(
+                        state: state,
+                        assessmentId: initial.id,
+                      ),
+                    ),
+                  ),
+                ),
               ),
             if (assessments.isEmpty)
               const Text('لم يتم تسجيل أي تقييم لهذا الملف بعد.'),

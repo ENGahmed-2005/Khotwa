@@ -8,6 +8,15 @@ class StudentRecord {
     required this.consentConfirmed,
     required this.consentDate,
     required this.createdAt,
+    this.gender = 'unspecified',
+    this.referralReason = '',
+    this.classroomObservation = '',
+    this.difficulties = '',
+    this.familyNotes = '',
+    this.teacherNotes = '',
+    this.proposedDurationWeeks = 8,
+    this.sessionsPerWeek = 2,
+    this.sessionMinutes = 30,
   });
 
   final String id;
@@ -18,6 +27,13 @@ class StudentRecord {
   final bool consentConfirmed;
   final String consentDate;
   final String createdAt;
+  final String gender,
+      referralReason,
+      classroomObservation,
+      difficulties,
+      familyNotes,
+      teacherNotes;
+  final int proposedDurationWeeks, sessionsPerWeek, sessionMinutes;
 
   int get ageInMonths => ageYears * 12 + ageMonths;
   String get ageLabel => '$ageYears سنوات و$ageMonths أشهر';
@@ -31,6 +47,15 @@ class StudentRecord {
     'consentConfirmed': consentConfirmed,
     'consentDate': consentDate,
     'createdAt': createdAt,
+    'gender': gender,
+    'referralReason': referralReason,
+    'classroomObservation': classroomObservation,
+    'difficulties': difficulties,
+    'familyNotes': familyNotes,
+    'teacherNotes': teacherNotes,
+    'proposedDurationWeeks': proposedDurationWeeks,
+    'sessionsPerWeek': sessionsPerWeek,
+    'sessionMinutes': sessionMinutes,
   };
 
   factory StudentRecord.fromJson(Map<String, dynamic> data) => StudentRecord(
@@ -42,6 +67,16 @@ class StudentRecord {
     consentConfirmed: data['consentConfirmed'] == true,
     consentDate: (data['consentDate'] as String?) ?? '',
     createdAt: data['createdAt'] as String,
+    gender: data['gender'] as String? ?? 'unspecified',
+    referralReason: data['referralReason'] as String? ?? '',
+    classroomObservation: data['classroomObservation'] as String? ?? '',
+    difficulties: data['difficulties'] as String? ?? '',
+    familyNotes: data['familyNotes'] as String? ?? '',
+    teacherNotes: data['teacherNotes'] as String? ?? '',
+    proposedDurationWeeks:
+        (data['proposedDurationWeeks'] as num?)?.toInt() ?? 8,
+    sessionsPerWeek: (data['sessionsPerWeek'] as num?)?.toInt() ?? 2,
+    sessionMinutes: (data['sessionMinutes'] as num?)?.toInt() ?? 30,
   );
 }
 

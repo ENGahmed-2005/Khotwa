@@ -9,6 +9,9 @@ import '../data/assessment_templates.dart';
 import '../models/assessment.dart';
 import '../models/student.dart';
 import '../models/sync_record.dart';
+import '../models/initial_assessment.dart';
+import '../models/intervention_session.dart';
+import 'plan_api.dart';
 import 'api_client.dart';
 import 'secure_local_store.dart';
 
@@ -20,6 +23,7 @@ class AppState extends ChangeNotifier {
   List<Map<String, dynamic>> _outbox = [];
   Map<String, Map<String, dynamic>> _conflicts = {};
   List<Map<String, dynamic>> _history = [];
+  Map<String, Map<String, dynamic>> _drafts = {};
   Future<void> _tail = Future.value();
   String? storageError, syncError;
   bool syncing = false;
@@ -37,6 +41,28 @@ class AppState extends ChangeNotifier {
       .where((r) => r.kind == 'assessment' && r.deletedAt == null)
       .map((r) => AssessmentRecord.fromJson(r.data))
       .toList();
+  List<InitialAssessmentRecord> get initialAssessments => _records.values
+      .where((r) => r.kind == 'initialAssessment' && r.deletedAt == null)
+      .map((r) => InitialAssessmentRecord.fromJson(r.data))
+      .toList();
+  List<InterventionSession> get sessions => _records.values
+      .where((r) => r.kind == 'session' && r.deletedAt == null)
+      .map((r) => InterventionSession.fromJson(r.data))
+      .toList();
+  List<PlanRecord> get plans => _records.values
+      .where((r) => r.kind == 'plan' && r.deletedAt == null)
+      .map((r) => PlanRecord.fromJson(r.toJson()))
+      .toList();
+  List<Map<String, dynamic>> activitiesForGoal(String goalId) => _records.values
+      .where(
+        (r) =>
+            r.kind == 'activity' &&
+            r.deletedAt == null &&
+            r.data['goalId'] == goalId,
+      )
+      .map((r) => {'id': r.id, ...r.data})
+      .toList();
+  bool guideSeen = false;
   String stateFor(String id) => _conflicts.containsKey(id)
       ? 'conflict'
       : _outbox.any((o) => o['entityId'] == id && o['error'] != null)
@@ -75,6 +101,11 @@ class AppState extends ChangeNotifier {
             .map((o) => Map<String, dynamic>.from(o as Map))
             .toList();
         lastSyncedAt = data['lastSyncedAt'] as String?;
+        guideSeen = data['guideSeen'] == true;
+        _drafts = ((data['drafts'] as Map?) ?? {}).map(
+          (key, value) =>
+              MapEntry(key as String, Map<String, dynamic>.from(value as Map)),
+        );
       }
       storageError = null;
     } catch (_) {
@@ -90,6 +121,8 @@ class AppState extends ChangeNotifier {
     Map<String, Map<String, dynamic>>? conflicts,
     List<Map<String, dynamic>>? history,
     String? syncedAt,
+    bool? hasSeenGuide,
+    Map<String, Map<String, dynamic>>? drafts,
   }) async {
     if (storageError != null) {
       throw StateError(storageError!);
@@ -107,6 +140,8 @@ class AppState extends ChangeNotifier {
         'conflicts': nextConflicts,
         'history': nextHistory,
         'lastSyncedAt': syncedAt ?? lastSyncedAt,
+        'guideSeen': hasSeenGuide ?? guideSeen,
+        'drafts': drafts ?? _drafts,
       }),
     );
     _records = nextRecords;
@@ -114,6 +149,8 @@ class AppState extends ChangeNotifier {
     _conflicts = nextConflicts;
     _history = nextHistory;
     lastSyncedAt = syncedAt ?? lastSyncedAt;
+    guideSeen = hasSeenGuide ?? guideSeen;
+    _drafts = drafts ?? _drafts;
     notifyListeners();
   }
 
@@ -126,7 +163,7 @@ class AppState extends ChangeNotifier {
     'baseRevision': baseRevision,
     'occurredAt': _now,
     'action': record.deletedAt == null ? 'upsert' : 'delete',
-    'data': record.data,
+    'data': jsonDecode(jsonEncode(record.data)),
   };
   Future<void> _put(
     String kind,
@@ -142,7 +179,7 @@ class AppState extends ChangeNotifier {
       id: id,
       kind: kind,
       parentId: parentId,
-      data: data,
+      data: Map<String, dynamic>.from(jsonDecode(jsonEncode(data)) as Map),
       revision: previous?.revision ?? 0,
       createdAt: previous?.createdAt ?? _now,
       updatedAt: _now,
@@ -159,6 +196,16 @@ class AppState extends ChangeNotifier {
     required int ageYears,
     required int ageMonths,
     required bool consentConfirmed,
+    String gender = 'unspecified',
+    String referralReason = '',
+    String classroomObservation = '',
+    String difficulties = '',
+    String familyNotes = '',
+    String teacherNotes = '',
+    int proposedDurationWeeks = 8,
+    int sessionsPerWeek = 2,
+    int sessionMinutes = 30,
+    bool privacyReviewed = false,
   }) => _serial(() async {
     final random = Random.secure();
     String code;
@@ -176,6 +223,20 @@ class AppState extends ChangeNotifier {
     if (validation != null) {
       throw StateError(validation);
     }
+    _validateIntake(
+      gender: gender,
+      texts: [
+        referralReason,
+        classroomObservation,
+        difficulties,
+        familyNotes,
+        teacherNotes,
+      ],
+      weeks: proposedDurationWeeks,
+      sessionsPerWeek: sessionsPerWeek,
+      minutes: sessionMinutes,
+      privacyReviewed: privacyReviewed,
+    );
     final student = StudentRecord(
       id: _uuid.v4(),
       code: code,
@@ -185,12 +246,227 @@ class AppState extends ChangeNotifier {
       consentConfirmed: true,
       consentDate: _now,
       createdAt: _now,
+      gender: gender,
+      referralReason: referralReason.trim(),
+      classroomObservation: classroomObservation.trim(),
+      difficulties: difficulties.trim(),
+      familyNotes: familyNotes.trim(),
+      teacherNotes: teacherNotes.trim(),
+      proposedDurationWeeks: proposedDurationWeeks,
+      sessionsPerWeek: sessionsPerWeek,
+      sessionMinutes: sessionMinutes,
     );
     await _put('student', student.id, student.toJson());
     return student;
   });
   StudentRecord studentById(String id) =>
       students.firstWhere((s) => s.id == id);
+  void _validateIntake({
+    required String gender,
+    required List<String> texts,
+    required int weeks,
+    required int sessionsPerWeek,
+    required int minutes,
+    required bool privacyReviewed,
+  }) {
+    if (!const {'male', 'female', 'unspecified'}.contains(gender) ||
+        weeks < 1 ||
+        weeks > 104 ||
+        sessionsPerWeek < 1 ||
+        sessionsPerWeek > 14 ||
+        minutes < 1 ||
+        minutes > 240) {
+      throw StateError('راجعي الجنس ومدة الخطة وعدد الجلسات وزمنها.');
+    }
+    if (!privacyReviewed && texts.any((text) => text.trim().isNotEmpty)) {
+      throw StateError('يلزم تأكيد مراجعة خصوصية الحقول الحرة.');
+    }
+    final issue = educationalTextIssue(texts);
+    if (issue != null) throw StateError(issue);
+  }
+
+  Future<void> updateStudentIntake(
+    StudentRecord student, {
+    required bool privacyReviewed,
+  }) => _serial(() async {
+    final old = studentById(student.id);
+    if (old.code != student.code ||
+        old.createdAt != student.createdAt ||
+        old.consentDate != student.consentDate) {
+      throw StateError('رمز الطالب وتاريخ إنشاء الملف والموافقة ثابتة.');
+    }
+    final issue = StudentInputValidator.validate(
+      code: student.code,
+      grade: student.grade,
+      ageYears: student.ageYears,
+      ageMonths: student.ageMonths,
+      consentConfirmed: student.consentConfirmed,
+    );
+    if (issue != null) throw StateError(issue);
+    _validateIntake(
+      gender: student.gender,
+      texts: [
+        student.referralReason,
+        student.classroomObservation,
+        student.difficulties,
+        student.familyNotes,
+        student.teacherNotes,
+      ],
+      weeks: student.proposedDurationWeeks,
+      sessionsPerWeek: student.sessionsPerWeek,
+      minutes: student.sessionMinutes,
+      privacyReviewed: privacyReviewed,
+    );
+    await _put('student', student.id, student.toJson());
+  });
+  List<InitialAssessmentRecord> initialAssessmentsFor(String studentId) =>
+      initialAssessments.where((a) => a.studentId == studentId).toList()
+        ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+  InitialAssessmentRecord initialAssessmentById(String id) =>
+      initialAssessments.firstWhere((a) => a.id == id);
+  Future<InitialAssessmentRecord> createInitialAssessment(String studentId) =>
+      _serial(() async {
+        if (!studentById(studentId).consentConfirmed) {
+          throw StateError('الموافقة مطلوبة.');
+        }
+        final assessment = InitialAssessmentRecord(
+          id: _uuid.v4(),
+          studentId: studentId,
+          createdAt: _now,
+          assessedOn: DateTime.now().toIso8601String().substring(0, 10),
+          privacyReviewed: true,
+        );
+        await _put(
+          'initialAssessment',
+          assessment.id,
+          assessment.toJson(),
+          parentId: studentId,
+        );
+        return assessment;
+      });
+  Future<void> saveInitialAssessment(
+    InitialAssessmentRecord next, {
+    bool approve = false,
+  }) => _serial(() async {
+    final old = initialAssessmentById(next.id);
+    if (old.approved) {
+      throw StateError('التقييم المعتمد للقراءة فقط؛ أنشئي إعادة تقييم جديدة.');
+    }
+    if (next.studentId != old.studentId ||
+        next.createdAt != old.createdAt ||
+        next.status != 'draft' ||
+        next.approvedAt != null) {
+      throw StateError('ارتباط التقييم ثابت والاعتماد إجراء منفصل.');
+    }
+    final issue = next.validate(forApproval: approve);
+    if (issue != null) throw StateError(issue);
+    if (approve &&
+        next.method == 'academicCards' &&
+        !assessments.any(
+          (a) =>
+              a.id == next.academicAssessmentId &&
+              a.studentId == next.studentId &&
+              a.status == AssessmentStatus.approved,
+        )) {
+      throw StateError('اختاري بطاقة معتمدة تخص هذا الطالب.');
+    }
+    final saved = approve
+        ? next.copyWith(status: 'approved', approvedAt: _now)
+        : next;
+    await _put(
+      'initialAssessment',
+      saved.id,
+      saved.toJson(),
+      parentId: saved.studentId,
+    );
+  });
+  Future<void> cachePlanRecords(List<PlanRecord> values) => _serial(() async {
+    final next = {..._records};
+    for (final value in values) {
+      if (!students.any((s) => s.id == value.studentId)) continue;
+      final previous = next[value.id];
+      if (previous == null ||
+          (previous.deletedAt == null && value.revision >= previous.revision)) {
+        next[value.id] = SyncRecord.fromJson(
+          Map<String, dynamic>.from(
+            jsonDecode(jsonEncode(value.envelope)) as Map,
+          ),
+        );
+      }
+    }
+    await _commit(records: next);
+  });
+  Future<void> markGuideSeen() => _serial(() => _commit(hasSeenGuide: true));
+  Map<String, dynamic>? draftFor(String key) => _drafts[key] == null
+      ? null
+      : Map<String, dynamic>.from(jsonDecode(jsonEncode(_drafts[key])) as Map);
+  Future<void> saveDraft(String key, Map<String, dynamic> value) => _serial(
+    () => _commit(
+      drafts: {
+        ..._drafts,
+        key: Map<String, dynamic>.from(jsonDecode(jsonEncode(value)) as Map),
+      },
+    ),
+  );
+  Future<void> clearDraft(String key) =>
+      _serial(() => _commit(drafts: {..._drafts}..remove(key)));
+  Future<void> saveSessions(List<InterventionSession> batch) =>
+      _serial(() async {
+        if (batch.isEmpty ||
+            batch.length > 50 ||
+            batch.map((s) => s.id).toSet().length != batch.length) {
+          throw StateError('اختاري من جلسة إلى 50 جلسة بلا تكرار.');
+        }
+        final records = {..._records};
+        final outbox = [..._outbox];
+        for (final session in batch) {
+          final issue = session.validate();
+          if (issue != null) throw StateError(issue);
+          final privacyIssue = educationalTextIssue([
+            session.notes,
+            session.engagement ?? '',
+          ]);
+          if (privacyIssue != null) throw StateError(privacyIssue);
+          studentById(session.studentId);
+          final possible = plans.where(
+            (p) =>
+                p.id == session.planVersionId &&
+                p.studentId == session.studentId &&
+                p.approved,
+          );
+          if (possible.isEmpty ||
+              !(possible.single.content['goals'] as List).any(
+                (g) => (g as Map)['id'] == session.goalId,
+              )) {
+            throw StateError('الجلسة ترتبط بهدف وخطة معتمدة تخص هذا الطالب.');
+          }
+          if (session.activityId != null &&
+              !activitiesForGoal(
+                session.goalId,
+              ).any((a) => a['id'] == session.activityId)) {
+            throw StateError('النشاط غير مرتبط بهذا الهدف.');
+          }
+          if (records.containsKey(session.id)) {
+            if (jsonEncode(records[session.id]!.data) ==
+                jsonEncode(session.toJson())) {
+              continue;
+            }
+            throw StateError('معرّف جلسة مكرر؛ لم يتغير السجل السابق.');
+          }
+          final record = SyncRecord(
+            id: session.id,
+            kind: 'session',
+            parentId: session.studentId,
+            revision: 0,
+            data: session.toJson(),
+            createdAt: session.createdAt,
+            updatedAt: _now,
+          );
+          records[session.id] = record;
+          outbox.add(_operation(record, 0));
+        }
+        await _commit(records: records, outbox: outbox);
+      });
   List<AssessmentRecord> assessmentsFor(String studentId) =>
       assessments.where((a) => a.studentId == studentId).toList()
         ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
@@ -212,7 +488,7 @@ class AppState extends ChangeNotifier {
     final recommended = recommendedAgeGroup(student);
     if (recommended == null) {
       throw StateError(
-        'العمر خارج نطاق البطاقات. التقييم التربوي الحر قيد التطوير.',
+        'العمر خارج نطاق البطاقات. استخدمي التقييم التربوي الحر.',
       );
     }
     final group = overrideGroup ?? recommended;
@@ -528,6 +804,7 @@ class AppState extends ChangeNotifier {
     _outbox = [];
     _conflicts = {};
     _history = [];
+    _drafts = {};
     notifyListeners();
   });
 }

@@ -37,8 +37,12 @@ class KhotwaApp extends StatelessWidget {
   final AuthState auth;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) =>
+      AnimatedBuilder(animation: auth, builder: (context, _) => _application());
+
+  Widget _application() {
     return MaterialApp(
+      key: ValueKey('session:${auth.ownerId ?? 'locked'}'),
       title: 'خطوة',
       debugShowCheckedModeBanner: false,
       locale: const Locale('ar'),

@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:khotwa/core/api_client.dart';
+import 'package:khotwa/core/app_state.dart';
 import 'package:khotwa/core/auth_state.dart';
 import 'package:khotwa/features/plans_screen.dart';
 
@@ -45,7 +46,12 @@ AuthState authFor(ApiClient api) =>
         storeForOwner: (_) async => FakeStore(),
       )
       ..ownerId = 'owner-a'
-      ..token = 'synthetic-token';
+      ..token = 'synthetic-token'
+      ..records = AppState(
+        FakeStore(),
+        ownerId: 'owner-a',
+        deviceId: 'synthetic-device',
+      );
 
 Future<void> largeSurface(WidgetTester tester) async {
   await tester.binding.setSurfaceSize(const Size(1000, 3000));

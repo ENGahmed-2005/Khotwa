@@ -11,6 +11,9 @@ Map<String, dynamic> syntheticPlan({bool approved = false}) => {
   'kind': 'plan',
   'revision': approved ? 2 : 1,
   'deletedAt': null,
+  'parentId': 'synthetic-student',
+  'createdAt': '2026-11-05T12:00:00Z',
+  'updatedAt': '2026-11-05T12:00:00Z',
   'data': {
     'studentId': 'synthetic-student',
     'version': 1,

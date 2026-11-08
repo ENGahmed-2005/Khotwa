@@ -9,6 +9,8 @@ import '../core/plan_api.dart';
 import '../core/secure_local_store.dart';
 import '../models/assessment.dart';
 import '../widgets/common.dart';
+import 'plan_editor_screen.dart';
+import 'plan_history_screen.dart';
 
 class PlansScreen extends StatefulWidget {
   const PlansScreen({
@@ -190,6 +192,7 @@ class _PlansScreenState extends State<PlansScreen> {
         _skills = await _api.skills(_assessmentId!);
       }
       _plans = plans;
+      await _cachePlans();
       await _persist();
     } catch (error) {
       _error = planErrorMessage(error);
@@ -214,6 +217,10 @@ class _PlansScreenState extends State<PlansScreen> {
       final values = await _api.skills(id);
       if (_assessmentId == id) {
         _skills = values;
+        _selectedLevels = {
+          for (final skill in values)
+            if (skill.assessedLevel != null) skill.id: skill.assessedLevel!,
+        };
       }
     } catch (error) {
       _error = planErrorMessage(error);
@@ -285,6 +292,7 @@ class _PlansScreenState extends State<PlansScreen> {
         syntheticDataConfirmed: _synthetic,
       );
       _plans = [plan, ..._plans.where((old) => old.id != plan.id)];
+      await _cachePlans();
       _preview = null;
       _operationId = null;
       _sendConfirmed = false;
@@ -337,6 +345,7 @@ class _PlansScreenState extends State<PlansScreen> {
       _plans = _plans
           .map((old) => old.id == approved.id ? approved : old)
           .toList();
+      await _cachePlans();
       await _persist();
     } catch (error) {
       _error = planErrorMessage(error);
@@ -350,19 +359,18 @@ class _PlansScreenState extends State<PlansScreen> {
   @override
   Widget build(BuildContext context) {
     final students = widget.auth.records?.students ?? [];
-    final assessments =
-        widget.auth.records?.assessments
-            .where(
-              (a) =>
-                  a.studentId == _studentId &&
-                  a.status == AssessmentStatus.approved,
-            )
-            .toList() ??
-        [];
+    final sources = <String, String>{
+      for (final a in widget.auth.records?.assessments ?? <AssessmentRecord>[])
+        if (a.studentId == _studentId && a.status == AssessmentStatus.approved)
+          a.id: 'بطاقات ${a.ageGroup} · ${a.createdAt.substring(0, 10)}',
+      for (final a in widget.auth.records?.initialAssessments ?? [])
+        if (a.studentId == _studentId && a.approved)
+          a.id: 'تقييم تربوي أولي · ${a.assessedOn}',
+    };
     final validStudent = students.any((s) => s.id == _studentId)
         ? _studentId
         : null;
-    final validAssessment = assessments.any((a) => a.id == _assessmentId)
+    final validAssessment = sources.containsKey(_assessmentId)
         ? _assessmentId
         : null;
     final preview = _preview;
@@ -414,6 +422,13 @@ class _PlansScreenState extends State<PlansScreen> {
                     _assessmentId = null;
                     _skills = [];
                     _selectedLevels = {};
+                    final student = students
+                        .where((s) => s.id == id)
+                        .firstOrNull;
+                    if (student != null) {
+                      _weeks = student.proposedDurationWeeks;
+                      _sessions = student.sessionsPerWeek;
+                    }
                   }),
           ),
           const SizedBox(height: 12),
@@ -424,19 +439,14 @@ class _PlansScreenState extends State<PlansScreen> {
             decoration: const InputDecoration(
               labelText: 'تقييم معتمد مصدرًا للأداء',
             ),
-            items: assessments
+            items: sources.entries
                 .map(
-                  (a) => DropdownMenuItem(
-                    value: a.id,
-                    child: Text(
-                      'بطاقات ${a.ageGroup} · ${a.createdAt.substring(0, 10)}',
-                    ),
-                  ),
+                  (a) => DropdownMenuItem(value: a.key, child: Text(a.value)),
                 )
                 .toList(),
             onChanged: _busy || !_storageReady ? null : _chooseAssessment,
           ),
-          if (assessments.isEmpty)
+          if (sources.isEmpty)
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 12),
               child: Text(
@@ -445,7 +455,7 @@ class _PlansScreenState extends State<PlansScreen> {
             ),
           const SectionHeading('٢. مهارات موثّقة ومستويات تختارينها'),
           const Text(
-            'تظهر فقط مهارات مرتبطة ببنود نُفّذت في التقييم المعتمد. لا يُستنتج مستوى تلقائيًا. اختاري مستوى كل مهارة تريدين إرسالها.',
+            'تظهر المهارات الجاهزة الموثقة من التقييم المعتمد فقط. مستويات التقييم الحر تبقى كما اعتمدتها؛ لا تُرسل الأوصاف المخصصة أو الإجابات الخام تلقائيًا.',
           ),
           for (final skill in _skills)
             Padding(
@@ -467,7 +477,8 @@ class _PlansScreenState extends State<PlansScreen> {
                     ),
                   ),
                 ],
-                onChanged: _busy || !_storageReady
+                onChanged:
+                    _busy || !_storageReady || skill.assessedLevel != null
                     ? null
                     : (value) => _change(() {
                         if (value == null || value == 'omit') {
@@ -622,6 +633,12 @@ class _PlansScreenState extends State<PlansScreen> {
 
   Widget _planCard(PlanRecord plan, String code) {
     final content = plan.content;
+    final options = plan.data['templateOptions'] as Map? ?? {};
+    final provenance = plan.data['provenance'] as Map? ?? {};
+    String origin(String path) =>
+        (provenance[path] ?? plan.data['source']) == 'specialist'
+        ? 'تعديل المختصة'
+        : (plan.approved ? 'اقتراح AI راجعته المختصة' : 'اقتراح AI · مقترح');
     final goals = (content['goals'] as List).map(
       (value) => Map<String, dynamic>.from(value as Map),
     );
@@ -636,7 +653,9 @@ class _PlansScreenState extends State<PlansScreen> {
               '$code · ${plan.approved ? 'معتمدة بقرار المختصة' : 'مسودة مقترحة — غير معتمدة'}',
               style: Theme.of(context).textTheme.titleLarge,
             ),
-            Text('إصدار ${plan.data['version']} · مصدر المحتوى: Gemini'),
+            Text(
+              'إصدار ${plan.data['version']} · ${plan.data['source'] == 'specialist' ? 'راجعت المختصة المحتوى وعدّلته' : 'مصدر أولي: Gemini'}',
+            ),
             if (plan.data['approvedAt'] != null)
               Text('تاريخ الاعتماد: ${plan.data['approvedAt']}'),
             for (final field in const {
@@ -647,6 +666,10 @@ class _PlansScreenState extends State<PlansScreen> {
             }.entries) ...[
               SectionHeading(title(field.value)),
               SelectableText(content[field.key] as String),
+              Text(
+                'المصدر: ${origin(field.key)}',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
             ],
             for (final goal in goals)
               Card(
@@ -666,29 +689,88 @@ class _PlansScreenState extends State<PlansScreen> {
                         'معيار الإتقان: ${criterionLabel(Map<String, dynamic>.from(goal['criterion'] as Map))}',
                       ),
                       Text('الإطار الزمني: ${goal['timeframeWeeks']} أسابيع'),
+                      for (final field in const {
+                        'behavior': 'السلوك',
+                        'condition': 'الشرط',
+                        'criterion': 'المعيار',
+                        'timeframeWeeks': 'الإطار الزمني',
+                      }.entries)
+                        Text(
+                          'مصدر ${field.value}: ${origin('goals.${goal['id']}.${field.key}')}',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
                     ],
                   ),
                 ),
               ),
-            SectionHeading(title('المدة وآلية الجلسات')),
-            Text(
-              '${content['durationWeeks']} أسابيع · ${content['sessionsPerWeek']} جلسات أسبوعيًا',
-            ),
-            for (final field in const {
-              'tools': 'الأدوات',
-              'measurementTools': 'أدوات القياس',
-              'strategies': 'الاستراتيجيات',
-              'recommendations': 'توصيات المتابعة',
-            }.entries) ...[
+            if (options['showSessionSchedule'] != false)
+              SectionHeading(title('المدة وآلية الجلسات')),
+            if (options['showSessionSchedule'] != false)
+              Text(
+                '${content['durationWeeks']} أسابيع · ${content['sessionsPerWeek']} جلسات أسبوعيًا',
+              ),
+            for (final field
+                in const {
+                  'tools': 'الأدوات',
+                  'measurementTools': 'أدوات القياس',
+                  'strategies': 'الاستراتيجيات',
+                  'recommendations': 'توصيات المتابعة',
+                }.entries.where(
+                  (f) =>
+                      (f.key != 'strategies' ||
+                          options['showStrategies'] != false) &&
+                      (f.key != 'recommendations' ||
+                          options['showRecommendations'] != false),
+                )) ...[
               SectionHeading(title(field.value)),
               for (final item in content[field.key] as List) Text('• $item'),
             ],
             SectionHeading(title('المتابعة القادمة')),
             Text(content['nextFollowUp'] as String),
+            const SizedBox(height: 16),
+            OutlinedButton.icon(
+              onPressed: _busy || !_storageReady
+                  ? null
+                  : () => Navigator.push(
+                      context,
+                      MaterialPageRoute<void>(
+                        builder: (_) => PlanEditorScreen(
+                          plan: plan,
+                          api: _api,
+                          state: widget.auth.records!,
+                          onSaved: (saved) async {
+                            _plans = [
+                              saved,
+                              ..._plans.where((p) => p.id != saved.id),
+                            ];
+                            await _cachePlans();
+                            await _persist();
+                            if (mounted) setState(() {});
+                          },
+                        ),
+                      ),
+                    ),
+              icon: const Icon(Icons.edit_outlined),
+              label: const Text('تعديل وحفظ إصدار جديد'),
+            ),
+            TextButton.icon(
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute<void>(
+                  builder: (_) => PlanHistoryScreen(
+                    plan: plan,
+                    api: _api,
+                    state: widget.auth.records!,
+                  ),
+                ),
+              ),
+              icon: const Icon(Icons.history),
+              label: const Text('سجل الإصدارات ومصدر المحتوى'),
+            ),
             if (!plan.approved) ...[
               const SizedBox(height: 16),
               const Text(
-                'راجعي ملاءمة المسودة قبل الاعتماد. تعديل عناصر الخطة وإصداراتها من الواجهة ما زال قيد التنفيذ؛ يمكن الرجوع للمدخلات وتوليد مسودة جديدة.',
+                'راجعي ملاءمة المسودة قبل الاعتماد. التعديلات تحفظ إصدارًا جديدًا كمسودة مع بقاء المصدر والتاريخ.',
               ),
               FilledButton.icon(
                 onPressed: _busy ? null : () => _approve(plan),
@@ -700,6 +782,13 @@ class _PlansScreenState extends State<PlansScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _cachePlans() async {
+    if (widget.auth.ownerId != _ownerId) {
+      throw StateError('انتهت جلسة هذا الحساب.');
+    }
+    await widget.auth.records!.cachePlanRecords(_plans);
   }
 }
 
