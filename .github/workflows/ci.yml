@@ -79,6 +79,11 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+      - uses: actions/cache@v4
+        if: matrix.platform == 'android'
+        with:
+          path: ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-wrapper-${{ hashFiles('mobile/android/gradle/wrapper/gradle-wrapper.properties') }}
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
@@ -91,7 +96,45 @@ jobs:
       - run: flutter test --coverage
       - name: Build Android debug APK
         if: matrix.platform == 'android'
-        run: flutter build apk --debug --dart-define=API_BASE_URL=http://127.0.0.1:3000
+        run: flutter build apk --debug --split-per-abi --dart-define=API_BASE_URL=http://127.0.0.1:3000
+      - name: Verify Android signatures and record delivery metadata
+        if: matrix.platform == 'android'
+        run: |
+          set -euo pipefail
+          tools="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)"
+          for abi in arm64-v8a armeabi-v7a x86_64; do
+            package="build/app/outputs/flutter-apk/app-$abi-debug.apk"
+            output="build/delivery/android-$abi"
+            mkdir -p "$output"
+            cp "$package" "$output/Khotwa-Android-$abi-preview.apk"
+            "$tools/apksigner" verify --verbose --print-certs "$package" > "$output/SIGNATURE.txt"
+            "$tools/aapt" dump badging "$package" > "$output/PACKAGE.txt"
+            cp "$GITHUB_WORKSPACE/docs/ANDROID_INSTALLATION.md" "$output/INSTALLATION.md"
+            (cd "$output" && sha256sum "Khotwa-Android-$abi-preview.apk" > SHA256SUMS.txt)
+          done
+          python3 - <<'PY'
+          import json, os, zipfile
+          from pathlib import Path
+          for abi in ('arm64-v8a', 'armeabi-v7a', 'x86_64'):
+              output = Path('build/delivery') / f'android-{abi}'
+              apk = output / f'Khotwa-Android-{abi}-preview.apk'
+              with zipfile.ZipFile(apk) as archive:
+                  assert archive.testzip() is None, 'APK CRC verification failed'
+                  assert 'AndroidManifest.xml' in archive.namelist()
+                  assert f'lib/{abi}/libflutter.so' in archive.namelist()
+              metadata = {
+                  'commit': os.environ['GITHUB_SHA'],
+                  'workflow_run_id': os.environ['GITHUB_RUN_ID'],
+                  'package_identifier': 'org.khotwa.khotwa',
+                  'abi': abi,
+                  'signing': 'Android debug certificate; verified with apksigner',
+                  'api_base_url': 'http://127.0.0.1:3000',
+                  'requires_local_backend_and_usb_forwarding': True,
+                  'physical_device_tested': False,
+                  'synthetic_development_only': True,
+              }
+              (output / 'BUILD_METADATA.json').write_text(json.dumps(metadata, indent=2) + '\n')
+          PY
       - name: Build iOS without signing
         if: matrix.platform == 'ios'
         run: flutter build ios --debug --no-codesign
@@ -99,8 +142,25 @@ jobs:
         if: matrix.platform == 'android'
         uses: actions/upload-artifact@v4
         with:
-          name: khotwa-android-preview-${{ github.sha }}
-          path: mobile/build/app/outputs/flutter-apk/app-debug.apk
+          name: khotwa-android-arm64-preview-${{ github.sha }}
+          path: mobile/build/delivery/android-arm64-v8a/
+          if-no-files-found: error
+          retention-days: 7
+      - name: Upload older Android architecture preview
+        if: matrix.platform == 'android'
+        uses: actions/upload-artifact@v4
+        with:
+          name: khotwa-android-arm32-preview-${{ github.sha }}
+          path: mobile/build/delivery/android-armeabi-v7a/
+          if-no-files-found: error
+          retention-days: 7
+      - name: Upload Android emulator preview
+        if: matrix.platform == 'android'
+        uses: actions/upload-artifact@v4
+        with:
+          name: khotwa-android-x86_64-preview-${{ github.sha }}
+          path: mobile/build/delivery/android-x86_64/
+          if-no-files-found: error
           retention-days: 7
       - name: Upload unsigned iOS build
         if: matrix.platform == 'ios'
