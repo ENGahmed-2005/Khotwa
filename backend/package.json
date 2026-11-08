@@ -3,11 +3,14 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "engines": {"node": ">=22"},
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "start": "tsx src/server.ts",
     "build": "tsc",
+    "postbuild": "node src/reports/copy-assets.mjs",
     "lint": "eslint src test",
     "typecheck": "tsc --noEmit",
     "test:ci": "vitest run",
@@ -19,13 +22,18 @@
     "@fastify/helmet": "^13.0.2",
     "@fastify/rate-limit": "^10.3.0",
     "@prisma/client": "6.19.0",
+    "docx": "9.15.3",
     "dotenv": "^17.2.3",
     "fastify": "^5.6.2",
+    "fflate": "0.8.3",
+    "nodemailer": "10.4.0",
+    "playwright-core": "1.65.0",
     "zod": "^4.1.12"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.0",
     "@types/node": "^22.19.0",
+    "@types/nodemailer": "8.0.2",
     "eslint": "^9.39.0",
     "prisma": "6.19.0",
     "tsx": "^4.20.6",
