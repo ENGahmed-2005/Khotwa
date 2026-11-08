@@ -9,6 +9,9 @@ import { ApiError } from './errors.js';
 import { RecordStore } from './records.js';
 import { pushSchema, recordKind, uuid } from './schemas.js';
 import { registerAiRoutes, type AiConfig } from './ai/routes.js';
+import { registerActivityRoutes } from './activities/routes.js';
+import type { ActivityConfig } from './activities/gemini.js';
+import { registerReportRoutes } from './reports/routes.js';
 import { registerPlanVersionRoutes } from './planning/versions.js';
 import { educationalCatalog } from './intake/catalog.js';
 
@@ -25,6 +28,7 @@ export interface AppOptions {
   authRateLimit?: number;
   globalRateLimit?: number;
   ai?: AiConfig;
+  activities?: ActivityConfig;
   /** Additional routes share the same owner-scoped authentication and ciphertext helpers. */
   extend?: (app: FastifyInstance, services: ApplicationServices) => void | Promise<void>;
 }
@@ -90,6 +94,8 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
     return { records: await records.list(user.id, undefined, true), fullSnapshot: true };
   });
   registerAiRoutes(app, { prisma: options.prisma, auth, records, storageKey: options.storageKey, clock: options.clock, config: options.ai });
+  registerActivityRoutes(app, { prisma: options.prisma, auth, records, storageKey: options.storageKey, clock: options.clock, config: options.activities });
+  registerReportRoutes(app, { prisma: options.prisma, auth, records, clock: options.clock });
   registerPlanVersionRoutes(app, { prisma: options.prisma, auth, records, clock: options.clock });
   if (options.extend) await options.extend(app, { auth, records, authenticate: (request: FastifyRequest) => auth.requireUser(request) });
   return app;

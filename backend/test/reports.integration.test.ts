@@ -7,7 +7,6 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { buildApp } from '../src/app.js';
 import { PayloadCipher } from '../src/crypto.js';
 import type { Envelope } from '../src/records.js';
-import { registerReportRoutes } from '../src/reports/routes.js';
 import { reportFixtures, approvedActivity } from './reports.fixtures.js';
 
 const storageKey = randomBytes(32), cipher = new PayloadCipher(storageKey);
@@ -33,9 +32,7 @@ beforeAll(async () => {
   if (!url) throw new Error('Reports integration requires a real isolated PostgreSQL TEST_DATABASE_URL');
   prisma = new PrismaClient({ datasources: { db: { url } }, log: [] });
   await prisma.$connect();
-  app = await buildApp({ prisma, storageKey, authRateLimit: 10000, globalRateLimit: 10000,
-    extend: (instance, services) => { registerReportRoutes(instance, { ...services, prisma }); },
-  });
+  app = await buildApp({ prisma, storageKey, authRateLimit: 10000, globalRateLimit: 10000 });
   await app.ready();
 });
 afterAll(async () => {
