@@ -1,7 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import { unzipSync, strFromU8 } from 'fflate';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { chromium } from 'playwright-core';
 import { emptySettings, exportRequestSchema, batchRequestSchema, reportSnapshot, criterionPercent, referenceHeadings, type ReportDocument, type StudentReference } from '../src/reports/model.js';
 import { goalCharts } from '../src/reports/charts.js';
 import { renderActivityPdf, renderReport, reportHtml, normalizeLogo } from '../src/reports/render.js';
@@ -98,6 +99,33 @@ describe('report selection and descriptive data boundary', () => {
 });
 
 describe('actual Arabic document renderers', () => {
+  it('keeps twelve recorded dates and accuracy labels readable without changing the data', async () => {
+    const goal = { ...document().goals[0]!, sessions: Array.from({ length: 12 }, (_, index) => fixtures.session({ occurredOn: `2026-11-${String(index + 1).padStart(2, '0')}` })) };
+    const recorded = JSON.stringify(goal);
+    const chart = goalCharts(goal)[0]!.svg;
+    expect(JSON.stringify(goal)).toBe(recorded);
+    const browser = await chromium.launch({ headless: true, ...(process.env.KHOTWA_CHROMIUM_EXECUTABLE ? { executablePath: process.env.KHOTWA_CHROMIUM_EXECUTABLE } : { channel: 'chrome' }) });
+    try {
+      const page = await browser.newPage();
+      const font = await readFile(new URL('../src/reports/assets/NotoSansArabic.ttf', import.meta.url));
+      await page.setContent(`<style>@font-face{font-family:NotoSansArabic;src:url(data:font/ttf;base64,${font.toString('base64')})}body{direction:rtl}</style>${chart}`);
+      await page.evaluate(() => globalThis.document.fonts.ready);
+      const labels = await page.locator('svg text').evaluateAll(nodes => nodes.map(node => {
+        const bounds = (node as SVGTextElement).getBBox();
+        return { text: node.textContent!, date: node.getAttribute('aria-label') ?? node.textContent!,
+          left: bounds.x, right: bounds.x + bounds.width, top: bounds.y, bottom: bounds.y + bounds.height };
+      }));
+      expect(labels.filter(label => /^\d{4}-\d{2}-\d{2}$/.test(label.date)).map(label => label.date)).toEqual(goal.sessions.map(session => session.occurredOn));
+      expect(labels.filter(label => label.text === '50%')).toHaveLength(13);
+      expect(labels.some(label => label.text === '80%')).toBe(true);
+      for (let first = 0; first < labels.length; first++) for (let second = first + 1; second < labels.length; second++) {
+        const a = labels[first]!, b = labels[second]!;
+        const overlap = Math.min(a.right, b.right) - Math.max(a.left, b.left) > 0.5
+          && Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 0.5;
+        expect(overlap, `Overlapping chart labels: ${a.date} / ${b.date}`).toBe(false);
+      }
+    } finally { await browser.close(); }
+  }, 30000);
   it.each(referenceCases)('writes the approved $reference headings into real Word and PDF fixtures', async ({ reference, stem, plan, goals }) => {
     const report = { ...withReference(reference), type: 'plan' as const, serial: `KH-RPT-${randomUUID().toUpperCase()}` };
     const [pdf, docx] = await Promise.all([renderReport(report, 'pdf'), renderReport(report, 'docx')]);
