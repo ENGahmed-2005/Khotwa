@@ -38,24 +38,26 @@ class _InitialAssessmentScreenState extends State<InitialAssessmentScreen> {
     _formDraft = FormDraftController(
       state: widget.state,
       key: 'initial-form:${widget.assessmentId}',
-      validate: (value) => educationalTextIssue([
-        value['alternativeReason'] as String,
-        for (final raw in value['domains'] as List) ...[
-          for (final key in [
-            'label',
-            'currentPerformance',
-            'strengths',
-            'needs',
-          ])
-            (raw as Map)[key] as String,
-          for (final skill in raw['skills'] as List) ...[
-            (skill as Map)['label'] as String,
-            skill['evidence'] as String,
-          ],
-        ],
-        for (final raw in value['previousStrategies'] as List)
-          ...(raw as Map).values.cast<String>(),
-      ]),
+      validate: (value) =>
+          educationalTextIssue([
+            value['alternativeReason'] as String,
+            for (final raw in value['domains'] as List) ...[
+              for (final key in [
+                'label',
+                'currentPerformance',
+                'strengths',
+                'needs',
+              ])
+                (raw as Map)[key] as String,
+              for (final skill in raw['skills'] as List) ...[
+                (skill as Map)['label'] as String,
+                skill['evidence'] as String,
+              ],
+            ],
+            for (final raw in value['previousStrategies'] as List)
+              ...(raw as Map).values.cast<String>(),
+          ]) ??
+          structuredFormInputIssue(dates: [value['assessedOn'] as String]),
     );
     final restored = _formDraft.restored;
     if (restored != null && !_draft.approved) {

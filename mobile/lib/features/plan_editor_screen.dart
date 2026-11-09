@@ -150,27 +150,31 @@ class _PlanEditorScreenState extends State<PlanEditorScreen> {
     _formDraft = FormDraftController(
       state: widget.state,
       key: _draftKey,
-      validate: (value) => educationalTextIssue([
-        for (final field in [
-          'needsSummary',
-          'strengthsSummary',
-          'generalGoal',
-          'baseline',
-        ])
-          (value['content'] as Map)[field] as String,
-        for (final raw in (value['content'] as Map)['goals'] as List) ...[
-          (raw as Map)['behavior'] as String,
-          raw['condition'] as String,
-        ],
-        for (final field in [
-          'tools',
-          'measurementTools',
-          'strategies',
-          'recommendations',
-        ])
-          ...((value['content'] as Map)[field] as List).cast<String>(),
-        ...(value['numericInputs'] as Map).values.cast<String>(),
-      ]),
+      validate: (value) =>
+          educationalTextIssue([
+            for (final field in [
+              'needsSummary',
+              'strengthsSummary',
+              'generalGoal',
+              'baseline',
+            ])
+              (value['content'] as Map)[field] as String,
+            for (final raw in (value['content'] as Map)['goals'] as List) ...[
+              (raw as Map)['behavior'] as String,
+              raw['condition'] as String,
+            ],
+            for (final field in [
+              'tools',
+              'measurementTools',
+              'strategies',
+              'recommendations',
+            ])
+              ...((value['content'] as Map)[field] as List).cast<String>(),
+          ]) ??
+          structuredFormInputIssue(
+            dates: [(value['content'] as Map)['nextFollowUp'] as String],
+            numbers: (value['numericInputs'] as Map).values.cast<String>(),
+          ),
     );
   }
 

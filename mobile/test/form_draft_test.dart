@@ -33,6 +33,23 @@ class GateStore extends FakeStore {
 
 void main() {
   test(
+    'structured inputs accept partial numbers and dates without scanning them as free text',
+    () {
+      expect(
+        structuredFormInputIssue(
+          dates: ['', '2026', '2026-', '2026-01-', '2026-01-02'],
+          numbers: ['', '-', '.', '1e', '1e-', '12', '0.5'],
+        ),
+        isNull,
+      );
+      expect(
+        structuredFormInputIssue(dates: ['synthetic@example.test']),
+        isNotNull,
+      );
+      expect(structuredFormInputIssue(numbers: ['تشخيص اصطناعي']), isNotNull);
+    },
+  );
+  test(
     'record commit finishes its exact form snapshot even if draft cleanup fails',
     () async {
       final records = FakeStore(), drafts = FakeStore();

@@ -5,6 +5,21 @@ import 'package:flutter/material.dart';
 
 import 'app_state.dart';
 
+/// Keep unfinished numeric/date prefixes without treating structured dates or
+/// identifiers as free text. Arbitrary pasted text never reaches the store.
+String? structuredFormInputIssue({
+  Iterable<String> dates = const [],
+  Iterable<String> numbers = const [],
+}) {
+  final datePrefix = RegExp(r'^\d{0,4}(?:-\d{0,2}){0,2}$');
+  final numberPrefix = RegExp(r'^[+-]?\d*(?:\.\d*)?(?:[eE][+-]?\d*)?$');
+  if (dates.any((value) => !datePrefix.hasMatch(value)) ||
+      numbers.any((value) => !numberPrefix.hasMatch(value))) {
+    return 'راجعي حقول الأرقام والتواريخ؛ استخدمي الأرقام وصيغة YYYY-MM-DD دون نصوص تعريفية.';
+  }
+  return null;
+}
+
 /// A separate, encrypted form snapshot: it never creates records or outbox work.
 /// Each update is copied immediately. Writes coalesce only while a prior write
 /// is in flight, so a slow disk cannot replace newer input with an older value.

@@ -68,6 +68,63 @@ Future<void> backgroundAndClose(WidgetTester tester, String owner) async {
 
 void main() {
   testWidgets(
+    'unsafe free text stays in memory and cannot replace the last safe form snapshot',
+    (tester) async {
+      await largeSurface(tester);
+      final records = FakeStore(), drafts = FakeStore();
+      const owner = 'unsafe-autosave';
+      final state = formState(records, drafts, owner);
+      await open(tester, (_) => StudentFormScreen(state: state));
+      await tester.enterText(
+        field('سبب الإحالة'),
+        'وصف أداء تعليمي اصطناعي آمن',
+      );
+      await tester.pumpAndSettle();
+      final safeSnapshot = drafts.content;
+      expect(safeSnapshot, isNotNull);
+      await tester.enterText(
+        field('سبب الإحالة'),
+        'synthetic-private@example.test',
+      );
+      await tester.pumpAndSettle();
+      expect(find.textContaining('أزيلي بيانات الاتصال'), findsOneWidget);
+      expect(drafts.content, safeSnapshot);
+      expect(
+        tester.widget<TextField>(field('سبب الإحالة')).controller!.text,
+        'synthetic-private@example.test',
+      );
+      await tester.tap(find.byType(BackButton));
+      await tester.pumpAndSettle();
+      expect(find.text('ملف طالب جديد'), findsOneWidget);
+      await tester.enterText(
+        field('سبب الإحالة'),
+        'synthetic-phone 0000000000',
+      );
+      await tester.pumpAndSettle();
+      expect(find.textContaining('أزيلي بيانات الاتصال'), findsOneWidget);
+      expect(drafts.content, safeSnapshot);
+      await tester.enterText(field('سبب الإحالة'), 'تشخيص طبي اصطناعي');
+      await tester.pumpAndSettle();
+      expect(
+        find.textContaining('تُراجع المسائل الطبية والنفسية'),
+        findsOneWidget,
+      );
+      expect(drafts.content, safeSnapshot);
+      expect(records.content, isNull);
+      expect(state.pendingCount, 0);
+      await tester.pumpWidget(const SizedBox.shrink());
+      await AppState.flushDraftsForOwner(owner);
+      final reopened = formState(records, drafts, owner);
+      await reopened.load();
+      await open(tester, (_) => StudentFormScreen(state: reopened));
+      expect(
+        tester.widget<TextField>(field('سبب الإحالة')).controller!.text,
+        'وصف أداء تعليمي اصطناعي آمن',
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
+  testWidgets(
     'repeated back requests leave the form once and retain the previous route',
     (tester) async {
       await largeSurface(tester);

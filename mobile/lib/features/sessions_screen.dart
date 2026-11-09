@@ -94,12 +94,24 @@ class _SessionsScreenState extends State<SessionsScreen> {
       state: _state,
       key: 'session-batch',
       isCurrentOwner: () => widget.auth.ownerId == _ownerId,
-      validate: (value) => educationalTextIssue([
-        for (final row in value['rows'] as List) ...[
-          (row as Map)['notes'] as String,
-          row['engagement'] as String,
-        ],
-      ]),
+      validate: (value) =>
+          educationalTextIssue([
+            for (final row in value['rows'] as List) ...[
+              (row as Map)['notes'] as String,
+              row['engagement'] as String,
+            ],
+          ]) ??
+          structuredFormInputIssue(
+            dates: [
+              for (final row in value['rows'] as List)
+                (row as Map)['date'] as String,
+            ],
+            numbers: [
+              for (final row in value['rows'] as List)
+                for (final key in ['total', 'correct', 'duration'])
+                  (row as Map)[key] as String,
+            ],
+          ),
     );
     final restored = _formDraft.restored;
     if (restored != null) {
