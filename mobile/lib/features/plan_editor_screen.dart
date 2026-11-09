@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 
 import '../core/app_state.dart';
+import '../core/form_draft.dart';
 import '../core/plan_api.dart';
 import '../models/initial_assessment.dart';
 import '../models/intervention_session.dart';
@@ -125,7 +126,9 @@ class _PlanEditorScreenState extends State<PlanEditorScreen> {
     'showSessionSchedule': true,
   };
   String? _operationId, _error;
+  final Map<String, String> _numericInputs = {};
   bool _privacy = false, _busy = false;
+  late final FormDraftController _formDraft;
   String get _draftKey => 'plan-edit:${widget.plan.id}';
   @override
   void initState() {
@@ -137,22 +140,61 @@ class _PlanEditorScreenState extends State<PlanEditorScreen> {
     if (saved != null) {
       _operationId = saved['operationId'] as String?;
       _options.addAll(Map<String, bool>.from(saved['templateOptions'] as Map));
+      _numericInputs.addAll(
+        Map<String, String>.from((saved['numericInputs'] as Map?) ?? {}),
+      );
     } else {
       final options = widget.plan.data['templateOptions'];
       if (options is Map) _options.addAll(Map<String, bool>.from(options));
     }
+    _formDraft = FormDraftController(
+      state: widget.state,
+      key: _draftKey,
+      validate: (value) => educationalTextIssue([
+        for (final field in [
+          'needsSummary',
+          'strengthsSummary',
+          'generalGoal',
+          'baseline',
+        ])
+          (value['content'] as Map)[field] as String,
+        for (final raw in (value['content'] as Map)['goals'] as List) ...[
+          (raw as Map)['behavior'] as String,
+          raw['condition'] as String,
+        ],
+        for (final field in [
+          'tools',
+          'measurementTools',
+          'strategies',
+          'recommendations',
+        ])
+          ...((value['content'] as Map)[field] as List).cast<String>(),
+        ...(value['numericInputs'] as Map).values.cast<String>(),
+      ]),
+    );
   }
 
   void _changed() {
     _operationId = null;
+    _formDraft.update(_snapshot());
   }
 
+  Map<String, dynamic> _snapshot() => {
+    'content': _content,
+    'templateOptions': _options,
+    'operationId': _operationId,
+    'numericInputs': _numericInputs,
+  };
+
   Future<void> _retain() async {
-    await widget.state.saveDraft(_draftKey, {
-      'content': _content,
-      'templateOptions': _options,
-      'operationId': _operationId,
-    });
+    _formDraft.update(_snapshot());
+    await _formDraft.flush();
+  }
+
+  @override
+  void dispose() {
+    _formDraft.dispose();
+    super.dispose();
   }
 
   Future<void> _save({bool send = false}) async {
@@ -179,7 +221,7 @@ class _PlanEditorScreenState extends State<PlanEditorScreen> {
           confirmed: true,
         );
         await widget.onSaved(revised);
-        await widget.state.clearDraft(_draftKey);
+        await _formDraft.clearAfterSave();
         if (mounted) Navigator.pop(context);
       } else if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -214,117 +256,135 @@ class _PlanEditorScreenState extends State<PlanEditorScreen> {
       },
     ),
   );
-  Widget _number(String label, Object? value, ValueChanged<num?> change) =>
-      Padding(
-        padding: const EdgeInsets.symmetric(vertical: 6),
-        child: TextFormField(
-          initialValue: value?.toString() ?? '',
-          enabled: !_busy,
-          keyboardType: TextInputType.number,
-          decoration: InputDecoration(labelText: label),
-          onChanged: (v) {
-            change(num.tryParse(v));
-            _changed();
-          },
-        ),
-      );
+  Widget _number(
+    String inputKey,
+    String label,
+    Object? value,
+    ValueChanged<num?> change,
+  ) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 6),
+    child: TextFormField(
+      key: ValueKey(inputKey),
+      initialValue: _numericInputs[inputKey] ?? value?.toString() ?? '',
+      enabled: !_busy,
+      keyboardType: TextInputType.number,
+      decoration: InputDecoration(labelText: label),
+      onChanged: (v) {
+        _numericInputs[inputKey] = v;
+        final parsed = num.tryParse(v);
+        change(parsed != null && parsed.isFinite ? parsed : null);
+        _changed();
+      },
+    ),
+  );
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('تعديل الخطة وحفظ إصدار')),
-    body: ListView(
-      padding: const EdgeInsets.all(18),
-      children: [
-        const PrototypeNote(),
-        const Text(
-          'التعديل ينشئ مسودة جديدة مرتبطة بالمصدر، ويُبقي الخطة السابقة وتاريخها كما هما. المسودة الجديدة تحتاج مراجعة واعتمادًا صريحًا قبل تسجيل جلسات عليها.',
-        ),
-        if (_error != null)
-          Text(
-            _error!,
-            key: const Key('plan-editor-error'),
-            style: TextStyle(color: Theme.of(context).colorScheme.error),
+  Widget build(BuildContext context) => FormDraftGuard(
+    controller: _formDraft,
+    child: Scaffold(
+      appBar: AppBar(
+        title: const Text('تعديل الخطة وحفظ إصدار'),
+        actions: [
+          DiscardFormDraftButton(controller: _formDraft, enabled: !_busy),
+        ],
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(18),
+        children: [
+          const PrototypeNote(),
+          FormDraftStatus(controller: _formDraft),
+          const Text(
+            'التعديل ينشئ مسودة جديدة مرتبطة بالمصدر، ويُبقي الخطة السابقة وتاريخها كما هما. المسودة الجديدة تحتاج مراجعة واعتمادًا صريحًا قبل تسجيل جلسات عليها.',
           ),
-        for (final entry in const {
-          'needsSummary': 'ملخص الاحتياج',
-          'strengthsSummary': 'نقاط القوة',
-          'generalGoal': 'الهدف العام',
-          'baseline': 'مستوى الأداء الأولي',
-        }.entries)
-          _text(entry.key, entry.value),
-        _number(
-          'مدة الخطة بالأسابيع',
-          _content['durationWeeks'],
-          (v) => _content['durationWeeks'] = v,
-        ),
-        _number(
-          'الجلسات الأسبوعية',
-          _content['sessionsPerWeek'],
-          (v) => _content['sessionsPerWeek'] = v,
-        ),
-        const SectionHeading('الأهداف الإجرائية (مكوّن أساسي)'),
-        for (final raw in _content['goals'] as List) _goal(raw as Map),
-        for (final entry in const {
-          'tools': 'الأدوات والوسائل التعليمية',
-          'measurementTools': 'أدوات القياس',
-          'strategies': 'الاستراتيجيات',
-          'recommendations': 'توصيات المتابعة',
-        }.entries)
-          TextFormField(
-            initialValue: (_content[entry.key] as List).join('\n'),
-            enabled: !_busy,
-            maxLines: 4,
-            maxLength: 2000,
-            decoration: InputDecoration(
-              labelText: entry.value,
-              helperText: 'عنصر واحد في كل سطر، دون بيانات تعريفية',
+          if (_error != null)
+            Text(
+              _error!,
+              key: const Key('plan-editor-error'),
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
             ),
-            onChanged: (v) {
-              _content[entry.key] = v
-                  .split('\n')
-                  .map((s) => s.trim())
-                  .where((s) => s.isNotEmpty)
-                  .toList();
-              _changed();
-            },
+          for (final entry in const {
+            'needsSummary': 'ملخص الاحتياج',
+            'strengthsSummary': 'نقاط القوة',
+            'generalGoal': 'الهدف العام',
+            'baseline': 'مستوى الأداء الأولي',
+          }.entries)
+            _text(entry.key, entry.value),
+          _number(
+            'durationWeeks',
+            'مدة الخطة بالأسابيع',
+            _content['durationWeeks'],
+            (v) => _content['durationWeeks'] = v,
           ),
-        _text('nextFollowUp', 'تاريخ المتابعة YYYY-MM-DD', maxLines: 1),
-        const SectionHeading('تخصيص عرض المكونات الاختيارية'),
-        for (final entry in const {
-          'showStrategies': 'عرض الأنشطة والاستراتيجيات',
-          'showRecommendations': 'عرض التوصيات',
-          'showSessionSchedule': 'عرض مدة وآلية الجلسات',
-        }.entries)
-          SwitchListTile(
-            value: _options[entry.key]!,
-            title: Text(entry.value),
+          _number(
+            'sessionsPerWeek',
+            'الجلسات الأسبوعية',
+            _content['sessionsPerWeek'],
+            (v) => _content['sessionsPerWeek'] = v,
+          ),
+          const SectionHeading('الأهداف الإجرائية (مكوّن أساسي)'),
+          for (final raw in _content['goals'] as List) _goal(raw as Map),
+          for (final entry in const {
+            'tools': 'الأدوات والوسائل التعليمية',
+            'measurementTools': 'أدوات القياس',
+            'strategies': 'الاستراتيجيات',
+            'recommendations': 'توصيات المتابعة',
+          }.entries)
+            TextFormField(
+              initialValue: (_content[entry.key] as List).join('\n'),
+              enabled: !_busy,
+              maxLines: 4,
+              maxLength: 2000,
+              decoration: InputDecoration(
+                labelText: entry.value,
+                helperText: 'عنصر واحد في كل سطر، دون بيانات تعريفية',
+              ),
+              onChanged: (v) {
+                _content[entry.key] = v
+                    .split('\n')
+                    .map((s) => s.trim())
+                    .where((s) => s.isNotEmpty)
+                    .toList();
+                _changed();
+              },
+            ),
+          _text('nextFollowUp', 'تاريخ المتابعة YYYY-MM-DD', maxLines: 1),
+          const SectionHeading('تخصيص عرض المكونات الاختيارية'),
+          for (final entry in const {
+            'showStrategies': 'عرض الأنشطة والاستراتيجيات',
+            'showRecommendations': 'عرض التوصيات',
+            'showSessionSchedule': 'عرض مدة وآلية الجلسات',
+          }.entries)
+            SwitchListTile(
+              value: _options[entry.key]!,
+              title: Text(entry.value),
+              onChanged: _busy
+                  ? null
+                  : (v) => setState(() {
+                      _options[entry.key] = v;
+                      _changed();
+                    }),
+            ),
+          const Text(
+            'الأهداف ومستوى الأداء والوسائل وأدوات القياس تبقى ظاهرة. قالب المؤسسة النهائي يحتاج اعتمادها.',
+          ),
+          CheckboxListTile(
+            value: _privacy,
+            title: const Text(
+              'راجعت الملاءمة والخصوصية وأوافق على حفظ التعديلات',
+            ),
             onChanged: _busy
                 ? null
-                : (v) => setState(() {
-                    _options[entry.key] = v;
-                    _changed();
-                  }),
+                : (v) => setState(() => _privacy = v ?? false),
           ),
-        const Text(
-          'الأهداف ومستوى الأداء والوسائل وأدوات القياس تبقى ظاهرة. قالب المؤسسة النهائي يحتاج اعتمادها.',
-        ),
-        CheckboxListTile(
-          value: _privacy,
-          title: const Text(
-            'راجعت الملاءمة والخصوصية وأوافق على حفظ التعديلات',
+          OutlinedButton(
+            onPressed: _busy ? null : () => _save(),
+            child: const Text('حفظ التعديلات على هذا الجهاز'),
           ),
-          onChanged: _busy
-              ? null
-              : (v) => setState(() => _privacy = v ?? false),
-        ),
-        OutlinedButton(
-          onPressed: _busy ? null : () => _save(),
-          child: const Text('حفظ التعديلات على هذا الجهاز'),
-        ),
-        FilledButton(
-          onPressed: _busy ? null : () => _save(send: true),
-          child: const Text('حفظ إصدار جديد كمسودة على الخادم'),
-        ),
-      ],
+          FilledButton(
+            onPressed: _busy ? null : () => _save(send: true),
+            child: const Text('حفظ إصدار جديد كمسودة على الخادم'),
+          ),
+        ],
+      ),
     ),
   );
   Widget _goal(Map raw) {
@@ -373,6 +433,10 @@ class _PlanEditorScreenState extends State<PlanEditorScreen> {
               onChanged: _busy
                   ? null
                   : (v) => setState(() {
+                      _numericInputs.removeWhere(
+                        (key, _) =>
+                            key.startsWith('goal:${raw['id']}:criterion:'),
+                      );
                       raw['criterion'] = switch (v) {
                         'trials' => {'type': v, 'correct': 4, 'total': 5},
                         'consistency' => {
@@ -388,17 +452,20 @@ class _PlanEditorScreenState extends State<PlanEditorScreen> {
             ),
             if (criterion['type'] == 'percentage')
               _number(
+                'goal:${raw['id']}:criterion:target',
                 'نسبة الدقة المستهدفة',
                 criterion['target'],
                 (v) => (raw['criterion'] as Map)['target'] = v,
               ),
             if (criterion['type'] == 'trials') ...[
               _number(
+                'goal:${raw['id']}:criterion:correct',
                 'المحاولات الصحيحة المستهدفة',
                 criterion['correct'],
                 (v) => (raw['criterion'] as Map)['correct'] = v,
               ),
               _number(
+                'goal:${raw['id']}:criterion:total',
                 'إجمالي المحاولات',
                 criterion['total'],
                 (v) => (raw['criterion'] as Map)['total'] = v,
@@ -406,11 +473,13 @@ class _PlanEditorScreenState extends State<PlanEditorScreen> {
             ],
             if (criterion['type'] == 'consistency') ...[
               _number(
+                'goal:${raw['id']}:criterion:sessions',
                 'عدد الجلسات',
                 criterion['sessions'],
                 (v) => (raw['criterion'] as Map)['sessions'] = v,
               ),
               _number(
+                'goal:${raw['id']}:criterion:targetPercent',
                 'نسبة الدقة عبر الجلسات',
                 criterion['targetPercent'],
                 (v) => (raw['criterion'] as Map)['targetPercent'] = v,
@@ -434,6 +503,7 @@ class _PlanEditorScreenState extends State<PlanEditorScreen> {
                       },
               ),
             _number(
+              'goal:${raw['id']}:timeframeWeeks',
               'الإطار الزمني بالأسابيع',
               raw['timeframeWeeks'],
               (v) => raw['timeframeWeeks'] = v,

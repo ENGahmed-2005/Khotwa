@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 
 import '../core/app_state.dart';
+import '../core/form_draft.dart';
 import '../models/assessment.dart';
 import '../models/initial_assessment.dart';
 import '../widgets/common.dart';
@@ -27,26 +28,97 @@ class _InitialAssessmentScreenState extends State<InitialAssessmentScreen> {
   final List<Map<String, String>> _strategies = [];
   bool _privacy = false, _busy = false;
   String? _error;
+  late final FormDraftController _formDraft;
+  bool _restorationFailed = false;
 
   @override
   void initState() {
     super.initState();
     _draft = widget.state.initialAssessmentById(widget.assessmentId);
+    _formDraft = FormDraftController(
+      state: widget.state,
+      key: 'initial-form:${widget.assessmentId}',
+      validate: (value) => educationalTextIssue([
+        value['alternativeReason'] as String,
+        for (final raw in value['domains'] as List) ...[
+          for (final key in [
+            'label',
+            'currentPerformance',
+            'strengths',
+            'needs',
+          ])
+            (raw as Map)[key] as String,
+          for (final skill in raw['skills'] as List) ...[
+            (skill as Map)['label'] as String,
+            skill['evidence'] as String,
+          ],
+        ],
+        for (final raw in value['previousStrategies'] as List)
+          ...(raw as Map).values.cast<String>(),
+      ]),
+    );
+    final restored = _formDraft.restored;
+    if (restored != null && !_draft.approved) {
+      try {
+        _draft = _draft.copyWith(
+          assessedOn: restored['assessedOn'] as String,
+          method: restored['method'] as String,
+          alternativeReason: restored['alternativeReason'] as String,
+          academicAssessmentId: restored['academicAssessmentId'] as String?,
+          domains: (restored['domains'] as List)
+              .map(
+                (d) =>
+                    InitialDomain.fromJson(Map<String, dynamic>.from(d as Map)),
+              )
+              .toList(),
+          previousStrategies: (restored['previousStrategies'] as List)
+              .map((s) => Map<String, String>.from(s as Map))
+              .toList(),
+          privacyReviewed: false,
+        );
+      } catch (_) {
+        _restorationFailed = true;
+        _error =
+            'تعذّر فتح مسودة النموذج؛ حُفظت دون تغيير. ألغِيها صراحةً لإنشاء مدخلات جديدة.';
+      }
+    }
     _reason = TextEditingController(text: _draft.alternativeReason);
     _date = TextEditingController(text: _draft.assessedOn);
     _domains.addAll(_draft.domains.map((d) => d.toJson()));
     _strategies.addAll(_draft.previousStrategies.map((s) => {...s}));
     _privacy = _draft.approved;
+    _reason.addListener(_changed);
+    _date.addListener(_changed);
+  }
+
+  void _changed() {
+    if (_draft.approved || _restorationFailed) return;
+    _formDraft.update({
+      'assessedOn': _date.text,
+      'method': _draft.method,
+      'academicAssessmentId': _draft.academicAssessmentId,
+      'alternativeReason': _reason.text,
+      'domains': _domains,
+      'previousStrategies': _strategies,
+    });
+  }
+
+  void _edit(VoidCallback action) {
+    if (_busy || _draft.approved) return;
+    setState(action);
+    _changed();
   }
 
   @override
   void dispose() {
+    _formDraft.dispose();
     _reason.dispose();
     _date.dispose();
     super.dispose();
   }
 
   Future<void> _save({bool approve = false}) async {
+    if (_restorationFailed) return;
     final next = _draft.copyWith(
       assessedOn: _date.text.trim(),
       alternativeReason: _reason.text.trim(),
@@ -86,7 +158,13 @@ class _InitialAssessmentScreenState extends State<InitialAssessmentScreen> {
       _error = null;
     });
     try {
-      await widget.state.saveInitialAssessment(next, approve: approve);
+      await _formDraft.flush();
+      await widget.state.saveInitialAssessment(
+        next,
+        approve: approve,
+        draftKey: _formDraft.key,
+      );
+      _formDraft.acknowledgeSaved();
       _draft = widget.state.initialAssessmentById(widget.assessmentId);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -100,6 +178,8 @@ class _InitialAssessmentScreenState extends State<InitialAssessmentScreen> {
         );
       }
     } catch (e) {
+      final saved = widget.state.initialAssessmentById(widget.assessmentId);
+      if (saved.approved) _draft = saved;
       _error = e is StateError
           ? e.message.toString()
           : 'تعذر الحفظ الآمن؛ احتُفظ بالمدخلات على الشاشة.';
@@ -136,7 +216,7 @@ class _InitialAssessmentScreenState extends State<InitialAssessmentScreen> {
       id = 'custom.${const Uuid().v4()}';
       label = value.trim();
     }
-    setState(
+    _edit(
       () => _domains.add({
         'id': id,
         'label': label,
@@ -210,7 +290,7 @@ class _InitialAssessmentScreenState extends State<InitialAssessmentScreen> {
         (choice == 'custom' && (custom == null || custom.trim().isEmpty))) {
       return;
     }
-    setState(
+    _edit(
       () => skills.add({
         'id': choice == 'custom' ? 'custom.${const Uuid().v4()}' : choice,
         'label': custom?.trim() ?? library![choice]!,
@@ -238,7 +318,10 @@ class _InitialAssessmentScreenState extends State<InitialAssessmentScreen> {
         helperText: 'وصف تربوي دون أسماء أو بيانات صحية',
         border: const OutlineInputBorder(),
       ),
-      onChanged: changed,
+      onChanged: (value) {
+        changed(value);
+        _changed();
+      },
     ),
   );
 
@@ -249,203 +332,216 @@ class _InitialAssessmentScreenState extends State<InitialAssessmentScreen> {
         .assessmentsFor(_draft.studentId)
         .where((a) => a.status == AssessmentStatus.approved)
         .toList();
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          _draft.approved ? 'تقييم أولي معتمد' : 'التقييم الأولي الحر',
-        ),
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(18),
-        children: [
-          const PrototypeNote(),
-          const Text(
-            'هذا توصيف أداء تربوي، وليس تشخيصًا طبيًا أو نفسيًا. تُحال مسائل التشخيص للمختصين خارج التطبيق. لا تكتبي الاسم أو تاريخ الميلاد أو معلومات الاتصال.',
-          ),
-          if (_error != null)
-            Padding(
-              padding: const EdgeInsets.all(12),
-              child: Text(
-                _error!,
-                style: TextStyle(color: Theme.of(context).colorScheme.error),
-              ),
-            ),
-          TextField(
-            controller: _date,
-            readOnly: readonly,
-            decoration: const InputDecoration(
-              labelText: 'تاريخ التقييم YYYY-MM-DD',
-            ),
-          ),
-          const SizedBox(height: 14),
-          DropdownButtonFormField<String>(
-            initialValue: _draft.method,
-            isExpanded: true,
-            decoration: const InputDecoration(labelText: 'أسلوب التقييم'),
-            items: assessmentMethods.entries
-                .map(
-                  (e) => DropdownMenuItem(value: e.key, child: Text(e.value)),
-                )
-                .toList(),
-            onChanged: readonly
-                ? null
-                : (v) => setState(() => _draft = _draft.copyWith(method: v)),
-          ),
-          if (_draft.method == 'academicCards')
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              child: DropdownButtonFormField<String>(
-                initialValue:
-                    cards.any((c) => c.id == _draft.academicAssessmentId)
-                    ? _draft.academicAssessmentId
-                    : null,
-                isExpanded: true,
-                decoration: const InputDecoration(
-                  labelText: 'البطاقة المعتمدة مصدر النتائج',
-                ),
-                items: cards
-                    .map(
-                      (c) => DropdownMenuItem(
-                        value: c.id,
-                        child: Text(
-                          '${c.ageGroup} · ${c.createdAt.substring(0, 10)}',
-                        ),
-                      ),
-                    )
-                    .toList(),
-                onChanged: readonly
-                    ? null
-                    : (v) => setState(
-                        () => _draft = _draft.copyWith(academicAssessmentId: v),
-                      ),
-              ),
-            ),
-          TextField(
-            controller: _reason,
-            readOnly: readonly,
-            maxLength: 2000,
-            maxLines: 3,
-            decoration: const InputDecoration(
-              labelText: 'سبب اختيار التقييم البديل / وصف المصدر',
-              helperText: 'مطلوب لاعتماد تقييم خارج البطاقات',
-            ),
-          ),
-          for (final domain in _domains)
-            Card(
-              key: ValueKey(domain['id']),
-              child: Padding(
-                padding: const EdgeInsets.all(14),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            domain['label'] as String,
-                            style: Theme.of(context).textTheme.titleLarge,
-                          ),
-                        ),
-                        if (!readonly)
-                          IconButton(
-                            tooltip: 'إزالة المجال',
-                            onPressed: () =>
-                                setState(() => _domains.remove(domain)),
-                            icon: const Icon(Icons.remove_circle_outline),
-                          ),
-                      ],
-                    ),
-                    for (final entry in const {
-                      'currentPerformance': 'مستوى الأداء الحالي',
-                      'strengths': 'نقاط القوة',
-                      'needs': 'الاحتياجات الفردية',
-                    }.entries)
-                      _text(
-                        entry.value,
-                        domain[entry.key] as String,
-                        (v) => domain[entry.key] = v,
-                      ),
-                    for (final raw in domain['skills'] as List)
-                      _skillCard(domain, raw as Map<String, dynamic>, readonly),
-                    if (!readonly)
-                      OutlinedButton.icon(
-                        onPressed: () => _addSkill(domain),
-                        icon: const Icon(Icons.add),
-                        label: const Text('إضافة مهارة وشاهد أداء'),
-                      ),
-                  ],
-                ),
-              ),
-            ),
-          if (!readonly)
-            OutlinedButton.icon(
-              onPressed: _addDomain,
-              icon: const Icon(Icons.add),
-              label: const Text('إضافة مجال'),
-            ),
-          const SectionHeading('استراتيجيات سابقة (اختياري)'),
-          for (final strategy in _strategies)
-            Card(
-              key: ObjectKey(strategy),
-              child: Padding(
-                padding: const EdgeInsets.all(10),
-                child: Column(
-                  children: [
-                    _text(
-                      'اسم الاستراتيجية',
-                      strategy['name']!,
-                      (v) => strategy['name'] = v,
-                      maxLines: 1,
-                      maxLength: 120,
-                    ),
-                    _text(
-                      'نتيجتها الفعلية',
-                      strategy['result']!,
-                      (v) => strategy['result'] = v,
-                    ),
-                    if (!readonly)
-                      TextButton(
-                        onPressed: () =>
-                            setState(() => _strategies.remove(strategy)),
-                        child: const Text('إزالة الاستراتيجية'),
-                      ),
-                  ],
-                ),
-              ),
-            ),
-          if (!readonly)
-            TextButton(
-              onPressed: () =>
-                  setState(() => _strategies.add({'name': '', 'result': ''})),
-              child: const Text('إضافة استراتيجية سابقة'),
-            ),
-          if (_draft.approved)
-            Text(
-              'معتمد في ${_draft.approvedAt?.substring(0, 10)} · ${syncStatusLabel(widget.state.stateFor(_draft.id))}',
-            )
-          else ...[
-            CheckboxListTile(
-              value: _privacy,
-              onChanged: _busy
-                  ? null
-                  : (v) => setState(() => _privacy = v ?? false),
-              title: const Text(
-                'راجعت النصوص: أوصاف أداء فعلية دون هوية أو معلومات صحية',
-              ),
-            ),
-            FilledButton(
-              onPressed: _busy ? null : () => _save(),
-              child: const Text('حفظ مسودة التقييم محليًا'),
-            ),
-            OutlinedButton(
-              onPressed: _busy ? null : () => _save(approve: true),
-              child: const Text('مراجعة واعتماد التقييم'),
-            ),
-            const Text(
-              'احفظي المسودة قبل مغادرة الشاشة. الاعتماد يحفظ التقييم للقراءة فقط، والتوليد يحتاج مزامنته أولًا.',
-            ),
+    return FormDraftGuard(
+      controller: _formDraft,
+      child: Scaffold(
+        appBar: AppBar(
+          actions: [
+            if (!_draft.approved)
+              DiscardFormDraftButton(controller: _formDraft, enabled: !_busy),
           ],
-        ],
+          title: Text(
+            _draft.approved ? 'تقييم أولي معتمد' : 'التقييم الأولي الحر',
+          ),
+        ),
+        body: ListView(
+          padding: const EdgeInsets.all(18),
+          children: [
+            const PrototypeNote(),
+            if (!_draft.approved) FormDraftStatus(controller: _formDraft),
+            const Text(
+              'هذا توصيف أداء تربوي، وليس تشخيصًا طبيًا أو نفسيًا. تُحال مسائل التشخيص للمختصين خارج التطبيق. لا تكتبي الاسم أو تاريخ الميلاد أو معلومات الاتصال.',
+            ),
+            if (_error != null)
+              Padding(
+                padding: const EdgeInsets.all(12),
+                child: Text(
+                  _error!,
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
+              ),
+            TextField(
+              controller: _date,
+              readOnly: readonly,
+              decoration: const InputDecoration(
+                labelText: 'تاريخ التقييم YYYY-MM-DD',
+              ),
+            ),
+            const SizedBox(height: 14),
+            DropdownButtonFormField<String>(
+              initialValue: _draft.method,
+              isExpanded: true,
+              decoration: const InputDecoration(labelText: 'أسلوب التقييم'),
+              items: assessmentMethods.entries
+                  .map(
+                    (e) => DropdownMenuItem(value: e.key, child: Text(e.value)),
+                  )
+                  .toList(),
+              onChanged: readonly
+                  ? null
+                  : (v) => _edit(() => _draft = _draft.copyWith(method: v)),
+            ),
+            if (_draft.method == 'academicCards')
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                child: DropdownButtonFormField<String>(
+                  initialValue:
+                      cards.any((c) => c.id == _draft.academicAssessmentId)
+                      ? _draft.academicAssessmentId
+                      : null,
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                    labelText: 'البطاقة المعتمدة مصدر النتائج',
+                  ),
+                  items: cards
+                      .map(
+                        (c) => DropdownMenuItem(
+                          value: c.id,
+                          child: Text(
+                            '${c.ageGroup} · ${c.createdAt.substring(0, 10)}',
+                          ),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: readonly
+                      ? null
+                      : (v) => _edit(
+                          () =>
+                              _draft = _draft.copyWith(academicAssessmentId: v),
+                        ),
+                ),
+              ),
+            TextField(
+              controller: _reason,
+              readOnly: readonly,
+              maxLength: 2000,
+              maxLines: 3,
+              decoration: const InputDecoration(
+                labelText: 'سبب اختيار التقييم البديل / وصف المصدر',
+                helperText: 'مطلوب لاعتماد تقييم خارج البطاقات',
+              ),
+            ),
+            for (final domain in _domains)
+              Card(
+                key: ValueKey(domain['id']),
+                child: Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              domain['label'] as String,
+                              style: Theme.of(context).textTheme.titleLarge,
+                            ),
+                          ),
+                          if (!readonly)
+                            IconButton(
+                              tooltip: 'إزالة المجال',
+                              onPressed: () =>
+                                  _edit(() => _domains.remove(domain)),
+                              icon: const Icon(Icons.remove_circle_outline),
+                            ),
+                        ],
+                      ),
+                      for (final entry in const {
+                        'currentPerformance': 'مستوى الأداء الحالي',
+                        'strengths': 'نقاط القوة',
+                        'needs': 'الاحتياجات الفردية',
+                      }.entries)
+                        _text(
+                          entry.value,
+                          domain[entry.key] as String,
+                          (v) => domain[entry.key] = v,
+                        ),
+                      for (final raw in domain['skills'] as List)
+                        _skillCard(
+                          domain,
+                          raw as Map<String, dynamic>,
+                          readonly,
+                        ),
+                      if (!readonly)
+                        OutlinedButton.icon(
+                          onPressed: () => _addSkill(domain),
+                          icon: const Icon(Icons.add),
+                          label: const Text('إضافة مهارة وشاهد أداء'),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            if (!readonly)
+              OutlinedButton.icon(
+                onPressed: _addDomain,
+                icon: const Icon(Icons.add),
+                label: const Text('إضافة مجال'),
+              ),
+            const SectionHeading('استراتيجيات سابقة (اختياري)'),
+            for (final strategy in _strategies)
+              Card(
+                key: ObjectKey(strategy),
+                child: Padding(
+                  padding: const EdgeInsets.all(10),
+                  child: Column(
+                    children: [
+                      _text(
+                        'اسم الاستراتيجية',
+                        strategy['name']!,
+                        (v) => strategy['name'] = v,
+                        maxLines: 1,
+                        maxLength: 120,
+                      ),
+                      _text(
+                        'نتيجتها الفعلية',
+                        strategy['result']!,
+                        (v) => strategy['result'] = v,
+                      ),
+                      if (!readonly)
+                        TextButton(
+                          onPressed: () =>
+                              _edit(() => _strategies.remove(strategy)),
+                          child: const Text('إزالة الاستراتيجية'),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            if (!readonly)
+              TextButton(
+                onPressed: () =>
+                    _edit(() => _strategies.add({'name': '', 'result': ''})),
+                child: const Text('إضافة استراتيجية سابقة'),
+              ),
+            if (_draft.approved)
+              Text(
+                'معتمد في ${_draft.approvedAt?.substring(0, 10)} · ${syncStatusLabel(widget.state.stateFor(_draft.id))}',
+              )
+            else ...[
+              CheckboxListTile(
+                value: _privacy,
+                onChanged: _busy
+                    ? null
+                    : (v) => setState(() => _privacy = v ?? false),
+                title: const Text(
+                  'راجعت النصوص: أوصاف أداء فعلية دون هوية أو معلومات صحية',
+                ),
+              ),
+              FilledButton(
+                onPressed: _busy ? null : () => _save(),
+                child: const Text('حفظ مسودة التقييم محليًا'),
+              ),
+              OutlinedButton(
+                onPressed: _busy ? null : () => _save(approve: true),
+                child: const Text('مراجعة واعتماد التقييم'),
+              ),
+              const Text(
+                'احفظي المسودة قبل مغادرة الشاشة. الاعتماد يحفظ التقييم للقراءة فقط، والتوليد يحتاج مزامنته أولًا.',
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
@@ -474,7 +570,9 @@ class _InitialAssessmentScreenState extends State<InitialAssessmentScreen> {
                   (e) => DropdownMenuItem(value: e.key, child: Text(e.value)),
                 )
                 .toList(),
-            onChanged: readonly ? null : (v) => skill['level'] = v!,
+            onChanged: readonly
+                ? null
+                : (v) => _edit(() => skill['level'] = v!),
           ),
           _text(
             'شاهد الأداء ومصدر النتيجة',
@@ -484,7 +582,7 @@ class _InitialAssessmentScreenState extends State<InitialAssessmentScreen> {
           if (!readonly)
             TextButton(
               onPressed: () =>
-                  setState(() => (domain['skills'] as List).remove(skill)),
+                  _edit(() => (domain['skills'] as List).remove(skill)),
               child: const Text('إزالة المهارة'),
             ),
         ],

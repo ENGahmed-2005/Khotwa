@@ -16,15 +16,58 @@ import 'api_client.dart';
 import 'secure_local_store.dart';
 
 class AppState extends ChangeNotifier {
-  AppState(this._store, {required this.ownerId, required this.deviceId});
+  AppState(
+    this._store, {
+    required this.ownerId,
+    required this.deviceId,
+    LocalStore? draftStore,
+  }) : _draftStore = draftStore;
   final LocalStore _store;
+  final LocalStore? _draftStore;
   final String ownerId, deviceId;
   Map<String, SyncRecord> _records = {};
   List<Map<String, dynamic>> _outbox = [];
   Map<String, Map<String, dynamic>> _conflicts = {};
   List<Map<String, dynamic>> _history = [];
   Map<String, Map<String, dynamic>> _drafts = {};
+  Map<String, String> _draftCompletions = {};
   Future<void> _tail = Future.value();
+  Future<void> _draftTail = Future.value();
+  Future<void>? _activeRecordWrite, _activeDraftWrite;
+  bool _disposed = false, _accountDeleted = false;
+  bool get accountDeleted => _accountDeleted;
+  bool get active => !_disposed && !_accountDeleted;
+  static final _draftDrains = <String, Set<Future<void> Function()>>{};
+  static void registerDraftDrain(String owner, Future<void> Function() drain) {
+    (_draftDrains[owner] ??= {}).add(drain);
+  }
+
+  static void unregisterDraftDrain(
+    String owner,
+    Future<void> Function() drain,
+  ) {
+    _draftDrains[owner]?.remove(drain);
+    if (_draftDrains[owner]?.isEmpty ?? false) _draftDrains.remove(owner);
+  }
+
+  static Future<void> flushDraftsForOwner(String owner) async {
+    await Future.wait(
+      (List<Future<void> Function()>.from(
+        _draftDrains[owner] ?? {},
+      )).map((drain) => drain()),
+    );
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
+  }
+
+  void _notify() {
+    if (!_disposed) super.notifyListeners();
+  }
+
   String? storageError, syncError;
   bool syncing = false;
   String? lastSyncedAt;
@@ -106,13 +149,41 @@ class AppState extends ChangeNotifier {
           (key, value) =>
               MapEntry(key as String, Map<String, dynamic>.from(value as Map)),
         );
+        _draftCompletions = Map<String, String>.from(
+          (data['draftCompletions'] as Map?) ?? {},
+        );
+      }
+      if (_draftStore != null) {
+        final legacyDrafts = _drafts;
+        final draftRaw = await _draftStore.read();
+        if (draftRaw != null) {
+          final data = jsonDecode(draftRaw) as Map<String, dynamic>;
+          if (data['schemaVersion'] != 1 || data['ownerId'] != ownerId) {
+            throw StateError('صيغة مسودات أو حساب غير مطابق.');
+          }
+          final separateDrafts = (data['drafts'] as Map).map(
+            (key, value) => MapEntry(
+              key as String,
+              Map<String, dynamic>.from(value as Map),
+            ),
+          );
+          _drafts = {...legacyDrafts, ...separateDrafts};
+        }
+        _removeCompletedDrafts();
+        if (legacyDrafts.isNotEmpty) {
+          // Copy legacy inputs durably before removing them from the records
+          // snapshot. A restart between these writes keeps both recoverable.
+          storageError = null;
+          await _mutateDrafts(() => _drafts);
+          await _commit();
+        }
       }
       storageError = null;
     } catch (_) {
       storageError =
           'تعذّر فتح البيانات المحلية بأمان. لن تُستبدل البيانات الموجودة.';
     }
-    notifyListeners();
+    _notify();
   }
 
   Future<void> _commit({
@@ -123,7 +194,16 @@ class AppState extends ChangeNotifier {
     String? syncedAt,
     bool? hasSeenGuide,
     Map<String, Map<String, dynamic>>? drafts,
+    String? completeDraftKey,
   }) async {
+    if (_disposed) {
+      throw StateError('أُغلقت جلسة السجلات؛ تبقى مدخلات النموذج في مسودتها.');
+    }
+    if (_accountDeleted) {
+      throw StateError(
+        'حُذفت بيانات هذا الحساب؛ لا يمكن إعادة فتح نطاق الكتابة القديم.',
+      );
+    }
     if (storageError != null) {
       throw StateError(storageError!);
     }
@@ -131,7 +211,12 @@ class AppState extends ChangeNotifier {
     final nextOutbox = outbox ?? _outbox;
     final nextConflicts = conflicts ?? _conflicts;
     final nextHistory = history ?? _history;
-    await _store.write(
+    final nextDraftCompletions = {..._draftCompletions};
+    final completedSnapshotId = _drafts[completeDraftKey]?['_snapshotId'];
+    if (_draftStore != null && completedSnapshotId is String) {
+      nextDraftCompletions[completeDraftKey!] = completedSnapshotId;
+    }
+    final writing = _store.write(
       jsonEncode({
         'schemaVersion': 2,
         'ownerId': ownerId,
@@ -141,9 +226,21 @@ class AppState extends ChangeNotifier {
         'history': nextHistory,
         'lastSyncedAt': syncedAt ?? lastSyncedAt,
         'guideSeen': hasSeenGuide ?? guideSeen,
-        'drafts': drafts ?? _drafts,
+        'drafts': _draftStore == null
+            ? (drafts ?? _drafts)
+            : <String, dynamic>{},
+        'draftCompletions': nextDraftCompletions,
       }),
     );
+    _activeRecordWrite = writing;
+    try {
+      await writing;
+    } finally {
+      if (identical(_activeRecordWrite, writing)) _activeRecordWrite = null;
+    }
+    if (_accountDeleted) {
+      throw StateError('حُذف الحساب أثناء الكتابة؛ أُغلق نطاقه.');
+    }
     _records = nextRecords;
     _outbox = nextOutbox;
     _conflicts = nextConflicts;
@@ -151,7 +248,28 @@ class AppState extends ChangeNotifier {
     lastSyncedAt = syncedAt ?? lastSyncedAt;
     guideSeen = hasSeenGuide ?? guideSeen;
     _drafts = drafts ?? _drafts;
-    notifyListeners();
+    _draftCompletions = nextDraftCompletions;
+    _removeCompletedDrafts();
+    _notify();
+  }
+
+  void _removeCompletedDrafts() {
+    _drafts = Map.fromEntries(
+      _drafts.entries.where(
+        (entry) =>
+            entry.value['_snapshotId'] == null ||
+            _draftCompletions[entry.key] != entry.value['_snapshotId'],
+      ),
+    );
+  }
+
+  Future<void> _cleanCompletedDrafts() async {
+    try {
+      await _mutateDrafts(() => _drafts);
+    } catch (_) {
+      // The completion marker already committed with records and outbox. A
+      // cleanup failure cannot restore the completed input or duplicate a save.
+    }
   }
 
   Map<String, dynamic> _operation(SyncRecord record, int baseRevision) => {
@@ -170,6 +288,7 @@ class AppState extends ChangeNotifier {
     String id,
     Map<String, dynamic> data, {
     String? parentId,
+    String? clearDraftKey,
   }) async {
     if (_conflicts.containsKey(id)) {
       throw StateError('حل تعارض المزامنة أولًا؛ النسختان محفوظتان.');
@@ -188,10 +307,18 @@ class AppState extends ChangeNotifier {
     await _commit(
       records: {..._records, id: record},
       outbox: [..._outbox, _operation(record, record.revision + waiting)],
+      drafts: clearDraftKey == null || _draftStore != null
+          ? null
+          : ({..._drafts}..remove(clearDraftKey)),
+      completeDraftKey: clearDraftKey,
     );
+    if (clearDraftKey != null && _draftStore != null) {
+      await _cleanCompletedDrafts();
+    }
   }
 
   Future<StudentRecord> createStudent({
+    String? id,
     required String grade,
     required int ageYears,
     required int ageMonths,
@@ -206,7 +333,16 @@ class AppState extends ChangeNotifier {
     int sessionsPerWeek = 2,
     int sessionMinutes = 30,
     bool privacyReviewed = false,
+    String? draftKey,
   }) => _serial(() async {
+    if (id != null &&
+        (!RegExp(
+              r'^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$',
+              caseSensitive: false,
+            ).hasMatch(id) ||
+            _records.containsKey(id))) {
+      throw StateError('معرّف ملف جديد غير صالح أو مستخدم.');
+    }
     final random = Random.secure();
     String code;
     do {
@@ -238,7 +374,7 @@ class AppState extends ChangeNotifier {
       privacyReviewed: privacyReviewed,
     );
     final student = StudentRecord(
-      id: _uuid.v4(),
+      id: id ?? _uuid.v4(),
       code: code,
       grade: grade,
       ageYears: ageYears,
@@ -256,7 +392,12 @@ class AppState extends ChangeNotifier {
       sessionsPerWeek: sessionsPerWeek,
       sessionMinutes: sessionMinutes,
     );
-    await _put('student', student.id, student.toJson());
+    await _put(
+      'student',
+      student.id,
+      student.toJson(),
+      clearDraftKey: draftKey,
+    );
     return student;
   });
   StudentRecord studentById(String id) =>
@@ -288,6 +429,7 @@ class AppState extends ChangeNotifier {
   Future<void> updateStudentIntake(
     StudentRecord student, {
     required bool privacyReviewed,
+    String? draftKey,
   }) => _serial(() async {
     final old = studentById(student.id);
     if (old.code != student.code ||
@@ -317,7 +459,12 @@ class AppState extends ChangeNotifier {
       minutes: student.sessionMinutes,
       privacyReviewed: privacyReviewed,
     );
-    await _put('student', student.id, student.toJson());
+    await _put(
+      'student',
+      student.id,
+      student.toJson(),
+      clearDraftKey: draftKey,
+    );
   });
   List<InitialAssessmentRecord> initialAssessmentsFor(String studentId) =>
       initialAssessments.where((a) => a.studentId == studentId).toList()
@@ -347,6 +494,7 @@ class AppState extends ChangeNotifier {
   Future<void> saveInitialAssessment(
     InitialAssessmentRecord next, {
     bool approve = false,
+    String? draftKey,
   }) => _serial(() async {
     final old = initialAssessmentById(next.id);
     if (old.approved) {
@@ -378,6 +526,7 @@ class AppState extends ChangeNotifier {
       saved.id,
       saved.toJson(),
       parentId: saved.studentId,
+      clearDraftKey: draftKey,
     );
   });
   Future<void> cachePlanRecords(List<PlanRecord> values) => _serial(() async {
@@ -399,74 +548,130 @@ class AppState extends ChangeNotifier {
   Future<void> markGuideSeen() => _serial(() => _commit(hasSeenGuide: true));
   Map<String, dynamic>? draftFor(String key) => _drafts[key] == null
       ? null
-      : Map<String, dynamic>.from(jsonDecode(jsonEncode(_drafts[key])) as Map);
-  Future<void> saveDraft(String key, Map<String, dynamic> value) => _serial(
-    () => _commit(
-      drafts: {
+      : (Map<String, dynamic>.from(jsonDecode(jsonEncode(_drafts[key])) as Map)
+          ..remove('_snapshotId'));
+  Future<void> saveDraft(String key, Map<String, dynamic> value) {
+    final snapshot = Map<String, dynamic>.from(
+      jsonDecode(jsonEncode(value)) as Map,
+    );
+    return _mutateDrafts(
+      () => {
         ..._drafts,
-        key: Map<String, dynamic>.from(jsonDecode(jsonEncode(value)) as Map),
+        key: {...snapshot, '_snapshotId': _uuid.v4()},
       },
-    ),
-  );
+    );
+  }
+
   Future<void> clearDraft(String key) =>
-      _serial(() => _commit(drafts: {..._drafts}..remove(key)));
-  Future<void> saveSessions(List<InterventionSession> batch) =>
-      _serial(() async {
-        if (batch.isEmpty ||
-            batch.length > 50 ||
-            batch.map((s) => s.id).toSet().length != batch.length) {
-          throw StateError('اختاري من جلسة إلى 50 جلسة بلا تكرار.');
+      _mutateDrafts(() => {..._drafts}..remove(key));
+  Future<void> completeDraft(String key) => _serial(() async {
+    await _commit(
+      drafts: _draftStore == null ? ({..._drafts}..remove(key)) : null,
+      completeDraftKey: key,
+    );
+    if (_draftStore != null) await _cleanCompletedDrafts();
+  });
+  Future<void> _mutateDrafts(
+    Map<String, Map<String, dynamic>> Function() build,
+  ) {
+    if (_draftStore == null) return _serial(() => _commit(drafts: build()));
+    final next = _draftTail.then((_) async {
+      if (_accountDeleted) throw StateError('حُذفت بيانات الحساب.');
+      if (storageError != null) throw StateError(storageError!);
+      final drafts = {
+        for (final entry in build().entries)
+          entry.key: {
+            ...entry.value,
+            '_snapshotId': entry.value['_snapshotId'] ?? _uuid.v4(),
+          },
+      };
+      final writing = _draftStore.write(
+        jsonEncode({'schemaVersion': 1, 'ownerId': ownerId, 'drafts': drafts}),
+      );
+      _activeDraftWrite = writing;
+      try {
+        await writing;
+      } finally {
+        if (identical(_activeDraftWrite, writing)) _activeDraftWrite = null;
+      }
+      if (_accountDeleted) {
+        throw StateError('حُذفت بيانات الحساب أثناء حفظ المسودة.');
+      }
+      _drafts = drafts;
+      _removeCompletedDrafts();
+      _notify();
+    });
+    _draftTail = next.then<void>((_) {}, onError: (Object _, StackTrace _) {});
+    return next;
+  }
+
+  Future<void> saveSessions(
+    List<InterventionSession> batch, {
+    String? draftKey,
+  }) => _serial(() async {
+    if (batch.isEmpty ||
+        batch.length > 50 ||
+        batch.map((s) => s.id).toSet().length != batch.length) {
+      throw StateError('اختاري من جلسة إلى 50 جلسة بلا تكرار.');
+    }
+    final records = {..._records};
+    final outbox = [..._outbox];
+    for (final session in batch) {
+      final issue = session.validate();
+      if (issue != null) throw StateError(issue);
+      final privacyIssue = educationalTextIssue([
+        session.notes,
+        session.engagement ?? '',
+      ]);
+      if (privacyIssue != null) throw StateError(privacyIssue);
+      studentById(session.studentId);
+      final possible = plans.where(
+        (p) =>
+            p.id == session.planVersionId &&
+            p.studentId == session.studentId &&
+            p.approved,
+      );
+      if (possible.isEmpty ||
+          !(possible.single.content['goals'] as List).any(
+            (g) => (g as Map)['id'] == session.goalId,
+          )) {
+        throw StateError('الجلسة ترتبط بهدف وخطة معتمدة تخص هذا الطالب.');
+      }
+      if (session.activityId != null &&
+          !activitiesForGoal(
+            session.goalId,
+          ).any((a) => a['id'] == session.activityId)) {
+        throw StateError('النشاط غير مرتبط بهذا الهدف.');
+      }
+      if (records.containsKey(session.id)) {
+        if (jsonEncode(records[session.id]!.data) ==
+            jsonEncode(session.toJson())) {
+          continue;
         }
-        final records = {..._records};
-        final outbox = [..._outbox];
-        for (final session in batch) {
-          final issue = session.validate();
-          if (issue != null) throw StateError(issue);
-          final privacyIssue = educationalTextIssue([
-            session.notes,
-            session.engagement ?? '',
-          ]);
-          if (privacyIssue != null) throw StateError(privacyIssue);
-          studentById(session.studentId);
-          final possible = plans.where(
-            (p) =>
-                p.id == session.planVersionId &&
-                p.studentId == session.studentId &&
-                p.approved,
-          );
-          if (possible.isEmpty ||
-              !(possible.single.content['goals'] as List).any(
-                (g) => (g as Map)['id'] == session.goalId,
-              )) {
-            throw StateError('الجلسة ترتبط بهدف وخطة معتمدة تخص هذا الطالب.');
-          }
-          if (session.activityId != null &&
-              !activitiesForGoal(
-                session.goalId,
-              ).any((a) => a['id'] == session.activityId)) {
-            throw StateError('النشاط غير مرتبط بهذا الهدف.');
-          }
-          if (records.containsKey(session.id)) {
-            if (jsonEncode(records[session.id]!.data) ==
-                jsonEncode(session.toJson())) {
-              continue;
-            }
-            throw StateError('معرّف جلسة مكرر؛ لم يتغير السجل السابق.');
-          }
-          final record = SyncRecord(
-            id: session.id,
-            kind: 'session',
-            parentId: session.studentId,
-            revision: 0,
-            data: session.toJson(),
-            createdAt: session.createdAt,
-            updatedAt: _now,
-          );
-          records[session.id] = record;
-          outbox.add(_operation(record, 0));
-        }
-        await _commit(records: records, outbox: outbox);
-      });
+        throw StateError('معرّف جلسة مكرر؛ لم يتغير السجل السابق.');
+      }
+      final record = SyncRecord(
+        id: session.id,
+        kind: 'session',
+        parentId: session.studentId,
+        revision: 0,
+        data: session.toJson(),
+        createdAt: session.createdAt,
+        updatedAt: _now,
+      );
+      records[session.id] = record;
+      outbox.add(_operation(record, 0));
+    }
+    await _commit(
+      records: records,
+      outbox: outbox,
+      drafts: draftKey == null || _draftStore != null
+          ? null
+          : ({..._drafts}..remove(draftKey)),
+      completeDraftKey: draftKey,
+    );
+    if (draftKey != null && _draftStore != null) await _cleanCompletedDrafts();
+  });
   List<AssessmentRecord> assessmentsFor(String studentId) =>
       assessments.where((a) => a.studentId == studentId).toList()
         ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
@@ -627,7 +832,7 @@ class AppState extends ChangeNotifier {
   Future<void> sync(ApiClient api, String token) => _serial(() async {
     syncing = true;
     syncError = null;
-    notifyListeners();
+    _notify();
     try {
       final blocked = <String>{..._conflicts.keys};
       for (final queued in List<Map<String, dynamic>>.from(_outbox)) {
@@ -745,7 +950,7 @@ class AppState extends ChangeNotifier {
           : 'تعذّرت المزامنة الآمنة. احتُفظ بالعمل لإعادة المحاولة.';
     } finally {
       syncing = false;
-      notifyListeners();
+      _notify();
     }
   });
   Future<void> resolveConflict(
@@ -798,13 +1003,24 @@ class AppState extends ChangeNotifier {
       ],
     );
   });
-  Future<void> deleteLocalAfterAccountDeletion() => _serial(() async {
+  Future<void> deleteLocalAfterAccountDeletion() async {
+    _accountDeleted = true;
+    // Revoke now; wait for local I/O, never for a pending network response.
+    for (final writing in [_activeRecordWrite, _activeDraftWrite]) {
+      if (writing != null) {
+        try {
+          await writing;
+        } catch (_) {}
+      }
+    }
     await _store.clear();
+    await _draftStore?.clear();
     _records = {};
     _outbox = [];
     _conflicts = {};
     _history = [];
     _drafts = {};
-    notifyListeners();
-  });
+    _draftCompletions = {};
+    _notify();
+  }
 }

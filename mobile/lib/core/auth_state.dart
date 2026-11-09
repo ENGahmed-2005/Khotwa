@@ -46,6 +46,7 @@ class AuthState extends ChangeNotifier {
   Future<void> _open(Map<String, dynamic> session) async {
     final user = session['user'] as Map<String, dynamic>;
     final id = user['id'] as String;
+    await AppState.flushDraftsForOwner(id);
     var deviceId = await secrets.read('khotwa-device-v1');
     if (deviceId == null) {
       deviceId = const Uuid().v4();
@@ -55,6 +56,7 @@ class AuthState extends ChangeNotifier {
       await storeForOwner(id),
       ownerId: id,
       deviceId: deviceId,
+      draftStore: await storeForOwner('$id-form-inputs'),
     );
     await next.load();
     records?.dispose();

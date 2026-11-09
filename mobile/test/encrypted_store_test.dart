@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -19,6 +20,20 @@ class MemorySecrets implements SecretStore {
   }
 }
 
+class BlockingSecrets extends MemorySecrets {
+  final entered = Completer<void>(), release = Completer<void>();
+  bool first = true;
+  @override
+  Future<String?> read(String key) async {
+    if (first) {
+      first = false;
+      entered.complete();
+      await release.future;
+    }
+    return super.read(key);
+  }
+}
+
 void main() {
   late Directory directory;
   late MemorySecrets secrets;
@@ -33,6 +48,76 @@ void main() {
     directory: directory,
     ownerId: owner,
     secrets: secrets,
+  );
+  test(
+    'instances of the same encrypted file serialize key creation and writes',
+    () async {
+      final blocked = BlockingSecrets();
+      final a = EncryptedFileStore(
+            directory: directory,
+            ownerId: 'shared',
+            secrets: blocked,
+          ),
+          b = EncryptedFileStore(
+            directory: directory,
+            ownerId: 'shared',
+            secrets: blocked,
+          );
+      final first = a.write('first synthetic snapshot');
+      await blocked.entered.future;
+      final second = b.write('latest synthetic snapshot');
+      blocked.release.complete();
+      await Future.wait([first, second]);
+      expect(blocked.values, hasLength(1));
+      expect(await b.read(), 'latest synthetic snapshot');
+      expect(await File('${a.file.path}.pending').exists(), isFalse);
+    },
+  );
+  test(
+    'clear revokes old instances and cannot be overtaken by an in-flight write',
+    () async {
+      final blocked = BlockingSecrets();
+      final a = EncryptedFileStore(
+            directory: directory,
+            ownerId: 'shared',
+            secrets: blocked,
+          ),
+          b = EncryptedFileStore(
+            directory: directory,
+            ownerId: 'shared',
+            secrets: blocked,
+          );
+      final writing = a.write('old account snapshot');
+      final expected = expectLater(writing, throwsStateError);
+      await blocked.entered.future;
+      final clearing = b.clear();
+      blocked.release.complete();
+      await expected;
+      await clearing;
+      expect(await a.file.exists(), isFalse);
+      expect(blocked.values, isEmpty);
+      await expectLater(a.write('late snapshot'), throwsStateError);
+      await expectLater(b.write('late snapshot'), throwsStateError);
+      final fresh = EncryptedFileStore(
+        directory: directory,
+        ownerId: 'shared',
+        secrets: blocked,
+      );
+      await fresh.write('fresh authenticated scope');
+      expect(await fresh.read(), 'fresh authenticated scope');
+      expect(await a.read(), isNull);
+    },
+  );
+  test(
+    'integrity failure detected by one instance also protects the other instance',
+    () async {
+      final a = store('owner-a'), b = store('owner-a');
+      await a.write('synthetic');
+      await a.file.writeAsString('{"corrupt":true}');
+      await expectLater(b.read(), throwsStateError);
+      await expectLater(a.write('overwrite'), throwsStateError);
+      expect(await a.file.readAsString(), '{"corrupt":true}');
+    },
   );
   test(
     'AES-GCM roundtrip keeps student/outbox plaintext out of the file',

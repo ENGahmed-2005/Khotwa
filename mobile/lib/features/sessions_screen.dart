@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 
 import '../core/auth_state.dart';
+import '../core/app_state.dart';
+import '../core/form_draft.dart';
 import '../core/plan_api.dart';
 import '../models/intervention_session.dart';
+import '../models/initial_assessment.dart';
 import '../widgets/common.dart';
 
 class SessionsScreen extends StatefulWidget {
@@ -14,8 +17,10 @@ class SessionsScreen extends StatefulWidget {
 }
 
 class _SessionInput {
-  final id = const Uuid().v4();
-  final createdAt = DateTime.now().toUtc().toIso8601String();
+  _SessionInput({String? id, String? createdAt})
+    : id = id ?? const Uuid().v4(),
+      createdAt = createdAt ?? DateTime.now().toUtc().toIso8601String();
+  final String id, createdAt;
   final date = TextEditingController(
     text: DateTime.now().toIso8601String().substring(0, 10),
   );
@@ -26,6 +31,45 @@ class _SessionInput {
       notes = TextEditingController();
   String status = 'completed', support = 'independent';
   String? goalId, activityId;
+  List<TextEditingController> get controllers => [
+    date,
+    total,
+    correct,
+    engagement,
+    duration,
+    notes,
+  ];
+  Map<String, dynamic> toDraft() => {
+    'id': id,
+    'createdAt': createdAt,
+    'date': date.text,
+    'total': total.text,
+    'correct': correct.text,
+    'engagement': engagement.text,
+    'duration': duration.text,
+    'notes': notes.text,
+    'status': status,
+    'support': support,
+    'goalId': goalId,
+    'activityId': activityId,
+  };
+  factory _SessionInput.fromDraft(Map<String, dynamic> value) {
+    final row = _SessionInput(
+      id: value['id'] as String,
+      createdAt: value['createdAt'] as String,
+    );
+    row.date.text = value['date'] as String;
+    row.total.text = value['total'] as String;
+    row.correct.text = value['correct'] as String;
+    row.engagement.text = value['engagement'] as String;
+    row.duration.text = value['duration'] as String;
+    row.notes.text = value['notes'] as String;
+    row.status = value['status'] as String;
+    row.support = value['support'] as String;
+    row.goalId = value['goalId'] as String?;
+    row.activityId = value['activityId'] as String?;
+    return row;
+  }
   void dispose() {
     for (final c in [date, total, correct, engagement, duration, notes]) {
       c.dispose();
@@ -37,14 +81,86 @@ class _SessionsScreenState extends State<SessionsScreen> {
   final _inputs = <_SessionInput>[_SessionInput()];
   String? _studentId, _planId, _error;
   bool _busy = false, _privacy = false;
+  late final AppState _state;
+  late final String _ownerId;
+  late final FormDraftController _formDraft;
+  bool _restorationFailed = false;
   @override
   void initState() {
     super.initState();
+    _state = widget.auth.records!;
+    _ownerId = _state.ownerId;
+    _formDraft = FormDraftController(
+      state: _state,
+      key: 'session-batch',
+      isCurrentOwner: () => widget.auth.ownerId == _ownerId,
+      validate: (value) => educationalTextIssue([
+        for (final row in value['rows'] as List) ...[
+          (row as Map)['notes'] as String,
+          row['engagement'] as String,
+        ],
+      ]),
+    );
+    final restored = _formDraft.restored;
+    if (restored != null) {
+      try {
+        final rows = (restored['rows'] as List)
+            .map(
+              (r) =>
+                  _SessionInput.fromDraft(Map<String, dynamic>.from(r as Map)),
+            )
+            .toList();
+        if (rows.isEmpty || rows.length > 50) throw StateError('Invalid batch');
+        for (final row in _inputs) {
+          row.dispose();
+        }
+        _inputs
+          ..clear()
+          ..addAll(rows);
+        _studentId = restored['studentId'] as String?;
+        _planId = restored['planId'] as String?;
+      } catch (_) {
+        _restorationFailed = true;
+        _error =
+            'تعذّر فتح مسودة دفعة الجلسات. بقيت محفوظة؛ يمكن إلغاؤها صراحةً.';
+      }
+    }
+    for (final row in _inputs) {
+      _watch(row);
+    }
     _refresh();
+  }
+
+  void _watch(_SessionInput row) {
+    for (final c in row.controllers) {
+      c.addListener(_changed);
+    }
+  }
+
+  void _changed() {
+    if (_restorationFailed) return;
+    _formDraft.update({
+      'studentId': _studentId,
+      'planId': _planId,
+      'rows': _inputs.map((r) => r.toDraft()).toList(),
+    });
+  }
+
+  void _edit(VoidCallback action) {
+    if (_busy) return;
+    setState(action);
+    _changed();
+  }
+
+  void _addRow() {
+    final row = _SessionInput();
+    _watch(row);
+    _edit(() => _inputs.add(row));
   }
 
   @override
   void dispose() {
+    _formDraft.dispose();
     for (final row in _inputs) {
       row.dispose();
     }
@@ -57,9 +173,12 @@ class _SessionsScreenState extends State<SessionsScreen> {
     try {
       final plans = await PlanApi(
         api: widget.auth.api,
-        tokenForRequest: () => widget.auth.token,
+        tokenForRequest: () => widget.auth.ownerId == _ownerId && _state.active
+            ? widget.auth.token
+            : null,
       ).plans();
-      await widget.auth.records!.cachePlanRecords(plans);
+      if (!_formDraft.current) return;
+      await _state.cachePlanRecords(plans);
     } catch (_) {
       _error =
           'تعذّر تحديث الخطط. يمكن استخدام النسخ المعتمدة المحفوظة على هذا الجهاز.';
@@ -69,7 +188,8 @@ class _SessionsScreenState extends State<SessionsScreen> {
   }
 
   Future<void> _save() async {
-    final state = widget.auth.records!;
+    if (_restorationFailed || !_formDraft.current) return;
+    final state = _state;
     if (_studentId == null || _planId == null || !_privacy) {
       setState(
         () => _error = 'اختاري الطالب والخطة المعتمدة وأكدي مراجعة الخصوصية.',
@@ -81,6 +201,7 @@ class _SessionsScreenState extends State<SessionsScreen> {
       _error = null;
     });
     try {
+      await _formDraft.flush();
       final batch = _inputs
           .map(
             (row) => InterventionSession(
@@ -112,7 +233,8 @@ class _SessionsScreenState extends State<SessionsScreen> {
             ),
           )
           .toList();
-      await state.saveSessions(batch);
+      await state.saveSessions(batch, draftKey: _formDraft.key);
+      _formDraft.acknowledgeSaved();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -134,7 +256,7 @@ class _SessionsScreenState extends State<SessionsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final state = widget.auth.records!;
+    final state = _state;
     final students = state.students;
     final plans = state.plans
         .where((p) => p.approved && p.studentId == _studentId)
@@ -146,123 +268,132 @@ class _SessionsScreenState extends State<SessionsScreen> {
     final previous =
         state.sessions.where((s) => s.studentId == _studentId).toList()
           ..sort((a, b) => b.occurredOn.compareTo(a.occurredOn));
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('تسجيل الجلسات'),
-        actions: [
-          IconButton(
-            tooltip: 'تحديث الخطط المعتمدة',
-            onPressed: _busy ? null : _refresh,
-            icon: const Icon(Icons.refresh),
-          ),
-        ],
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(18),
-        children: [
-          const PrototypeNote(),
-          const Text(
-            'يمكن التسجيل دون اتصال بعد حفظ الخطة المعتمدة على الجهاز. التاريخ السابق مسموح؛ الدقة من نتائج الجلسة وحدها. لا تُحوّل نتائج البطاقات إلى محاولات تدخل.',
-          ),
-          if (_error != null)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              child: Text(
-                _error!,
-                key: const Key('session-error'),
-                style: TextStyle(color: Theme.of(context).colorScheme.error),
-              ),
+    return FormDraftGuard(
+      controller: _formDraft,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('تسجيل الجلسات'),
+          actions: [
+            DiscardFormDraftButton(controller: _formDraft, enabled: !_busy),
+            IconButton(
+              tooltip: 'تحديث الخطط المعتمدة',
+              onPressed: _busy ? null : _refresh,
+              icon: const Icon(Icons.refresh),
             ),
-          if (_busy) const LinearProgressIndicator(),
-          DropdownButtonFormField<String>(
-            initialValue: _studentId,
-            isExpanded: true,
-            decoration: const InputDecoration(labelText: 'رمز الطالب'),
-            items: students
-                .map((s) => DropdownMenuItem(value: s.id, child: Text(s.code)))
-                .toList(),
-            onChanged: _busy
-                ? null
-                : (v) => setState(() {
-                    _studentId = v;
-                    _planId = null;
-                    for (final row in _inputs) {
-                      row.goalId = null;
-                      row.activityId = null;
-                    }
-                  }),
-          ),
-          const SizedBox(height: 14),
-          DropdownButtonFormField<String>(
-            key: ValueKey('session-plan-$_studentId-$_planId'),
-            initialValue: _planId,
-            isExpanded: true,
-            decoration: const InputDecoration(labelText: 'نسخة الخطة المعتمدة'),
-            items: plans
-                .map(
-                  (p) => DropdownMenuItem(
-                    value: p.id,
-                    child: Text(
-                      'خطة ${p.data['version']} · ${p.data['approvedAt']?.toString().substring(0, 10) ?? ''}',
-                    ),
-                  ),
-                )
-                .toList(),
-            onChanged: _busy
-                ? null
-                : (v) => setState(() {
-                    _planId = v;
-                    for (final row in _inputs) {
-                      row.goalId = null;
-                      row.activityId = null;
-                    }
-                  }),
-          ),
-          if (_studentId != null && plans.isEmpty)
+          ],
+        ),
+        body: ListView(
+          padding: const EdgeInsets.all(18),
+          children: [
+            const PrototypeNote(),
+            FormDraftStatus(controller: _formDraft),
             const Text(
-              'يلزم اعتماد خطة ومزامنتها أو تحديثها قبل تسجيل الجلسات.',
+              'يمكن التسجيل دون اتصال بعد حفظ الخطة المعتمدة على الجهاز. التاريخ السابق مسموح؛ الدقة من نتائج الجلسة وحدها. لا تُحوّل نتائج البطاقات إلى محاولات تدخل.',
             ),
-          for (var i = 0; i < _inputs.length; i++) _row(_inputs[i], i, goals),
-          OutlinedButton.icon(
-            onPressed: _busy || _inputs.length >= 50
-                ? null
-                : () => setState(() => _inputs.add(_SessionInput())),
-            icon: const Icon(Icons.add),
-            label: const Text('إضافة جلسة أخرى إلى الدفعة'),
-          ),
-          CheckboxListTile(
-            value: _privacy,
-            onChanged: _busy
-                ? null
-                : (v) => setState(() => _privacy = v ?? false),
-            title: const Text(
-              'راجعت الملاحظات؛ لا تحتوي أسماء أو بيانات تعريفية أو صحية',
-            ),
-          ),
-          FilledButton.icon(
-            onPressed: _busy ? null : _save,
-            icon: const Icon(Icons.save_outlined),
-            label: Text('حفظ ${_inputs.length} جلسة محليًا معًا'),
-          ),
-          const SectionHeading('الجلسات السابقة لهذا الطالب'),
-          for (final session in previous)
-            Card(
-              child: ListTile(
-                title: Text(
-                  '${session.occurredOn} · ${sessionStatuses[session.status]}',
-                ),
-                subtitle: Text(
-                  '${session.accuracy == null ? 'لا توجد نتيجة أداء' : '${session.correct}/${session.total} · ${session.accuracy!.toStringAsFixed(1)}٪'}\n${syncStatusLabel(state.stateFor(session.id))}',
+            if (_error != null)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                child: Text(
+                  _error!,
+                  key: const Key('session-error'),
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
                 ),
               ),
+            if (_busy) const LinearProgressIndicator(),
+            DropdownButtonFormField<String>(
+              initialValue: students.any((s) => s.id == _studentId)
+                  ? _studentId
+                  : null,
+              isExpanded: true,
+              decoration: const InputDecoration(labelText: 'رمز الطالب'),
+              items: students
+                  .map(
+                    (s) => DropdownMenuItem(value: s.id, child: Text(s.code)),
+                  )
+                  .toList(),
+              onChanged: _busy
+                  ? null
+                  : (v) => _edit(() {
+                      _studentId = v;
+                      _planId = null;
+                      for (final row in _inputs) {
+                        row.goalId = null;
+                        row.activityId = null;
+                      }
+                    }),
             ),
-        ],
+            const SizedBox(height: 14),
+            DropdownButtonFormField<String>(
+              key: ValueKey('session-plan-$_studentId-$_planId'),
+              initialValue: plans.any((p) => p.id == _planId) ? _planId : null,
+              isExpanded: true,
+              decoration: const InputDecoration(
+                labelText: 'نسخة الخطة المعتمدة',
+              ),
+              items: plans
+                  .map(
+                    (p) => DropdownMenuItem(
+                      value: p.id,
+                      child: Text(
+                        'خطة ${p.data['version']} · ${p.data['approvedAt']?.toString().substring(0, 10) ?? ''}',
+                      ),
+                    ),
+                  )
+                  .toList(),
+              onChanged: _busy
+                  ? null
+                  : (v) => _edit(() {
+                      _planId = v;
+                      for (final row in _inputs) {
+                        row.goalId = null;
+                        row.activityId = null;
+                      }
+                    }),
+            ),
+            if (_studentId != null && plans.isEmpty)
+              const Text(
+                'يلزم اعتماد خطة ومزامنتها أو تحديثها قبل تسجيل الجلسات.',
+              ),
+            for (var i = 0; i < _inputs.length; i++) _row(_inputs[i], i, goals),
+            OutlinedButton.icon(
+              onPressed: _busy || _inputs.length >= 50 ? null : _addRow,
+              icon: const Icon(Icons.add),
+              label: const Text('إضافة جلسة أخرى إلى الدفعة'),
+            ),
+            CheckboxListTile(
+              value: _privacy,
+              onChanged: _busy
+                  ? null
+                  : (v) => _edit(() => _privacy = v ?? false),
+              title: const Text(
+                'راجعت الملاحظات؛ لا تحتوي أسماء أو بيانات تعريفية أو صحية',
+              ),
+            ),
+            FilledButton.icon(
+              onPressed: _busy ? null : _save,
+              icon: const Icon(Icons.save_outlined),
+              label: Text('حفظ ${_inputs.length} جلسة محليًا معًا'),
+            ),
+            const SectionHeading('الجلسات السابقة لهذا الطالب'),
+            for (final session in previous)
+              Card(
+                child: ListTile(
+                  title: Text(
+                    '${session.occurredOn} · ${sessionStatuses[session.status]}',
+                  ),
+                  subtitle: Text(
+                    '${session.accuracy == null ? 'لا توجد نتيجة أداء' : '${session.correct}/${session.total} · ${session.accuracy!.toStringAsFixed(1)}٪'}\n${syncStatusLabel(state.stateFor(session.id))}',
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
 
   Widget _row(_SessionInput row, int index, List<Map<String, dynamic>> goals) {
-    final activities = widget.auth.records!.activitiesForGoal(row.goalId ?? '');
+    final activities = _state.activitiesForGoal(row.goalId ?? '');
     return Card(
       key: ValueKey(row.id),
       child: Padding(
@@ -283,7 +414,7 @@ class _SessionsScreenState extends State<SessionsScreen> {
                     tooltip: 'إزالة من الدفعة',
                     onPressed: _busy
                         ? null
-                        : () => setState(() {
+                        : () => _edit(() {
                             _inputs.remove(row);
                             row.dispose();
                           }),
@@ -300,7 +431,9 @@ class _SessionsScreenState extends State<SessionsScreen> {
             ),
             DropdownButtonFormField<String>(
               key: ValueKey('goal-${row.id}-${row.goalId}'),
-              initialValue: row.goalId,
+              initialValue: goals.any((g) => g['id'] == row.goalId)
+                  ? row.goalId
+                  : null,
               isExpanded: true,
               decoration: const InputDecoration(labelText: 'الهدف المعتمد'),
               items: goals
@@ -317,7 +450,7 @@ class _SessionsScreenState extends State<SessionsScreen> {
                   .toList(),
               onChanged: _busy
                   ? null
-                  : (v) => setState(() {
+                  : (v) => _edit(() {
                       row.goalId = v;
                       row.activityId = null;
                     }),
@@ -330,7 +463,7 @@ class _SessionsScreenState extends State<SessionsScreen> {
                     (e) => DropdownMenuItem(value: e.key, child: Text(e.value)),
                   )
                   .toList(),
-              onChanged: _busy ? null : (v) => setState(() => row.status = v!),
+              onChanged: _busy ? null : (v) => _edit(() => row.status = v!),
             ),
             if (row.status == 'completed') ...[
               _number(row.total, 'عدد المحاولات (مطلوب)'),
@@ -347,9 +480,7 @@ class _SessionsScreenState extends State<SessionsScreen> {
                           DropdownMenuItem(value: e.key, child: Text(e.value)),
                     )
                     .toList(),
-                onChanged: _busy
-                    ? null
-                    : (v) => setState(() => row.support = v!),
+                onChanged: _busy ? null : (v) => _edit(() => row.support = v!),
               ),
               TextField(
                 controller: row.engagement,
@@ -365,7 +496,9 @@ class _SessionsScreenState extends State<SessionsScreen> {
             ],
             DropdownButtonFormField<String>(
               key: ValueKey('activity-${row.id}-${row.goalId}'),
-              initialValue: row.activityId,
+              initialValue: activities.any((a) => a['id'] == row.activityId)
+                  ? row.activityId
+                  : null,
               isExpanded: true,
               decoration: const InputDecoration(
                 labelText: 'النشاط المنفذ (اختياري)',
@@ -384,9 +517,7 @@ class _SessionsScreenState extends State<SessionsScreen> {
                     ),
                   ),
               ],
-              onChanged: _busy
-                  ? null
-                  : (v) => setState(() => row.activityId = v),
+              onChanged: _busy ? null : (v) => _edit(() => row.activityId = v),
             ),
             TextField(
               controller: row.notes,

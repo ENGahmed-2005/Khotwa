@@ -13,12 +13,30 @@ class EncryptedFileStore implements LocalStore {
     required this.directory,
     required this.ownerId,
     required this.secrets,
-  });
+  }) {
+    final path = file.absolute.path;
+    _scope = _scopes.putIfAbsent(
+      Platform.isWindows ? path.toLowerCase() : path,
+      _EncryptedScope.new,
+    );
+    _generation = _scope.generation;
+  }
   final Directory directory;
   final String ownerId;
   final SecretStore secrets;
   final _cipher = AesGcm.with256bits();
-  bool _failedClosed = false;
+  static final _scopes = <String, _EncryptedScope>{};
+  late final _EncryptedScope _scope;
+  late final int _generation;
+  void _checkWritable() {
+    if (_generation != _scope.generation) {
+      throw StateError('أُغلق نطاق التخزين بعد حذف بيانات الحساب.');
+    }
+    if (_scope.failedClosed) {
+      throw StateError('التخزين مقفل لحماية البيانات المتعذّر قراءتها.');
+    }
+  }
+
   static Future<EncryptedFileStore> forOwner(
     String ownerId,
     SecretStore secrets,
@@ -53,7 +71,8 @@ class EncryptedFileStore implements LocalStore {
   }
 
   @override
-  Future<String?> read() async {
+  Future<String?> read() => _scope.serial(() async {
+    if (_generation != _scope.generation) return null;
     try {
       if (!await file.exists()) {
         return null;
@@ -76,24 +95,23 @@ class EncryptedFileStore implements LocalStore {
         ),
       );
     } catch (_) {
-      _failedClosed = true;
+      _scope.failedClosed = true;
       throw StateError(
         'تعذّر التحقق من سلامة التخزين المشفّر. احتُفظ بالملف دون تغيير.',
       );
     }
-  }
+  });
 
   @override
-  Future<void> write(String data) async {
-    if (_failedClosed) {
-      throw StateError('التخزين مقفل لحماية البيانات المتعذّر قراءتها.');
-    }
+  Future<void> write(String data) => _scope.serial(() async {
+    _checkWritable();
     await directory.create(recursive: true);
     final box = await _cipher.encrypt(
       utf8.encode(data),
       secretKey: await _key(existing: await file.exists()),
       aad: utf8.encode('khotwa-v2:$ownerId'),
     );
+    _checkWritable();
     final pending = File('${file.path}.pending');
     await pending.writeAsString(
       jsonEncode({
@@ -105,19 +123,37 @@ class EncryptedFileStore implements LocalStore {
       }),
       flush: true,
     );
+    _checkWritable();
     // Rename is the commit point; interrupted writes retain the prior snapshot.
     await pending.rename(file.path);
-  }
+  });
 
   @override
-  Future<void> clear() async {
-    if (await file.exists()) {
-      await file.delete();
-    }
-    final pending = File('${file.path}.pending');
-    if (await pending.exists()) {
-      await pending.delete();
-    }
-    await secrets.delete('khotwa-key-v2-$ownerId');
+  Future<void> clear() {
+    // Revoke every existing instance immediately, then serialize deletion after
+    // writes already in flight. A late writer cannot recreate the cleared file.
+    _scope.generation++;
+    return _scope.serial(() async {
+      if (await file.exists()) {
+        await file.delete();
+      }
+      final pending = File('${file.path}.pending');
+      if (await pending.exists()) {
+        await pending.delete();
+      }
+      await secrets.delete('khotwa-key-v2-$ownerId');
+      _scope.failedClosed = false;
+    });
+  }
+}
+
+class _EncryptedScope {
+  Future<void> _tail = Future.value();
+  int generation = 0;
+  bool failedClosed = false;
+  Future<T> serial<T>(Future<T> Function() work) {
+    final next = _tail.then((_) => work());
+    _tail = next.then<void>((_) {}, onError: (Object _, StackTrace _) {});
+    return next;
   }
 }

@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:uuid/uuid.dart';
 
 import '../core/app_state.dart';
+import '../core/form_draft.dart';
 import '../data/assessment_templates.dart';
 import '../models/assessment.dart';
 import '../models/student.dart';
+import '../models/initial_assessment.dart';
 import '../widgets/common.dart';
 import 'assessment_screen.dart';
 import 'initial_assessment_screen.dart';
@@ -82,6 +85,10 @@ class _StudentFormScreenState extends State<StudentFormScreen> {
   bool _privacy = false;
   String _gender = 'unspecified';
   int _weeks = 8, _sessions = 2, _minutes = 30;
+  late final FormDraftController _formDraft;
+  String _newId = const Uuid().v4();
+  bool _restorationFailed = false;
+  String? _draftError;
   final _referral = TextEditingController(),
       _observation = TextEditingController(),
       _difficulties = TextEditingController(),
@@ -106,10 +113,85 @@ class _StudentFormScreenState extends State<StudentFormScreen> {
       _family.text = old.familyNotes;
       _teacher.text = old.teacherNotes;
     }
+    _formDraft = FormDraftController(
+      state: widget.state,
+      key: 'student-form:${widget.studentId ?? 'new'}',
+      validate: (value) => educationalTextIssue([
+        for (final key in [
+          'referralReason',
+          'classroomObservation',
+          'difficulties',
+          'familyNotes',
+          'teacherNotes',
+        ])
+          value[key] as String,
+      ]),
+    );
+    final saved = _formDraft.restored;
+    if (saved != null) {
+      try {
+        _newId = saved['entityId'] as String;
+        _grade = saved['grade'] as String;
+        _years = saved['ageYears'] as int;
+        _months = saved['ageMonths'] as int;
+        _gender = saved['gender'] as String;
+        _weeks = saved['proposedDurationWeeks'] as int;
+        _sessions = saved['sessionsPerWeek'] as int;
+        _minutes = saved['sessionMinutes'] as int;
+        _referral.text = saved['referralReason'] as String;
+        _observation.text = saved['classroomObservation'] as String;
+        _difficulties.text = saved['difficulties'] as String;
+        _family.text = saved['familyNotes'] as String;
+        _teacher.text = saved['teacherNotes'] as String;
+        final existing = widget.state.students
+            .where((s) => s.id == _newId)
+            .firstOrNull;
+        if (existing != null) _consent = existing.consentConfirmed;
+      } catch (_) {
+        _restorationFailed = true;
+        _draftError =
+            'تعذّر فتح مسودة الملف. بقيت محفوظة؛ يمكن إلغاؤها صراحةً.';
+      }
+    }
+    for (final controller in [
+      _referral,
+      _observation,
+      _difficulties,
+      _family,
+      _teacher,
+    ]) {
+      controller.addListener(_changed);
+    }
+  }
+
+  void _changed() {
+    if (_restorationFailed) return;
+    _formDraft.update({
+      'entityId': widget.studentId ?? _newId,
+      'grade': _grade,
+      'ageYears': _years,
+      'ageMonths': _months,
+      'gender': _gender,
+      'referralReason': _referral.text,
+      'classroomObservation': _observation.text,
+      'difficulties': _difficulties.text,
+      'familyNotes': _family.text,
+      'teacherNotes': _teacher.text,
+      'proposedDurationWeeks': _weeks,
+      'sessionsPerWeek': _sessions,
+      'sessionMinutes': _minutes,
+    });
+  }
+
+  void _edit(VoidCallback action) {
+    if (_saving) return;
+    setState(action);
+    _changed();
   }
 
   @override
   void dispose() {
+    _formDraft.dispose();
     for (final controller in [
       _referral,
       _observation,
@@ -123,13 +205,19 @@ class _StudentFormScreenState extends State<StudentFormScreen> {
   }
 
   Future<void> _submit() async {
-    if (_saving) {
+    if (_saving || _restorationFailed) {
       return;
     }
     setState(() => _saving = true);
     try {
-      if (widget.studentId == null) {
+      await _formDraft.flush();
+      final existingId =
+          widget.studentId ??
+          widget.state.students.where((s) => s.id == _newId).firstOrNull?.id;
+      if (existingId == null) {
         await widget.state.createStudent(
+          id: _newId,
+          draftKey: _formDraft.key,
           grade: _grade,
           ageYears: _years,
           ageMonths: _months,
@@ -146,7 +234,7 @@ class _StudentFormScreenState extends State<StudentFormScreen> {
           privacyReviewed: _privacy,
         );
       } else {
-        final old = widget.state.studentById(widget.studentId!);
+        final old = widget.state.studentById(existingId);
         await widget.state.updateStudentIntake(
           StudentRecord(
             id: old.id,
@@ -168,8 +256,10 @@ class _StudentFormScreenState extends State<StudentFormScreen> {
             sessionMinutes: _minutes,
           ),
           privacyReviewed: _privacy,
+          draftKey: _formDraft.key,
         );
       }
+      _formDraft.acknowledgeSaved();
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
       if (mounted) {
@@ -183,143 +273,155 @@ class _StudentFormScreenState extends State<StudentFormScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(
-      title: Text(
-        widget.studentId == null ? 'ملف طالب جديد' : 'تحديث البيانات المجهّلة',
+  Widget build(BuildContext context) => FormDraftGuard(
+    controller: _formDraft,
+    child: Scaffold(
+      appBar: AppBar(
+        actions: [
+          DiscardFormDraftButton(controller: _formDraft, enabled: !_saving),
+        ],
+        title: Text(
+          widget.studentId == null
+              ? 'ملف طالب جديد'
+              : 'تحديث البيانات المجهّلة',
+        ),
       ),
-    ),
-    body: ListView(
-      padding: const EdgeInsets.all(18),
-      children: [
-        const PrototypeNote(),
-        const SectionHeading('١. البيانات الأساسية المجهّلة'),
-        const Text(
-          'يُنشأ رمز عشوائي تلقائيًا مثل ST-XXXXXXXX. احتفظي بربط الرمز بالاسم على الورق خارج التطبيق.',
-        ),
-        const SizedBox(height: 16),
-        DropdownButtonFormField<String>(
-          initialValue: _grade,
-          decoration: const InputDecoration(labelText: 'الصف الدراسي'),
-          isExpanded: true,
-          items: [
-            for (final grade in supportedSchoolGrades)
-              DropdownMenuItem(value: grade, child: Text(grade)),
-          ],
-          onChanged: (value) => setState(() => _grade = value ?? _grade),
-        ),
-        const SizedBox(height: 16),
-        Row(
-          children: [
-            Expanded(
-              child: DropdownButtonFormField<int>(
-                initialValue: _years,
-                decoration: const InputDecoration(labelText: 'العمر - سنوات'),
-                items: [
-                  for (var i = 3; i <= 21; i++)
-                    DropdownMenuItem(value: i, child: Text('$i')),
-                ],
-                onChanged: (value) => setState(() => _years = value ?? _years),
+      body: ListView(
+        padding: const EdgeInsets.all(18),
+        children: [
+          const PrototypeNote(),
+          FormDraftStatus(controller: _formDraft),
+          if (_draftError != null) Text(_draftError!),
+          const SectionHeading('١. البيانات الأساسية المجهّلة'),
+          const Text(
+            'يُنشأ رمز عشوائي تلقائيًا مثل ST-XXXXXXXX. احتفظي بربط الرمز بالاسم على الورق خارج التطبيق.',
+          ),
+          const SizedBox(height: 16),
+          DropdownButtonFormField<String>(
+            initialValue: _grade,
+            decoration: const InputDecoration(labelText: 'الصف الدراسي'),
+            isExpanded: true,
+            items: [
+              for (final grade in supportedSchoolGrades)
+                DropdownMenuItem(value: grade, child: Text(grade)),
+            ],
+            onChanged: (value) => _edit(() => _grade = value ?? _grade),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: DropdownButtonFormField<int>(
+                  initialValue: _years,
+                  decoration: const InputDecoration(labelText: 'العمر - سنوات'),
+                  items: [
+                    for (var i = 3; i <= 21; i++)
+                      DropdownMenuItem(value: i, child: Text('$i')),
+                  ],
+                  onChanged: (value) => _edit(() => _years = value ?? _years),
+                ),
               ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: DropdownButtonFormField<int>(
-                initialValue: _months,
-                decoration: const InputDecoration(labelText: 'الأشهر'),
-                items: [
-                  for (var i = 0; i < 12; i++)
-                    DropdownMenuItem(value: i, child: Text('$i')),
-                ],
-                onChanged: (value) =>
-                    setState(() => _months = value ?? _months),
+              const SizedBox(width: 12),
+              Expanded(
+                child: DropdownButtonFormField<int>(
+                  initialValue: _months,
+                  decoration: const InputDecoration(labelText: 'الأشهر'),
+                  items: [
+                    for (var i = 0; i < 12; i++)
+                      DropdownMenuItem(value: i, child: Text('$i')),
+                  ],
+                  onChanged: (value) => _edit(() => _months = value ?? _months),
+                ),
               ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          DropdownButtonFormField<String>(
+            initialValue: _gender,
+            decoration: const InputDecoration(
+              labelText: 'الجنس لصياغة الطالب / الطالبة فقط',
             ),
-          ],
-        ),
-        const SizedBox(height: 14),
-        DropdownButtonFormField<String>(
-          initialValue: _gender,
-          decoration: const InputDecoration(
-            labelText: 'الجنس لصياغة الطالب / الطالبة فقط',
+            items: const [
+              DropdownMenuItem(value: 'unspecified', child: Text('غير محدد')),
+              DropdownMenuItem(value: 'male', child: Text('طالب')),
+              DropdownMenuItem(value: 'female', child: Text('طالبة')),
+            ],
+            onChanged: (v) => _edit(() => _gender = v!),
           ),
-          items: const [
-            DropdownMenuItem(value: 'unspecified', child: Text('غير محدد')),
-            DropdownMenuItem(value: 'male', child: Text('طالب')),
-            DropdownMenuItem(value: 'female', child: Text('طالبة')),
-          ],
-          onChanged: (v) => setState(() => _gender = v!),
-        ),
-        const SectionHeading('٢. ملاحظة الأداء الصفي والصعوبات'),
-        const Text(
-          'اكتبي وصفًا تربويًا بلا اسم أو تاريخ ميلاد أو بيانات اتصال أو تشخيص. معلومات التشخيص تبقى خارج التطبيق لدى المختصين.',
-        ),
-        _intakeText(_referral, 'سبب الإحالة'),
-        _intakeText(_observation, 'ملاحظة الأداء داخل الصف'),
-        _intakeText(_difficulties, 'الصعوبات التعليمية الملحوظة'),
-        const SectionHeading('٣. ملاحظات الأسرة والمعلمين (مستحسنة)'),
-        _intakeText(_family, 'ملاحظات الأسرة دون أسمائهم'),
-        _intakeText(_teacher, 'ملاحظات المعلمين دون أسمائهم'),
-        const SectionHeading('٤. المدة المقترحة والقابلة للتعديل'),
-        _numberChoice(
-          'مدة الخطة بالأسابيع',
-          _weeks,
-          104,
-          (v) => setState(() => _weeks = v),
-        ),
-        _numberChoice(
-          'الجلسات الأسبوعية',
-          _sessions,
-          14,
-          (v) => setState(() => _sessions = v),
-        ),
-        _numberChoice(
-          'زمن الجلسة بالدقائق',
-          _minutes,
-          240,
-          (v) => setState(() => _minutes = v),
-        ),
-        const Text(
-          'القيم المقترحة قابلة للتعديل وفق تقييمك، ولا تعني قرارًا علاجيًا آليًا.',
-        ),
-        const SectionHeading('٥. الموافقة والخصوصية'),
-        CheckboxListTile(
-          value: _consent,
-          onChanged: (value) => setState(() => _consent = value ?? false),
-          contentPadding: EdgeInsets.zero,
-          title: const Text(
-            'أؤكد الحصول على الموافقة المطلوبة وفق سياسة المؤسسة',
+          const SectionHeading('٢. ملاحظة الأداء الصفي والصعوبات'),
+          const Text(
+            'اكتبي وصفًا تربويًا بلا اسم أو تاريخ ميلاد أو بيانات اتصال أو تشخيص. معلومات التشخيص تبقى خارج التطبيق لدى المختصين.',
           ),
-          subtitle: const Text(
-            'يُسجّل الإقرار وتاريخه فقط، ولا يُخزّن اسم ولي الأمر.',
+          _intakeText(_referral, 'سبب الإحالة'),
+          _intakeText(_observation, 'ملاحظة الأداء داخل الصف'),
+          _intakeText(_difficulties, 'الصعوبات التعليمية الملحوظة'),
+          const SectionHeading('٣. ملاحظات الأسرة والمعلمين (مستحسنة)'),
+          _intakeText(_family, 'ملاحظات الأسرة دون أسمائهم'),
+          _intakeText(_teacher, 'ملاحظات المعلمين دون أسمائهم'),
+          const SectionHeading('٤. المدة المقترحة والقابلة للتعديل'),
+          _numberChoice(
+            'مدة الخطة بالأسابيع',
+            _weeks,
+            104,
+            (v) => _edit(() => _weeks = v),
           ),
-        ),
-        const SizedBox(height: 12),
-        CheckboxListTile(
-          value: _privacy,
-          onChanged: _saving
-              ? null
-              : (v) => setState(() => _privacy = v ?? false),
-          title: const Text(
-            'راجعت الحقول الحرة وأؤكد خلوها من الهوية والمعلومات الصحية',
+          _numberChoice(
+            'الجلسات الأسبوعية',
+            _sessions,
+            14,
+            (v) => _edit(() => _sessions = v),
           ),
-        ),
-        FilledButton(
-          onPressed: _saving ? null : _submit,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 10),
-            child: Text(_saving ? 'جارٍ الحفظ…' : 'حفظ الملف محليًا'),
+          _numberChoice(
+            'زمن الجلسة بالدقائق',
+            _minutes,
+            240,
+            (v) => _edit(() => _minutes = v),
           ),
-        ),
-        const Text(
-          'بعد حفظ الملف: سجّلي التقييم الأولي وحددي القوة والاحتياج، ثم راجعي المصدر واعتمديه قبل توليد خطة.',
-        ),
-      ],
+          const Text(
+            'القيم المقترحة قابلة للتعديل وفق تقييمك، ولا تعني قرارًا علاجيًا آليًا.',
+          ),
+          const SectionHeading('٥. الموافقة والخصوصية'),
+          CheckboxListTile(
+            value: _consent,
+            onChanged: _saving
+                ? null
+                : (value) => setState(() => _consent = value ?? false),
+            contentPadding: EdgeInsets.zero,
+            title: const Text(
+              'أؤكد الحصول على الموافقة المطلوبة وفق سياسة المؤسسة',
+            ),
+            subtitle: const Text(
+              'يُسجّل الإقرار وتاريخه فقط، ولا يُخزّن اسم ولي الأمر.',
+            ),
+          ),
+          const SizedBox(height: 12),
+          CheckboxListTile(
+            value: _privacy,
+            onChanged: _saving
+                ? null
+                : (v) => setState(() => _privacy = v ?? false),
+            title: const Text(
+              'راجعت الحقول الحرة وأؤكد خلوها من الهوية والمعلومات الصحية',
+            ),
+          ),
+          FilledButton(
+            onPressed: _saving ? null : _submit,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              child: Text(_saving ? 'جارٍ الحفظ…' : 'حفظ الملف محليًا'),
+            ),
+          ),
+          const Text(
+            'بعد حفظ الملف: سجّلي التقييم الأولي وحددي القوة والاحتياج، ثم راجعي المصدر واعتمديه قبل توليد خطة.',
+          ),
+        ],
+      ),
     ),
   );
   Widget _intakeText(TextEditingController controller, String label) => Padding(
     padding: const EdgeInsets.symmetric(vertical: 8),
     child: TextField(
+      enabled: !_saving,
       controller: controller,
       maxLines: 3,
       maxLength: 2000,
@@ -345,7 +447,7 @@ class _StudentFormScreenState extends State<StudentFormScreen> {
         for (var i = 1; i <= limit; i++)
           DropdownMenuItem(value: i, child: Text('$i')),
       ],
-      onChanged: (v) => changed(v!),
+      onChanged: _saving ? null : (v) => changed(v!),
     ),
   );
 }
