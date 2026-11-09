@@ -7,6 +7,8 @@ import 'core/auth_state.dart';
 import 'core/secure_local_store.dart';
 import 'features/home_screen.dart';
 import 'features/auth_screen.dart';
+import 'features/activities_screen.dart';
+import 'features/reports_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -95,6 +97,8 @@ class KhotwaApp extends StatelessWidget {
                 key: ValueKey(auth.ownerId),
                 state: auth.records!,
                 auth: auth,
+                activitiesBuilder: (_) => ActivitiesScreen(auth: auth),
+                reportsBuilder: (_) => ReportsScreen(auth: auth),
               )
             : StorageFailureScreen(message: auth.records!.storageError!),
       ),

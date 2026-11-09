@@ -10,7 +10,8 @@ import 'package:khotwa/core/app_state.dart';
 import 'package:khotwa/core/auth_state.dart';
 import 'package:khotwa/features/plans_screen.dart';
 
-import 'app_state_test.dart' show FakeStore;
+import 'app_state_test.dart' show FakeStore, addStudent;
+import 'mvp_features_test.dart' show syntheticDomain;
 import 'encrypted_store_test.dart' show MemorySecrets;
 import 'plan_api_test.dart' show syntheticPlan, syntheticPreview;
 
@@ -59,6 +60,67 @@ Future<void> largeSurface(WidgetTester tester) async {
 }
 
 void main() {
+  testWidgets(
+    'approved alternative skills can be omitted and restored without changing their reviewed level',
+    (tester) async {
+      await largeSurface(tester);
+      final api = ApiClient(
+        baseUrl: 'https://example.test',
+        client: MockClient(
+          (request) async => http.Response(
+            jsonEncode(
+              request.url.path.endsWith('/skills')
+                  ? {
+                      'skills': [
+                        {
+                          'skillId': 'reading.letters',
+                          'label': 'التعرف على الحروف',
+                          'level': 'developing',
+                          'evidence': 'approvedAlternativeAssessment',
+                        },
+                      ],
+                    }
+                  : {'records': []},
+            ),
+            200,
+            headers: {'content-type': 'application/json; charset=utf-8'},
+          ),
+        ),
+      );
+      final auth = authFor(api);
+      final student = await addStudent(auth.records!, age: 15);
+      final initial = await auth.records!.createInitialAssessment(student.id);
+      await auth.records!.saveInitialAssessment(
+        initial.copyWith(
+          alternativeReason: 'ملاحظة تعليمية اصطناعية خارج البطاقات',
+          domains: [syntheticDomain()],
+          privacyReviewed: true,
+        ),
+        approve: true,
+      );
+      final cached = jsonDecode(snapshot()) as Map<String, dynamic>;
+      cached['studentId'] = student.id;
+      cached['assessmentId'] = initial.id;
+      cached['levels'] = {'reading.letters': 'developing'};
+      final store = FakeStore()..content = jsonEncode(cached);
+      await tester.pumpWidget(app(auth, store));
+      await tester.pumpAndSettle();
+      final choice = find.byKey(
+        const ValueKey('include-skill-reading.letters'),
+      );
+      expect(tester.widget<CheckboxListTile>(choice).value, isTrue);
+      expect(find.text('المستوى المعتمد: يحتاج إلى تطوير'), findsOneWidget);
+      await tester.tap(choice);
+      await tester.pumpAndSettle();
+      expect((jsonDecode(store.content!) as Map)['levels'], isEmpty);
+      await tester.tap(choice);
+      await tester.pumpAndSettle();
+      expect((jsonDecode(store.content!) as Map)['levels'], {
+        'reading.letters': 'developing',
+      });
+    },
+  );
+
   testWidgets(
     'restored preview never restores send consent or automatically generates',
     (tester) async {

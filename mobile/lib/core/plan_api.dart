@@ -23,22 +23,37 @@ class PlanPreview {
     required this.hash,
     required this.token,
     required this.expiresAt,
+    this.customLabelsRequireConfirmation = false,
+    this.studentReference,
   });
   final Map<String, dynamic> payload;
   final String hash, token;
   final DateTime expiresAt;
+  final bool customLabelsRequireConfirmation;
+  final String? studentReference;
+  bool get hasCustomLabels =>
+      customLabelsRequireConfirmation ||
+      (payload['skills'] as List? ?? []).any(
+        (value) => (value as Map)['reviewedLabel'] != null,
+      );
   bool get expired => !expiresAt.isAfter(DateTime.now());
   Map<String, dynamic> toJson() => {
     'payload': payload,
     'hash': hash,
     'previewToken': token,
     'expiresAt': expiresAt.toUtc().toIso8601String(),
+    'customLabelsRequireConfirmation': hasCustomLabels,
+    'presentation': {'studentReference': studentReference},
   };
   factory PlanPreview.fromJson(Map<String, dynamic> value) => PlanPreview(
     payload: Map<String, dynamic>.from(value['payload'] as Map),
     hash: value['hash'] as String,
     token: value['previewToken'] as String,
     expiresAt: DateTime.parse(value['expiresAt'] as String),
+    customLabelsRequireConfirmation:
+        value['customLabelsRequireConfirmation'] == true,
+    studentReference:
+        (value['presentation'] as Map?)?['studentReference'] as String?,
   );
 }
 
@@ -54,6 +69,9 @@ class PlanRecord {
   final Map<String, dynamic> data, envelope;
   String get studentId => data['studentId'] as String;
   bool get approved => data['status'] == 'approved';
+  String get studentReference =>
+      (data['presentation'] as Map?)?['studentReference'] as String? ??
+      'الطالب/الطالبة';
   Map<String, dynamic> get content =>
       Map<String, dynamic>.from(data['content'] as Map);
   factory PlanRecord.fromJson(Map<String, dynamic> value) {
@@ -116,6 +134,7 @@ class PlanApi {
     required int sessionsPerWeek,
     required List<String> availableTools,
     required bool syntheticDataConfirmed,
+    bool customSkillsReviewed = false,
   }) async {
     if (!syntheticDataConfirmed ||
         skills.isEmpty ||
@@ -138,6 +157,7 @@ class PlanApi {
         'sessionsPerWeek': sessionsPerWeek,
         'availableTools': availableTools,
         'syntheticDataConfirmed': true,
+        if (customSkillsReviewed) 'customSkillsReviewed': true,
       },
     );
     return PlanPreview.fromJson(value);
@@ -148,8 +168,11 @@ class PlanApi {
     required String operationId,
     required bool confirmed,
     required bool syntheticDataConfirmed,
+    bool customLabelsConfirmed = false,
   }) async {
-    if (!confirmed || !syntheticDataConfirmed) {
+    if (!confirmed ||
+        !syntheticDataConfirmed ||
+        (preview.hasCustomLabels && !customLabelsConfirmed)) {
       throw const ApiException(
         'CONFIRMATION_REQUIRED',
         'راجعي الحقول وأكّدي إرسالها أولًا.',
@@ -168,10 +191,37 @@ class PlanApi {
         'confirmedHash': preview.hash,
         'syntheticDataConfirmed': true,
         'operationId': operationId,
+        if (preview.hasCustomLabels)
+          'customLabelsConfirmed': customLabelsConfirmed,
       },
     );
     return PlanRecord.fromJson(
       Map<String, dynamic>.from(value['record'] as Map),
+    );
+  }
+
+  Future<Map<String, dynamic>> operationStatus(String operationId) =>
+      api.request(
+        'GET',
+        '/v1/ai/operations/${Uri.encodeComponent(operationId)}',
+        token: _token,
+      );
+
+  Future<void> cancelOperation(
+    String operationId, {
+    required bool confirmed,
+  }) async {
+    if (!confirmed) {
+      throw const ApiException(
+        'CONFIRMATION_REQUIRED',
+        'إلغاء الطلب يحتاج قرارًا صريحًا.',
+      );
+    }
+    await api.request(
+      'POST',
+      '/v1/ai/operations/${Uri.encodeComponent(operationId)}/cancel',
+      token: _token,
+      data: {'confirmed': true},
     );
   }
 

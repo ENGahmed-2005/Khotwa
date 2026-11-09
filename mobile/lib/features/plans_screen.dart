@@ -47,6 +47,7 @@ class _PlansScreenState extends State<PlansScreen> {
       _storageReady = false,
       _synthetic = false,
       _sendConfirmed = false;
+  bool _customSkillsReviewed = false, _customLabelsConfirmed = false;
   String? _error, _studentId, _assessmentId, _operationId;
   List<PlanRecord> _plans = [];
   List<PlanSkill> _skills = [];
@@ -166,6 +167,8 @@ class _PlansScreenState extends State<PlansScreen> {
       _operationId = null;
       _sendConfirmed = false;
       _error = null;
+      _customSkillsReviewed = false;
+      _customLabelsConfirmed = false;
     });
     unawaited(
       _persist().catchError((Object error) {
@@ -258,10 +261,12 @@ class _PlansScreenState extends State<PlansScreen> {
         sessionsPerWeek: _sessions,
         availableTools: _availableTools.toList(),
         syntheticDataConfirmed: _synthetic,
+        customSkillsReviewed: _customSkillsReviewed,
       );
       _preview = preview;
       _operationId = const Uuid().v4();
       _sendConfirmed = false;
+      _customLabelsConfirmed = false;
       await _persist();
     } catch (error) {
       _error = planErrorMessage(error);
@@ -290,6 +295,7 @@ class _PlansScreenState extends State<PlansScreen> {
         operationId: operationId,
         confirmed: _sendConfirmed,
         syntheticDataConfirmed: _synthetic,
+        customLabelsConfirmed: _customLabelsConfirmed,
       );
       _plans = [plan, ..._plans.where((old) => old.id != plan.id)];
       await _cachePlans();
@@ -310,6 +316,77 @@ class _PlansScreenState extends State<PlansScreen> {
       if (mounted) {
         setState(() => _busy = false);
       }
+    }
+  }
+
+  Future<void> _inspectOperation() async {
+    final id = _operationId;
+    if (id == null || _busy) return;
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      final status = await _api.operationStatus(id);
+      if (status['state'] == 'completed') {
+        _plans = await _api.plans();
+        await _cachePlans();
+        _preview = null;
+        _operationId = null;
+        _sendConfirmed = false;
+        _customLabelsConfirmed = false;
+        await _persist();
+      }
+      _error = const {
+        'pending': 'الطلب قيد المعالجة. لم يُرسل طلب آخر.',
+        'expired':
+            'انتهت مهلة الانتظار. ألغِي الطلب صراحةً قبل معاينة ومحاولة جديدتين.',
+        'cancelled': 'أُلغي الطلب ولن تُحفظ نتيجة متأخرة.',
+        'completed': 'استُعيدت الخطط المحفوظة من الخادم.',
+        'failed': 'فشلت المحاولة. راجعي معاينة جديدة لإرسال عملية جديدة.',
+      }[status['state']];
+    } catch (error) {
+      _error = planErrorMessage(error);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _cancelPending() async {
+    final id = _operationId;
+    if (id == null || _busy) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('إلغاء طلب التوليد المعلّق'),
+        content: const Text(
+          'تبقى المدخلات محفوظة. لن يُعتمد أو يُحفظ أي ناتج متأخر لهذا الطلب، وتحتاج المحاولة التالية معاينة وتأكيدًا جديدين.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('رجوع'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('أؤكد إلغاء الطلب'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    setState(() => _busy = true);
+    try {
+      await _api.cancelOperation(id, confirmed: true);
+      _preview = null;
+      _operationId = null;
+      _sendConfirmed = false;
+      _customLabelsConfirmed = false;
+      await _persist();
+    } catch (error) {
+      _error = planErrorMessage(error);
+    } finally {
+      if (mounted) setState(() => _busy = false);
     }
   }
 
@@ -455,39 +532,80 @@ class _PlansScreenState extends State<PlansScreen> {
             ),
           const SectionHeading('٢. مهارات موثّقة ومستويات تختارينها'),
           const Text(
-            'تظهر المهارات الجاهزة الموثقة من التقييم المعتمد فقط. مستويات التقييم الحر تبقى كما اعتمدتها؛ لا تُرسل الأوصاف المخصصة أو الإجابات الخام تلقائيًا.',
+            'اختاري المهارات الموثقة التي ستُرسل. مستويات التقييم الحر تبقى كما اعتمدتها؛ وتحتاج التسميات التعليمية المخصصة مراجعةً وتأكيدًا إضافيين. لا تُرسل الإجابات الخام أو ملاحظات التقييم.',
           ),
           for (final skill in _skills)
             Padding(
               padding: const EdgeInsets.only(top: 12),
-              child: DropdownButtonFormField<String>(
-                key: ValueKey('${skill.id}-${_selectedLevels[skill.id]}'),
-                initialValue: _selectedLevels[skill.id],
-                isExpanded: true,
-                decoration: InputDecoration(labelText: skill.label),
-                items: [
-                  const DropdownMenuItem(
-                    value: 'omit',
-                    child: Text('لا تُرسل هذه المهارة'),
-                  ),
-                  ..._levels.entries.map(
-                    (level) => DropdownMenuItem(
-                      value: level.key,
-                      child: Text(level.value),
+              child: skill.assessedLevel != null
+                  ? CheckboxListTile(
+                      key: ValueKey('include-skill-${skill.id}'),
+                      contentPadding: EdgeInsets.zero,
+                      value: _selectedLevels.containsKey(skill.id),
+                      title: Text(skill.label),
+                      subtitle: Text(
+                        'المستوى المعتمد: ${_levels[skill.assessedLevel] ?? skill.assessedLevel}',
+                      ),
+                      onChanged: _busy || !_storageReady
+                          ? null
+                          : (included) => _change(() {
+                              if (included == true) {
+                                _selectedLevels[skill.id] =
+                                    skill.assessedLevel!;
+                              } else {
+                                _selectedLevels.remove(skill.id);
+                              }
+                            }),
+                    )
+                  : DropdownButtonFormField<String>(
+                      key: ValueKey('${skill.id}-${_selectedLevels[skill.id]}'),
+                      initialValue: _selectedLevels[skill.id],
+                      isExpanded: true,
+                      decoration: InputDecoration(labelText: skill.label),
+                      items: [
+                        const DropdownMenuItem(
+                          value: 'omit',
+                          child: Text('لا تُرسل هذه المهارة'),
+                        ),
+                        ..._levels.entries.map(
+                          (level) => DropdownMenuItem(
+                            value: level.key,
+                            child: Text(level.value),
+                          ),
+                        ),
+                      ],
+                      onChanged:
+                          _busy || !_storageReady || skill.assessedLevel != null
+                          ? null
+                          : (value) => _change(() {
+                              if (value == null || value == 'omit') {
+                                _selectedLevels.remove(skill.id);
+                              } else {
+                                _selectedLevels[skill.id] = value;
+                              }
+                            }),
                     ),
-                  ),
-                ],
-                onChanged:
-                    _busy || !_storageReady || skill.assessedLevel != null
-                    ? null
-                    : (value) => _change(() {
-                        if (value == null || value == 'omit') {
-                          _selectedLevels.remove(skill.id);
-                        } else {
-                          _selectedLevels[skill.id] = value;
-                        }
-                      }),
+            ),
+          if (_skills.any(
+            (skill) =>
+                skill.id.startsWith('custom.') &&
+                _selectedLevels.containsKey(skill.id),
+          ))
+            CheckboxListTile(
+              key: const Key('review-custom-labels'),
+              value: _customSkillsReviewed,
+              contentPadding: EdgeInsets.zero,
+              title: const Text(
+                'راجعت التسميات التعليمية المخصصة القصيرة، وهي خالية من الأسماء والتشخيص وبيانات التعريف، وأوافق على عرضها في معاينة الإرسال.',
               ),
+              onChanged: _busy || !_storageReady
+                  ? null
+                  : (value) => setState(() {
+                      _customSkillsReviewed = value ?? false;
+                      _preview = null;
+                      _sendConfirmed = false;
+                      _customLabelsConfirmed = false;
+                    }),
             ),
           const SectionHeading('٣. مدة الخطة والأدوات المتاحة'),
           Row(
@@ -592,6 +710,21 @@ class _PlansScreenState extends State<PlansScreen> {
               ),
             ),
             Text('صلاحية المعاينة: ${preview.expiresAt.toLocal()}'),
+            if (preview.studentReference != null)
+              Text('مرجع صياغة العرض: ${preview.studentReference}'),
+            if (preview.hasCustomLabels)
+              CheckboxListTile(
+                key: const Key('confirm-custom-labels'),
+                value: _customLabelsConfirmed,
+                title: const Text(
+                  'أؤكد صراحةً إرسال التسميات التعليمية المخصصة الظاهرة في هذه الحمولة فقط.',
+                ),
+                onChanged: _busy
+                    ? null
+                    : (value) => setState(
+                        () => _customLabelsConfirmed = value ?? false,
+                      ),
+              ),
             CheckboxListTile(
               key: const Key('confirm-ai-send'),
               value: _sendConfirmed,
@@ -605,13 +738,31 @@ class _PlansScreenState extends State<PlansScreen> {
             ),
             FilledButton.icon(
               key: const Key('generate-plan'),
-              onPressed: _busy || !_sendConfirmed || !_synthetic
+              onPressed:
+                  _busy ||
+                      !_sendConfirmed ||
+                      !_synthetic ||
+                      (preview.hasCustomLabels && !_customLabelsConfirmed)
                   ? null
                   : _generate,
               icon: const Icon(Icons.auto_awesome_outlined),
               label: const Text('إرسال وتوليد مسودة / إعادة محاولة الطلب نفسه'),
             ),
           ],
+          if (_operationId != null)
+            Wrap(
+              spacing: 10,
+              children: [
+                OutlinedButton(
+                  onPressed: _busy ? null : _inspectOperation,
+                  child: const Text('استعلام واستعادة نتيجة الطلب'),
+                ),
+                TextButton(
+                  onPressed: _busy ? null : _cancelPending,
+                  child: const Text('إلغاء طلب التوليد المعلّق'),
+                ),
+              ],
+            ),
           const SectionHeading('الخطط المحفوظة'),
           if (_plans.isEmpty)
             const Text(
@@ -649,6 +800,13 @@ class _PlansScreenState extends State<PlansScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Text(
+              'الخطة الفردية ${plan.studentReference == 'الطالبة'
+                  ? 'للطالبة'
+                  : plan.studentReference == 'الطالب'
+                  ? 'للطالب'
+                  : 'للطالب/الطالبة'}',
+            ),
             Text(
               '$code · ${plan.approved ? 'معتمدة بقرار المختصة' : 'مسودة مقترحة — غير معتمدة'}',
               style: Theme.of(context).textTheme.titleLarge,
