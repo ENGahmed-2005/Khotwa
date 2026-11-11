@@ -5,6 +5,7 @@ import { GeminiPlanProvider } from '../src/ai/gemini.js';
 import { PreviewSigner } from '../src/ai/preview.js';
 import { skillsForAssessment } from '../src/ai/catalog.js';
 import { ApiError } from '../src/errors.js';
+import { geminiResponseSchema } from '../src/ai/provider-schema.js';
 import { assessmentFixture } from './fixtures.js';
 import { aiContent, aiInput } from './ai.fixtures.js';
 
@@ -48,8 +49,33 @@ describe('server configuration and Gemini transport', () => {
     expect(String(options?.body)).not.toContain('test-only-key');
     expect(body.generationConfig.responseMimeType).toBe('application/json');
     expect(body.generationConfig.responseJsonSchema.properties.tools.items.enum).toEqual(['البطاقات']);
+    const goal = body.generationConfig.responseJsonSchema.properties.goals.items;
+    expect(goal.required).toEqual(['id', 'skillId', 'behavior', 'condition', 'criterion', 'timeframeWeeks']);
+    expect(goal.properties.criterion.anyOf.map((variant: { properties: { type: { enum: string[] } } }) => variant.properties.type.enum)).toEqual([
+      ['percentage'], ['trials'], ['consistency'], ['independence'],
+    ]);
+    expect(JSON.stringify(body.generationConfig.responseJsonSchema)).not.toMatch(/"(?:\$schema|pattern|const|oneOf|minLength|maxLength|minItems|maxItems|minimum|maximum|exclusiveMinimum)":/u);
     expect(result.goals[0]!.id).not.toBe(content.goals[0]!.id);
     expect(result.baseline).toBe(content.baseline);
+  });
+  it('adapts schema keywords without changing application-owned property names or the source schema', () => {
+    const schema = { type: 'object', required: ['minimum', 'const'], additionalProperties: false,
+      properties: { minimum: { type: 'string', minLength: 1 }, const: { type: 'string', const: 'fixed' } } };
+    const snapshot = structuredClone(schema);
+    expect(geminiResponseSchema(schema)).toEqual({ type: 'object', required: ['minimum', 'const'], additionalProperties: false,
+      properties: { minimum: { type: 'string' }, const: { type: 'string', enum: ['fixed'] } } });
+    expect(schema).toEqual(snapshot);
+  });
+  it.each(['length', 'uuid', 'criterion', 'extraField'] as const)('retains strict server validation after provider grammar simplification: %s', async mode => {
+    const content = aiContent();
+    if (mode === 'length') content.baseline = 'x'.repeat(2001);
+    if (mode === 'criterion') content.goals[0]!.criterion.correct = 0;
+    const generated = mode === 'extraField' ? { ...content, status: 'approved' }
+      : mode === 'uuid' ? { ...content, goals: [{ ...content.goals[0]!, id: 'invalid-provider-id' }] } : content;
+    const transport = vi.fn<typeof fetch>().mockResolvedValue(Response.json({ candidates: [{ finishReason: 'STOP', content: { parts: [{ text: JSON.stringify(generated) }] } }] }));
+    const provider = new GeminiPlanProvider({ apiKey: 'test-only-key', model: 'gemini-flash-latest', fetchImpl: transport });
+    await expect(provider.generate(aiInput)).rejects.toMatchObject({ statusCode: 502, code: 'AI_OUTPUT_INVALID' });
+    expect(transport).toHaveBeenCalledTimes(1);
   });
   it.each([
     [503, 503, 'AI_PROVIDER_BUSY'],

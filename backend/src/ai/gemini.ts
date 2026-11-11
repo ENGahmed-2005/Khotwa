@@ -5,6 +5,7 @@ import { planContentSchema, type GenerationInput } from '../planning/domain.js';
 import { ApiError } from '../errors.js';
 import { toolLabels } from './catalog.js';
 import { providerHttpError } from './provider-errors.js';
+import { geminiResponseSchema } from './provider-schema.js';
 
 export interface GeminiOptions { apiKey: string; model: string; fetchImpl?: typeof fetch; timeoutMs?: number; clock?: () => Date }
 
@@ -20,10 +21,9 @@ export class GeminiPlanProvider implements PlanProvider {
   }
 
   async generate(payload: GenerationInput, signal?: AbortSignal): Promise<unknown> {
-    const schema = z.toJSONSchema(planContentSchema) as Record<string, unknown>;
-    delete schema.$schema;
+    const schema = geminiResponseSchema(z.toJSONSchema(planContentSchema) as Record<string, unknown>);
     const properties = schema.properties as Record<string, Record<string, unknown>>;
-    properties.tools = { type: 'array', minItems: 1, maxItems: payload.availableTools.length, items: { type: 'string', enum: payload.availableTools.map(tool => toolLabels[tool]) } };
+    properties.tools = { type: 'array', items: { type: 'string', enum: payload.availableTools.map(tool => toolLabels[tool]) } };
     const timeout = AbortSignal.timeout(this.options.timeoutMs ?? 60000);
     const combined = signal ? AbortSignal.any([signal, timeout]) : timeout;
     const today = (this.options.clock?.() ?? new Date()).toISOString().slice(0, 10);
