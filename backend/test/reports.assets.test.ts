@@ -27,7 +27,9 @@ describe('report asset packaging', () => {
       expect(tables.has('fvar')).toBe(false); expect(tables.has('gvar')).toBe(false);
       expect(bytes.readUInt16BE(tables.get('OS/2')! + 8)).toBe(0);
     }
-    expect(digest(join(sourceDirectory, 'assets', 'DejaVu-LICENSE.txt'))).toBe('7a083b136e64d064794c3419751e5c7dd10d2f64c108fe5ba161eae5e5958a93');
+    // Git may check text out as CRLF on Windows; copyright/license wording must match.
+    const license = readFileSync(join(sourceDirectory, 'assets', 'DejaVu-LICENSE.txt'), 'utf8').replace(/\r\n/g, '\n');
+    expect(createHash('sha256').update(license).digest('hex')).toBe('7a083b136e64d064794c3419751e5c7dd10d2f64c108fe5ba161eae5e5958a93');
   });
   it.each(['backend', 'outside'] as const)('preserves every licensed asset from an Arabic path with %s working directory', workingDirectory => {
     const temporary = mkdtempSync(join(resolve(tmpdir()), 'khotwa-report-assets-'));

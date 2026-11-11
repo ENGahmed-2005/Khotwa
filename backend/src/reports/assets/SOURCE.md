@@ -17,4 +17,4 @@ License and attribution: DejaVu-LICENSE.txt (unmodified upstream LICENSE).
 
 - DejaVuSans.ttf SHA-256: 7da195a74c55bef988d0d48f9508bd5d849425c1770dba5d7bfc6ce9ed848954
 - DejaVuSans-Bold.ttf SHA-256: e6476c1b80502924294eed40894c5b18e06c181444ca953e5334262df9c27724
-- DejaVu-LICENSE.txt SHA-256: 7a083b136e64d064794c3419751e5c7dd10d2f64c108fe5ba161eae5e5958a93
+- DejaVu-LICENSE.txt SHA-256 (upstream LF text): 7a083b136e64d064794c3419751e5c7dd10d2f64c108fe5ba161eae5e5958a93
