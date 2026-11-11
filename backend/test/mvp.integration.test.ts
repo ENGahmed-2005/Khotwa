@@ -210,13 +210,13 @@ describe('explicitly reviewed custom skill summaries', () => {
 });
 
 describe('gender affects display references only', () => {
-  it('keeps payloads, goal criteria, tools and schedule identical across male, female and unspecified references', async () => {
+  it('keeps payloads, goal criteria, tools and schedule identical across explicitly entered male and female references', async () => {
     const owner = await account();
     const content = aiContent();
     generate.mockResolvedValue(content);
-    const expected = ['الطالب', 'الطالبة', 'الطالب/الطالبة'];
+    const expected = ['الطالب', 'الطالبة'];
     const payloads: unknown[] = [];
-    for (const [index, gender] of (['male', 'female', 'unspecified'] as const).entries()) {
+    for (const [index, gender] of (['male', 'female'] as const).entries()) {
       const child = studentFixture({ gender });
       const assessment = initial(child.id);
       expect((await push(owner, [operationFixture('student', child), operationFixture('initialAssessment', assessment)])).every(result => result.status === 'applied')).toBe(true);
@@ -233,7 +233,6 @@ describe('gender affects display references only', () => {
       expect(response.json().record.data.content).toEqual(content);
     }
     expect(payloads[0]).toEqual(payloads[1]);
-    expect(payloads[1]).toEqual(payloads[2]);
     expect(generate.mock.calls.map(([payload]) => payload)).toEqual(payloads);
     expect(JSON.stringify(payloads)).not.toMatch(/gender|female|male|unspecified|الطالب|الطالبة/u);
   });
@@ -357,6 +356,18 @@ describe('documented educational intake on real PostgreSQL', () => {
 });
 
 describe('reviewed alternative AI source, never raw intake', () => {
+  it('keeps neutral legacy profiles and approved alternative evidence but requests the missing basic input before AI', async () => {
+    const owner = await account();
+    const other = await account();
+    const data = await source(owner);
+    expect((await push(owner, [operationFixture('student', { ...data.child, gender: 'unspecified' }, { baseRevision: 1 })]))[0]?.status).toBe('applied');
+    const result = await app.inject({ method: 'POST', url: '/v1/ai/preview', headers: auth(owner), payload: previewBody(data) });
+    expect(result.statusCode).toBe(409);
+    expect(result.json().error.code).toBe('STUDENT_INPUTS_INCOMPLETE');
+    expect((await app.inject({ url: `/v1/records/${data.child.id}`, headers: auth(owner) })).json().record.data.gender).toBe('unspecified');
+    expect((await app.inject({ method: 'POST', url: '/v1/ai/preview', headers: auth(other), payload: previewBody(data) })).statusCode).toBe(404);
+    expect(generate).not.toHaveBeenCalled();
+  });
   it('requires approval and matches the exact reviewed skill level', async () => {
     const owner = await account();
     const incomplete = await source(owner, false);

@@ -5,7 +5,7 @@ import { z } from 'zod';
 import type { AuthService, Clock } from '../auth.js';
 import { canonicalJson, tokenHash } from '../crypto.js';
 import { ApiError, missing } from '../errors.js';
-import { assessmentSchema, studentSchema } from '../schemas.js';
+import { assessmentSchema, studentSchema, type StudentData } from '../schemas.js';
 import { initialAssessmentSchema } from '../intake/schema.js';
 import { skillsForInitialAssessment } from '../intake/catalog.js';
 import { RecordStore, type Envelope } from '../records.js';
@@ -55,6 +55,10 @@ export function registerAiRoutes(app: FastifyInstance, options: AiRouteOptions) 
     ]);
     if (!studentRow || studentRow.kind !== 'student' || studentRow.deletedAt || !assessmentRow || !['assessment', 'initialAssessment'].includes(assessmentRow.kind) || assessmentRow.parentId !== studentId || assessmentRow.deletedAt) throw missing();
     const student = studentSchema.parse(records.toEnvelope(studentRow).data);
+    // Legacy/unfinished profiles remain valid records, but FR-22/32 require explicit basics before AI.
+    if (!['male', 'female'].includes(student.gender ?? '') || !student.referralReason?.trim()) {
+      throw new ApiError(409, 'STUDENT_INPUTS_INCOMPLETE', 'استكملي الجنس وسبب الإحالة في ملف الطالب، ثم راجعي معاينة جديدة قبل التوليد.');
+    }
     if (assessmentRow.kind === 'initialAssessment') {
       const assessment = initialAssessmentSchema.parse(records.toEnvelope(assessmentRow).data);
       if (!student.consentConfirmed || assessment.status !== 'approved') throw new ApiError(409, 'SOURCE_NOT_READY', 'أكمل الموافقة واعتماد التقييم الأولي أولًا.');
@@ -68,10 +72,12 @@ export function registerAiRoutes(app: FastifyInstance, options: AiRouteOptions) 
     if (!student.consentConfirmed || assessment.status !== 'approved' || !assessment.strengths.trim() || !assessment.needs.trim() || !Object.values(assessment.results).some(result => result.execution === 'performed')) throw new ApiError(409, 'SOURCE_NOT_READY', 'أكمل الموافقة واعتماد التقييم ونقاط القوة والاحتياج أولًا.');
     return { studentRow, student, assessmentRow, skills: skillsForAssessment(assessment), evidence: 'approvedAcademicAssessment' };
   }
-  function skillSourceHash(skills: readonly { skillId: string; label: string; evidence: string; level?: unknown }[]) {
+  function generationSourceHash(student: StudentData, skills: readonly { skillId: string; label: string; evidence: string; level?: unknown }[]) {
     const projection = skills.map(skill => ({ skillId: skill.skillId, label: skill.label, evidence: skill.evidence, level: skill.level ?? null }))
       .sort((a, b) => a.skillId.localeCompare(b.skillId));
-    return tokenHash(canonicalJson(projection));
+    // Only this digest enters the signed preview; these basics are never added to the provider payload.
+    return tokenHash(canonicalJson({ studentBasics: { grade: student.grade, ageYears: student.ageYears, ageMonths: student.ageMonths,
+      gender: student.gender ?? null, referralReason: student.referralReason?.trim() ?? null }, skills: projection }));
   }
   function verifyHash(claims: PreviewClaims, confirmedHash: string) {
     const hash = createHash('sha256').update(JSON.stringify(claims.payload)).digest('hex');
@@ -80,7 +86,7 @@ export function registerAiRoutes(app: FastifyInstance, options: AiRouteOptions) 
   async function checkCurrentSource(ownerId: string, claims: PreviewClaims, tx: Prisma.TransactionClient | PrismaClient = prisma) {
     const current = await source(ownerId, claims.studentId, claims.assessmentId, tx);
     if (current.studentRow.revision !== claims.studentRevision || current.assessmentRow.revision !== claims.assessmentRevision) throw new ApiError(409, 'SOURCE_CHANGED', 'تغير مصدر الخطة. راجع البيانات وأنشئ معاينة جديدة.');
-    if (claims.sourceHash && claims.sourceHash !== skillSourceHash(current.skills)) throw new ApiError(409, 'SOURCE_CHANGED', 'تغيرت المهارات أو تسمياتها المراجعة. أنشئ معاينة جديدة.');
+    if (claims.sourceHash && claims.sourceHash !== generationSourceHash(current.student, current.skills)) throw new ApiError(409, 'SOURCE_CHANGED', 'تغيرت بيانات المصدر أو المهارات المراجعة. أنشئ معاينة جديدة.');
     return current;
   }
   const limit = { config: { rateLimit: { max: 12, timeWindow: '1 minute' } } };
@@ -158,7 +164,7 @@ export function registerAiRoutes(app: FastifyInstance, options: AiRouteOptions) 
     const expiresAt = new Date(now().getTime() + 10 * 60 * 1000);
     const previewToken = signer.sign({ version: 1, ownerId: user.id, studentId: input.studentId, assessmentId: input.assessmentId,
       studentRevision: current.studentRow.revision, assessmentRevision: current.assessmentRow.revision,
-      expiresAt: expiresAt.getTime(), payload: preview.payload, hash: preview.hash, sourceHash: skillSourceHash(current.skills) });
+      expiresAt: expiresAt.getTime(), payload: preview.payload, hash: preview.hash, sourceHash: generationSourceHash(current.student, current.skills) });
     return { ...preview, previewToken, expiresAt: expiresAt.toISOString(), presentation: studentPresentation(current.student.gender),
       customLabelsRequireConfirmation: preview.payload.skills.some(skill => skill.reviewedLabel !== undefined) };
   });

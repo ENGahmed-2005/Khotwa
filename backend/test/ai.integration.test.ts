@@ -7,6 +7,7 @@ import { canonicalJson, PayloadCipher, tokenHash } from '../src/crypto.js';
 import { AI_OPERATION_LEASE_MS } from '../src/ai/routes.js';
 import type { GenerationInput } from '../src/planning/domain.js';
 import type { Envelope, SyncResult } from '../src/records.js';
+import type { StudentData } from '../src/schemas.js';
 import { assessmentFixture, fixtureTime, operationFixture, studentFixture } from './fixtures.js';
 import { aiContent, aiInput } from './ai.fixtures.js';
 
@@ -27,8 +28,8 @@ async function register(): Promise<Account> {
   expect(response.statusCode).toBe(201);
   return response.json<Account>();
 }
-async function source(account: Account, approved = true) {
-  const student = studentFixture();
+async function source(account: Account, approved = true, studentOverrides: Partial<StudentData> = {}) {
+  const student = studentFixture(studentOverrides);
   const assessment = assessmentFixture(student.id, { status: approved ? 'approved' : 'draft', approvedAt: approved ? fixtureTime : null,
     strengths: 'SYNTHETIC-PRIVATE-STRENGTHS', needs: 'SYNTHETIC-PRIVATE-NEEDS' });
   assessment.results['1a']!.response = 'SYNTHETIC-PRIVATE-RAW-ANSWER';
@@ -256,6 +257,35 @@ describe('AI owner boundaries and consent on real PostgreSQL', () => {
     }
     expect(generate).not.toHaveBeenCalled();
   });
+  it.each([
+    { gender: undefined }, { gender: 'unspecified' as const },
+    { referralReason: undefined }, { referralReason: '' }, { referralReason: '   ' },
+  ])('preserves an unfinished profile but requires explicit basic inputs before AI: %j', async patch => {
+    const owner = await register();
+    const other = await register();
+    const data = await source(owner, true, patch);
+    const stored = await app.inject({ url: `/v1/records/${data.student.id}`, headers: headers(owner) });
+    expect(stored.statusCode).toBe(200);
+    expect(stored.json().record.data.gender).toBe(data.student.gender);
+    expect(stored.json().record.data.referralReason).toBe(data.student.referralReason?.trim());
+    for (const route of [
+      { method: 'GET' as const, url: `/v1/ai/skills?assessmentId=${data.assessment.id}` },
+      { method: 'POST' as const, url: '/v1/ai/preview', payload: previewInput(data) },
+    ]) {
+      const result = await app.inject({ ...route, headers: headers(owner) });
+      expect(result.statusCode).toBe(409);
+      expect(result.json().error.code).toBe('STUDENT_INPUTS_INCOMPLETE');
+      expect(result.body).not.toContain(data.student.code);
+      expect((await app.inject({ ...route, headers: headers(other) })).statusCode).toBe(404);
+    }
+    expect(generate).not.toHaveBeenCalled();
+    const completed = { ...data.student, gender: 'female' as const, referralReason: 'دعم مهارة تعليمية اصطناعية' };
+    const saved = await app.inject({ method: 'POST', url: '/v1/sync/push', headers: headers(owner),
+      payload: { operations: [operationFixture('student', completed, { baseRevision: 1 })] } });
+    expect(saved.json().results[0].status).toBe('applied');
+    expect((await app.inject({ method: 'POST', url: '/v1/ai/preview', headers: headers(owner), payload: previewInput(data) })).statusCode).toBe(200);
+    expect(generate).not.toHaveBeenCalled();
+  });
   it('shows only a controlled preview and sends nothing before exact confirmation', async () => {
     const account = await register();
     const data = await source(account);
@@ -275,6 +305,8 @@ describe('AI owner boundaries and consent on real PostgreSQL', () => {
     expect(JSON.stringify(generate.mock.calls)).not.toContain(data.student.code);
     expect(JSON.stringify(generate.mock.calls)).not.toContain(data.student.id);
     expect(JSON.stringify(generate.mock.calls)).not.toContain(account.user.email);
+    expect(JSON.stringify(generate.mock.calls)).not.toContain(data.student.referralReason);
+    expect(JSON.stringify(generate.mock.calls)).not.toMatch(/gender|referralReason/u);
   });
 });
 
@@ -357,6 +389,53 @@ describe('durable generation and explicit approval', () => {
     expect(response.statusCode).toBe(409);
     expect(response.json().error.code).toBe('SOURCE_CHANGED');
     expect(generate).not.toHaveBeenCalled();
+  });
+  it.each(['before', 'during'] as const)('requires completed basic inputs again %s the provider call', async stage => {
+    const owner = await register();
+    const data = await source(owner);
+    const input = generationInput(await preview(owner, data));
+    const removeReason = async () => {
+      const result = await app.inject({ method: 'POST', url: '/v1/sync/push', headers: headers(owner),
+        payload: { operations: [operationFixture('student', { ...data.student, referralReason: '' }, { baseRevision: 1 })] } });
+      expect(result.json().results[0].status).toBe('applied');
+    };
+    if (stage === 'before') await removeReason();
+    else generate.mockImplementationOnce(async () => { await removeReason(); return aiContent(); });
+    const response = await app.inject({ method: 'POST', url: '/v1/ai/generate', headers: headers(owner), payload: input });
+    expect(response.statusCode).toBe(409);
+    expect(response.json().error.code).toBe('STUDENT_INPUTS_INCOMPLETE');
+    expect(generate).toHaveBeenCalledTimes(stage === 'before' ? 0 : 1);
+    expect(await prisma.record.count({ where: { ownerId: owner.user.id, kind: 'plan' } })).toBe(0);
+  });
+  it.each([
+    { gender: 'male' as const }, { referralReason: 'سبب إحالة تعليمي اصطناعي آخر' },
+    { grade: 'الثالث الأساسي' as const }, { ageYears: 8 }, { ageMonths: 3 },
+  ])('binds all required basic inputs to the reviewed source digest, even without a revision change: %j', async patch => {
+    const owner = await register();
+    const data = await source(owner);
+    const input = generationInput(await preview(owner, data));
+    // Simulate a privileged storage rewrite that did not bump the revision.
+    await prisma.record.update({ where: { ownerId_id: { ownerId: owner.user.id, id: data.student.id } },
+      data: { encryptedPayload: cipher.encrypt({ ...data.student, ...patch }, `record:${owner.user.id}:${data.student.id}`) } });
+    const response = await app.inject({ method: 'POST', url: '/v1/ai/generate', headers: headers(owner), payload: input });
+    expect(response.statusCode).toBe(409);
+    expect(response.json().error.code).toBe('SOURCE_CHANGED');
+    expect(generate).not.toHaveBeenCalled();
+    expect(await prisma.record.count({ where: { ownerId: owner.user.id, kind: 'plan' } })).toBe(0);
+  });
+  it('rechecks the required-input digest after the provider responds', async () => {
+    const owner = await register();
+    const data = await source(owner);
+    generate.mockImplementationOnce(async () => {
+      await prisma.record.update({ where: { ownerId_id: { ownerId: owner.user.id, id: data.student.id } },
+        data: { encryptedPayload: cipher.encrypt({ ...data.student, referralReason: 'سبب إحالة تعليمي اصطناعي آخر' }, `record:${owner.user.id}:${data.student.id}`) } });
+      return aiContent();
+    });
+    const response = await app.inject({ method: 'POST', url: '/v1/ai/generate', headers: headers(owner), payload: generationInput(await preview(owner, data)) });
+    expect(response.statusCode).toBe(409);
+    expect(response.json().error.code).toBe('SOURCE_CHANGED');
+    expect(generate).toHaveBeenCalledTimes(1);
+    expect(await prisma.record.count({ where: { ownerId: owner.user.id, kind: 'plan' } })).toBe(0);
   });
   it('rechecks source after the external call so deletion cannot create an orphan plan', async () => {
     const account = await register();

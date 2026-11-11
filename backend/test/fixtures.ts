@@ -3,7 +3,9 @@ import { assessmentTemplate, type AssessmentData, type ItemResult, type Operatio
 
 export const fixtureTime = '2026-11-01T10:00:00.000Z';
 export function studentFixture(overrides: Partial<StudentData> = {}): StudentData {
-  return { id: randomUUID(), code: `ST-${randomUUID().slice(0, 8).toUpperCase()}`, grade: 'الثاني الأساسي', ageYears: 7, ageMonths: 2, consentConfirmed: true, consentDate: fixtureTime, createdAt: fixtureTime, ...overrides };
+  return { id: randomUUID(), code: `ST-${randomUUID().slice(0, 8).toUpperCase()}`, grade: 'الثاني الأساسي', ageYears: 7, ageMonths: 2,
+    gender: 'female', referralReason: 'دعم مهارة تعليمية اصطناعية',
+    consentConfirmed: true, consentDate: fixtureTime, createdAt: fixtureTime, ...overrides };
 }
 export function itemFixture(overrides: Partial<ItemResult> = {}): ItemResult {
   return { execution: 'performed', judgment: 'independentCorrect', support: 'independent', response: '', observation: '', readingSeconds: null, readingErrors: null, ...overrides };
