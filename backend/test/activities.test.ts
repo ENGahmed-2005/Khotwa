@@ -52,7 +52,7 @@ describe('Gemini activity transport', () => {
   });
   it('provider HTTP failure returns an error and no fallback content', async () => {
     const provider = new GeminiActivityProvider({ apiKey: 'synthetic-test-key', model: 'gemini-flash-latest', fetchImpl: vi.fn().mockResolvedValue(new Response('{}', { status: 503 })) });
-    await expect(provider.generate(payload)).rejects.toMatchObject({ code: 'AI_PROVIDER_UNAVAILABLE' });
+    await expect(provider.generate(payload)).rejects.toMatchObject({ code: 'AI_PROVIDER_BUSY' });
   });
   it('incomplete output is never accepted', async () => {
     const provider = new GeminiActivityProvider({ apiKey: 'synthetic-test-key', model: 'gemini-flash-latest', fetchImpl: vi.fn().mockResolvedValue(new Response(JSON.stringify({ candidates: [{ finishReason: 'MAX_TOKENS', content: { parts: [{ text: '{}' }] } }] }))) });

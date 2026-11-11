@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { ApiError } from '../errors.js';
+import { providerHttpError } from '../ai/provider-errors.js';
 import { activityContentSchema, type ActivityPayload } from './domain.js';
 
 export interface ActivityProvider { generate(payload: ActivityPayload): Promise<unknown> }
@@ -25,7 +26,7 @@ export class GeminiActivityProvider implements ActivityProvider {
           generationConfig: { temperature: 0.3, maxOutputTokens: 8192, responseMimeType: 'application/json', responseJsonSchema: schema } }),
       });
     } catch { throw new ApiError(502, 'AI_PROVIDER_UNAVAILABLE', 'تعذر الاتصال بمولّد الأنشطة. احتُفظ بالمدخلات.'); }
-    if (!response.ok) throw new ApiError(502, 'AI_PROVIDER_UNAVAILABLE', 'مولّد الأنشطة غير متاح حاليًا. احتُفظ بالمدخلات.');
+    if (!response.ok) throw providerHttpError(response.status);
     try {
       const envelope = z.object({ candidates: z.array(z.object({ finishReason: z.literal('STOP'), content: z.object({ parts: z.array(z.object({ text: z.string().optional(), thought: z.boolean().optional() })) }) })).min(1) }).parse(await response.json());
       const text = envelope.candidates[0]!.content.parts.filter(part => !part.thought).map(part => part.text ?? '').join('');
