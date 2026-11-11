@@ -1,0 +1,42 @@
+# Synthetic staging only. No real student processing is approved.
+services:
+  - type: web
+    name: khotwa-api-staging
+    runtime: docker
+    repo: https://github.com/ENGahmed-2005/Khotwa
+    branch: feat/fnd-02-foundation
+    plan: free
+    region: frankfurt
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: .
+    autoDeployTrigger: 'off'
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: khotwa-staging-db
+          property: connectionString
+      - key: STORAGE_KEY
+        generateValue: true
+      - key: NODE_ENV
+        value: production
+      - key: HOST
+        value: 0.0.0.0
+      - key: PORT
+        value: '10000'
+      - key: AI_ENABLED
+        value: 'false'
+      - key: AI_SYNTHETIC_ONLY
+        value: 'true'
+      - key: GEMINI_MODEL
+        value: gemini-flash-latest
+      - key: SMTP_ENABLED
+        value: 'false'
+databases:
+  - name: khotwa-staging-db
+    plan: free
+    region: frankfurt
+    postgresMajorVersion: '17'
+    databaseName: khotwa_staging
+    user: khotwa
+    ipAllowList: []
