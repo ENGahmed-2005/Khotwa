@@ -8,7 +8,8 @@
       "scope": "MVP",
       "status": "IN_PROGRESS",
       "evidence": [
-        "backend/src/app.ts; backend/test/integration.test.ts; 70 backend tests PASS 2026-11-05; password-reset delivery and native deletion acceptance pending"
+        "backend/src/app.ts; backend/test/integration.test.ts; 70 backend tests PASS 2026-11-05; password-reset delivery and native deletion acceptance pending",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
       ]
     },
     {
@@ -17,7 +18,8 @@
       "scope": "MVP",
       "status": "IN_PROGRESS",
       "evidence": [
-        "backend/src/app.ts; backend/test/integration.test.ts; 70 backend tests PASS 2026-11-05; password-reset delivery and native deletion acceptance pending"
+        "backend/src/app.ts; backend/test/integration.test.ts; 70 backend tests PASS 2026-11-05; password-reset delivery and native deletion acceptance pending",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
       ]
     },
     {
@@ -26,7 +28,8 @@
       "scope": "MVP",
       "status": "IN_PROGRESS",
       "evidence": [
-        "backend/src/app.ts; backend/test/integration.test.ts; 70 backend tests PASS 2026-11-05; password-reset delivery and native deletion acceptance pending"
+        "backend/src/app.ts; backend/test/integration.test.ts; 70 backend tests PASS 2026-11-05; password-reset delivery and native deletion acceptance pending",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
       ]
     },
     {
@@ -35,7 +38,8 @@
       "scope": "MVP",
       "status": "IN_PROGRESS",
       "evidence": [
-        "backend/src/app.ts; backend/test/integration.test.ts; 70 backend tests PASS 2026-11-05; password-reset delivery and native deletion acceptance pending"
+        "backend/src/app.ts; backend/test/integration.test.ts; 70 backend tests PASS 2026-11-05; password-reset delivery and native deletion acceptance pending",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
       ]
     },
     {
@@ -44,7 +48,8 @@
       "scope": "MVP",
       "status": "IN_PROGRESS",
       "evidence": [
-        "backend/src/app.ts; backend/test/integration.test.ts; 70 backend tests PASS 2026-11-05; password-reset delivery and native deletion acceptance pending"
+        "backend/src/app.ts; backend/test/integration.test.ts; 70 backend tests PASS 2026-11-05; password-reset delivery and native deletion acceptance pending",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
       ]
     },
     {
@@ -53,15 +58,18 @@
       "scope": "MVP",
       "status": "IN_PROGRESS",
       "evidence": [
-        "backend/src/app.ts; backend/test/integration.test.ts; 70 backend tests PASS 2026-11-05; password-reset delivery and native deletion acceptance pending"
+        "backend/src/app.ts; backend/test/integration.test.ts; 70 backend tests PASS 2026-11-05; password-reset delivery and native deletion acceptance pending",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
       ]
     },
     {
       "id": "FR-07",
       "description": "عرض دليل استخدام تفاعلي قصير عند أول تشغيل، لأن المستخدمة لم تستخدم تطبيقات مماثلة سابقاً. [س6]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
+      ]
     },
     {
       "id": "FR-08",
@@ -76,7 +84,8 @@
       "scope": "MVP",
       "status": "IN_PROGRESS",
       "evidence": [
-        "mobile/lib/main.dart; mobile/lib/features/home_screen.dart; Arabic RTL source integrated; updated Flutter tests pending"
+        "mobile/lib/main.dart; mobile/lib/features/home_screen.dart; Arabic RTL source integrated; updated Flutter tests pending",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
       ]
     },
     {
@@ -85,15 +94,18 @@
       "scope": "MVP",
       "status": "IN_PROGRESS",
       "evidence": [
-        "mobile/lib/main.dart; mobile/lib/features/home_screen.dart; Arabic RTL source integrated; updated Flutter tests pending"
+        "mobile/lib/main.dart; mobile/lib/features/home_screen.dart; Arabic RTL source integrated; updated Flutter tests pending",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
       ]
     },
     {
       "id": "FR-11",
       "description": "توفير زر سريع لإضافة خطة جديدة وآخر لإدخال جلسة سريع، لدعم المهام الطارئة أثناء التنقل. [س32، س56]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
+      ]
     },
     {
       "id": "FR-12",
@@ -101,7 +113,8 @@
       "scope": "MVP",
       "status": "IN_PROGRESS",
       "evidence": [
-        "mobile/lib/main.dart; mobile/lib/features/home_screen.dart; Arabic RTL source integrated; updated Flutter tests pending"
+        "mobile/lib/main.dart; mobile/lib/features/home_screen.dart; Arabic RTL source integrated; updated Flutter tests pending",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
       ]
     },
     {
@@ -110,7 +123,8 @@
       "scope": "MVP",
       "status": "IN_PROGRESS",
       "evidence": [
-        "mobile/lib/main.dart; mobile/lib/features/home_screen.dart; Arabic RTL source integrated; updated Flutter tests pending"
+        "mobile/lib/main.dart; mobile/lib/features/home_screen.dart; Arabic RTL source integrated; updated Flutter tests pending",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
       ]
     },
     {
@@ -119,7 +133,8 @@
       "scope": "MVP",
       "status": "IN_PROGRESS",
       "evidence": [
-        "mobile/lib/main.dart; mobile/lib/features/home_screen.dart; Arabic RTL source integrated; updated Flutter tests pending"
+        "mobile/lib/main.dart; mobile/lib/features/home_screen.dart; Arabic RTL source integrated; updated Flutter tests pending",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
       ]
     },
     {
@@ -128,7 +143,8 @@
       "scope": "MVP",
       "status": "IN_PROGRESS",
       "evidence": [
-        "mobile/lib/core/app_state.dart; encrypted_file_store.dart; backend/src/records.ts; native device interruption tests pending"
+        "mobile/lib/core/app_state.dart; encrypted_file_store.dart; backend/src/records.ts; native device interruption tests pending",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
       ]
     },
     {
@@ -137,7 +153,8 @@
       "scope": "MVP",
       "status": "IN_PROGRESS",
       "evidence": [
-        "mobile/lib/core/app_state.dart; encrypted_file_store.dart; backend/src/records.ts; native device interruption tests pending"
+        "mobile/lib/core/app_state.dart; encrypted_file_store.dart; backend/src/records.ts; native device interruption tests pending",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
       ]
     },
     {
@@ -146,7 +163,8 @@
       "scope": "MVP",
       "status": "IN_PROGRESS",
       "evidence": [
-        "mobile/lib/core/app_state.dart; encrypted_file_store.dart; backend/src/records.ts; native device interruption tests pending"
+        "mobile/lib/core/app_state.dart; encrypted_file_store.dart; backend/src/records.ts; native device interruption tests pending",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
       ]
     },
     {
@@ -155,7 +173,8 @@
       "scope": "MVP",
       "status": "IN_PROGRESS",
       "evidence": [
-        "mobile/lib/core/app_state.dart; encrypted_file_store.dart; backend/src/records.ts; native device interruption tests pending"
+        "mobile/lib/core/app_state.dart; encrypted_file_store.dart; backend/src/records.ts; native device interruption tests pending",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
       ]
     },
     {
@@ -164,7 +183,8 @@
       "scope": "MVP",
       "status": "IN_PROGRESS",
       "evidence": [
-        "mobile/lib/features/students_screen.dart; backend/src/schemas.ts; student/consent core implemented; complete intake fields pending"
+        "mobile/lib/features/students_screen.dart; backend/src/schemas.ts; student/consent core implemented; complete intake fields pending",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
       ]
     },
     {
@@ -173,7 +193,8 @@
       "scope": "MVP",
       "status": "IN_PROGRESS",
       "evidence": [
-        "mobile/lib/features/students_screen.dart; backend/src/schemas.ts; student/consent core implemented; complete intake fields pending"
+        "mobile/lib/features/students_screen.dart; backend/src/schemas.ts; student/consent core implemented; complete intake fields pending",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
       ]
     },
     {
@@ -182,7 +203,8 @@
       "scope": "MVP",
       "status": "IN_PROGRESS",
       "evidence": [
-        "mobile/lib/features/students_screen.dart; backend/src/schemas.ts; student/consent core implemented; complete intake fields pending"
+        "mobile/lib/features/students_screen.dart; backend/src/schemas.ts; student/consent core implemented; complete intake fields pending",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
       ]
     },
     {
@@ -191,7 +213,8 @@
       "scope": "MVP",
       "status": "IN_PROGRESS",
       "evidence": [
-        "mobile/lib/features/students_screen.dart; backend/src/schemas.ts; student/consent core implemented; complete intake fields pending"
+        "mobile/lib/features/students_screen.dart; backend/src/schemas.ts; student/consent core implemented; complete intake fields pending",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
       ]
     },
     {
@@ -200,78 +223,109 @@
       "scope": "MVP",
       "status": "IN_PROGRESS",
       "evidence": [
-        "mobile/lib/features/students_screen.dart; backend/src/schemas.ts; student/consent core implemented; complete intake fields pending"
+        "mobile/lib/features/students_screen.dart; backend/src/schemas.ts; student/consent core implemented; complete intake fields pending",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
       ]
     },
     {
       "id": "FR-24",
       "description": "إدخال التقييم الأولي: مستوى إتقان كل مهارة بسلّم قابل للضبط (الافتراضي: متقن / يحتاج إلى تطوير / يحتاج إلى دعم إضافي) وتسجيل أسلوب التقييم (ملاحظة مباشرة / نشاط تقييم تربوي / قائمة رصد / بطاقات التقييم الأكاديمي المهيكلة)، مع الاحتفاظ بمصدر كل نتيجة. [س13، س14، ت]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "2026-11-08 implementation in isolated MVP worktrees/root integration; PROJECT_STATUS.md has executed checks and remaining acceptance gaps; not DONE",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
+      ]
     },
     {
       "id": "FR-25",
       "description": "إدخال نقاط القوة والاحتياجات الفردية ومستوى الأداء الحالي لكل مجال. [س7، س23]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "2026-11-08 implementation in isolated MVP worktrees/root integration; PROJECT_STATUS.md has executed checks and remaining acceptance gaps; not DONE",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
+      ]
     },
     {
       "id": "FR-26",
       "description": "إدخال ملاحظات الأسرة والمعلمين وملاحظات الأداء الصفي والصعوبات التي يواجهها الطالب. [س7، س23]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "2026-11-08 implementation in isolated MVP worktrees/root integration; PROJECT_STATUS.md has executed checks and remaining acceptance gaps; not DONE",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
+      ]
     },
     {
       "id": "FR-27",
       "description": "إدخال استراتيجيات سابقة (اختياري) بحقلين: اسم الاستراتيجية ونتيجتها. [س17]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "2026-11-08 implementation in isolated MVP worktrees/root integration; PROJECT_STATUS.md has executed checks and remaining acceptance gaps; not DONE",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
+      ]
     },
     {
       "id": "FR-28",
       "description": "اختيار المجالات المستهدفة بالتدخل: القراءة والمهارات القرائية، والكتابة والإملاء، والرياضيات والعمليات الحسابية، والمهارات التعليمية والتأسيسية، والانتباه والتركيز والمشاركة، والتواصل واللغة، والمهارات الحياتية والاستقلالية. [س15]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "2026-11-08 implementation in isolated MVP worktrees/root integration; PROJECT_STATUS.md has executed checks and remaining acceptance gaps; not DONE",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
+      ]
     },
     {
       "id": "FR-29",
       "description": "إمكانية إضافة مجالات أخرى مخصصة.",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "2026-11-08 implementation in isolated MVP worktrees/root integration; PROJECT_STATUS.md has executed checks and remaining acceptance gaps; not DONE",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
+      ]
     },
     {
       "id": "FR-30",
       "description": "توفير مكتبة مهارات فرعية جاهزة وقابلة للتوسعة، تبدأ بما ذكرته المختصة: الأرقام والعمليات الحسابية؛ التعبير عن الاحتياجات وتكوين الجمل؛ التمييز السمعي والبصري والتصنيف والتسلسل؛ مسك القلم والقص والتلوين؛ الاعتماد على النفس والنظافة وتنظيم الأدوات؛ إضافة إلى التعرف على الحروف وكتابة الاسم من أمثلة أهدافها. [س16، س20]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "2026-11-08 implementation in isolated MVP worktrees/root integration; PROJECT_STATUS.md has executed checks and remaining acceptance gaps; not DONE",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
+      ]
     },
     {
       "id": "FR-31",
       "description": "قصر المجالات والمهارات الجاهزة على التقييم التربوي، وعرض تنبيه عند إدخال مجال أو توصيف يستلزم تشخيصاً طبياً أو نفسياً، مع الإحالة إلى المختصين خارج التطبيق. [س15، س40]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "2026-11-08 implementation in isolated MVP worktrees/root integration; PROJECT_STATUS.md has executed checks and remaining acceptance gaps; not DONE",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
+      ]
     },
     {
       "id": "FR-32",
       "description": "اشتراط حد أدنى من المدخلات قبل التوليد: البيانات الأساسية غير التعريفية، ومستوى الأداء الحالي، ونقاط القوة والاحتياج، ونتائج تقييم أولي موثقة والمهارات التي تحتاج إلى تطوير. يمكن الاستناد إلى بطاقات التقييم الأكاديمي المعتمدة للفئة 6–12 سنة أو إلى تقييم تربوي بديل موثق مع بيان السبب؛ وتظل ملاحظات الأسرة والمعلمين مستحسنة. [س23، ت]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "2026-11-08 implementation in isolated MVP worktrees/root integration; PROJECT_STATUS.md has executed checks and remaining acceptance gaps; not DONE",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
+      ]
     },
     {
       "id": "FR-33",
       "description": "ربط كل خطة وجلسة برمز الطالب الخاص بها فقط.",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "2026-11-08 implementation in isolated MVP worktrees/root integration; PROJECT_STATUS.md has executed checks and remaining acceptance gaps; not DONE",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
+      ]
     },
     {
       "id": "FR-34",
@@ -286,7 +340,8 @@
       "scope": "MVP",
       "status": "IN_PROGRESS",
       "evidence": [
-        "backend/src/planning/; mobile/lib/features/plans_screen.dart; 22 backend domain tests PASS; Gemini integration and full plan edit/version acceptance pending"
+        "backend/src/planning/; mobile/lib/features/plans_screen.dart; 22 backend domain tests PASS; Gemini integration and full plan edit/version acceptance pending",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
       ]
     },
     {
@@ -295,7 +350,8 @@
       "scope": "MVP",
       "status": "IN_PROGRESS",
       "evidence": [
-        "backend/src/planning/; mobile/lib/features/plans_screen.dart; 22 backend domain tests PASS; Gemini integration and full plan edit/version acceptance pending"
+        "backend/src/planning/; mobile/lib/features/plans_screen.dart; 22 backend domain tests PASS; Gemini integration and full plan edit/version acceptance pending",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
       ]
     },
     {
@@ -304,7 +360,8 @@
       "scope": "MVP",
       "status": "IN_PROGRESS",
       "evidence": [
-        "backend/src/planning/; mobile/lib/features/plans_screen.dart; 22 backend domain tests PASS; Gemini integration and full plan edit/version acceptance pending"
+        "backend/src/planning/; mobile/lib/features/plans_screen.dart; 22 backend domain tests PASS; Gemini integration and full plan edit/version acceptance pending",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
       ]
     },
     {
@@ -313,7 +370,8 @@
       "scope": "MVP",
       "status": "IN_PROGRESS",
       "evidence": [
-        "backend/src/planning/; mobile/lib/features/plans_screen.dart; 22 backend domain tests PASS; Gemini integration and full plan edit/version acceptance pending"
+        "backend/src/planning/; mobile/lib/features/plans_screen.dart; 22 backend domain tests PASS; Gemini integration and full plan edit/version acceptance pending",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
       ]
     },
     {
@@ -322,7 +380,8 @@
       "scope": "MVP",
       "status": "IN_PROGRESS",
       "evidence": [
-        "backend/src/planning/; mobile/lib/features/plans_screen.dart; 22 backend domain tests PASS; Gemini integration and full plan edit/version acceptance pending"
+        "backend/src/planning/; mobile/lib/features/plans_screen.dart; 22 backend domain tests PASS; Gemini integration and full plan edit/version acceptance pending",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
       ]
     },
     {
@@ -331,7 +390,8 @@
       "scope": "MVP",
       "status": "IN_PROGRESS",
       "evidence": [
-        "backend/src/planning/; mobile/lib/features/plans_screen.dart; 22 backend domain tests PASS; Gemini integration and full plan edit/version acceptance pending"
+        "backend/src/planning/; mobile/lib/features/plans_screen.dart; 22 backend domain tests PASS; Gemini integration and full plan edit/version acceptance pending",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
       ]
     },
     {
@@ -340,7 +400,8 @@
       "scope": "MVP",
       "status": "IN_PROGRESS",
       "evidence": [
-        "backend/src/planning/; mobile/lib/features/plans_screen.dart; 22 backend domain tests PASS; Gemini integration and full plan edit/version acceptance pending"
+        "backend/src/planning/; mobile/lib/features/plans_screen.dart; 22 backend domain tests PASS; Gemini integration and full plan edit/version acceptance pending",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
       ]
     },
     {
@@ -349,7 +410,8 @@
       "scope": "MVP",
       "status": "IN_PROGRESS",
       "evidence": [
-        "backend/src/planning/; mobile/lib/features/plans_screen.dart; 22 backend domain tests PASS; Gemini integration and full plan edit/version acceptance pending"
+        "backend/src/planning/; mobile/lib/features/plans_screen.dart; 22 backend domain tests PASS; Gemini integration and full plan edit/version acceptance pending",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
       ]
     },
     {
@@ -358,22 +420,27 @@
       "scope": "MVP",
       "status": "IN_PROGRESS",
       "evidence": [
-        "backend/src/planning/; mobile/lib/features/plans_screen.dart; 22 backend domain tests PASS; Gemini integration and full plan edit/version acceptance pending"
+        "backend/src/planning/; mobile/lib/features/plans_screen.dart; 22 backend domain tests PASS; Gemini integration and full plan edit/version acceptance pending",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
       ]
     },
     {
       "id": "FR-44",
       "description": "استخدام جنس الطالب لضبط الصياغة النحوية (الطالب / الطالبة) وحده، دون أن يؤثر في مستوى الطموح أو نوع الأنشطة. [س12، س44]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
+      ]
     },
     {
       "id": "FR-45",
       "description": "جعل بنية الخطة قابلة للضبط (قالب قابل للتخصيص) لتتوافق مع النموذج المعتمد لدى المؤسسة حال توفره. [س8]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
+      ]
     },
     {
       "id": "FR-46",
@@ -381,7 +448,8 @@
       "scope": "MVP",
       "status": "IN_PROGRESS",
       "evidence": [
-        "backend/src/planning/; mobile/lib/features/plans_screen.dart; 22 backend domain tests PASS; Gemini integration and full plan edit/version acceptance pending"
+        "backend/src/planning/; mobile/lib/features/plans_screen.dart; 22 backend domain tests PASS; Gemini integration and full plan edit/version acceptance pending",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
       ]
     },
     {
@@ -390,7 +458,8 @@
       "scope": "MVP",
       "status": "IN_PROGRESS",
       "evidence": [
-        "backend/src/planning/; mobile/lib/features/plans_screen.dart; 22 backend domain tests PASS; Gemini integration and full plan edit/version acceptance pending"
+        "backend/src/planning/; mobile/lib/features/plans_screen.dart; 22 backend domain tests PASS; Gemini integration and full plan edit/version acceptance pending",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
       ]
     },
     {
@@ -399,7 +468,8 @@
       "scope": "MVP",
       "status": "IN_PROGRESS",
       "evidence": [
-        "backend/src/planning/; mobile/lib/features/plans_screen.dart; 22 backend domain tests PASS; Gemini integration and full plan edit/version acceptance pending"
+        "backend/src/planning/; mobile/lib/features/plans_screen.dart; 22 backend domain tests PASS; Gemini integration and full plan edit/version acceptance pending",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
       ]
     },
     {
@@ -408,7 +478,8 @@
       "scope": "MVP",
       "status": "IN_PROGRESS",
       "evidence": [
-        "backend/src/planning/; mobile/lib/features/plans_screen.dart; 22 backend domain tests PASS; Gemini integration and full plan edit/version acceptance pending"
+        "backend/src/planning/; mobile/lib/features/plans_screen.dart; 22 backend domain tests PASS; Gemini integration and full plan edit/version acceptance pending",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
       ]
     },
     {
@@ -417,7 +488,8 @@
       "scope": "MVP",
       "status": "IN_PROGRESS",
       "evidence": [
-        "backend/src/planning/; mobile/lib/features/plans_screen.dart; 22 backend domain tests PASS; Gemini integration and full plan edit/version acceptance pending"
+        "backend/src/planning/; mobile/lib/features/plans_screen.dart; 22 backend domain tests PASS; Gemini integration and full plan edit/version acceptance pending",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
       ]
     },
     {
@@ -426,7 +498,8 @@
       "scope": "MVP",
       "status": "IN_PROGRESS",
       "evidence": [
-        "backend/src/planning/; mobile/lib/features/plans_screen.dart; 22 backend domain tests PASS; Gemini integration and full plan edit/version acceptance pending"
+        "backend/src/planning/; mobile/lib/features/plans_screen.dart; 22 backend domain tests PASS; Gemini integration and full plan edit/version acceptance pending",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
       ]
     },
     {
@@ -435,7 +508,8 @@
       "scope": "MVP",
       "status": "IN_PROGRESS",
       "evidence": [
-        "backend/src/planning/; mobile/lib/features/plans_screen.dart; 22 backend domain tests PASS; Gemini integration and full plan edit/version acceptance pending"
+        "backend/src/planning/; mobile/lib/features/plans_screen.dart; 22 backend domain tests PASS; Gemini integration and full plan edit/version acceptance pending",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
       ]
     },
     {
@@ -444,7 +518,8 @@
       "scope": "MVP",
       "status": "IN_PROGRESS",
       "evidence": [
-        "backend/src/planning/; mobile/lib/features/plans_screen.dart; 22 backend domain tests PASS; Gemini integration and full plan edit/version acceptance pending"
+        "backend/src/planning/; mobile/lib/features/plans_screen.dart; 22 backend domain tests PASS; Gemini integration and full plan edit/version acceptance pending",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
       ]
     },
     {
@@ -453,7 +528,8 @@
       "scope": "MVP",
       "status": "IN_PROGRESS",
       "evidence": [
-        "backend/src/planning/; mobile/lib/features/plans_screen.dart; 22 backend domain tests PASS; Gemini integration and full plan edit/version acceptance pending"
+        "backend/src/planning/; mobile/lib/features/plans_screen.dart; 22 backend domain tests PASS; Gemini integration and full plan edit/version acceptance pending",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
       ]
     },
     {
@@ -462,134 +538,189 @@
       "scope": "MVP",
       "status": "IN_PROGRESS",
       "evidence": [
-        "backend/src/planning/; mobile/lib/features/plans_screen.dart; 22 backend domain tests PASS; Gemini integration and full plan edit/version acceptance pending"
+        "backend/src/planning/; mobile/lib/features/plans_screen.dart; 22 backend domain tests PASS; Gemini integration and full plan edit/version acceptance pending",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
       ]
     },
     {
       "id": "FR-56",
       "description": "استقبال مدخلات توليد النشاط: المجال التعليمي والصف الدراسي، والمهارة المستهدفة ومستوى الصعوبة، ونوع النشاط والأدوات المتاحة والزمن، ونمط النشاط (فردي / جماعي). وتبقى هذه المدخلات كلها كما هي. [س25]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "2026-11-08 implementation in isolated MVP worktrees/root integration; PROJECT_STATUS.md has executed checks and remaining acceptance gaps; not DONE",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
+      ]
     },
     {
       "id": "FR-57",
       "description": "دعم أنواع الأنشطة: أوراق العمل والبطاقات والقصص (الأكثر استخداماً)، إضافة إلى الألعاب التعليمية والأنشطة الحسية بمواد بسيطة لأغراض التعميم. [س24، س38]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "2026-11-08 implementation in isolated MVP worktrees/root integration; PROJECT_STATUS.md has executed checks and remaining acceptance gaps; not DONE",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
+      ]
     },
     {
       "id": "FR-58",
       "description": "حفظ «ملف الأدوات المتاحة» مرة واحدة، وافتراضه: السبورة والأقلام والبطاقات والأوراق والألوان. ويُمنع اقتراح أدوات تفاعلية أو تقنية أو حسية غير متوفرة ما لم تُضَف يدوياً. [س26]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "2026-11-08 implementation in isolated MVP worktrees/root integration; PROJECT_STATUS.md has executed checks and remaining acceptance gaps; not DONE",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
+      ]
     },
     {
       "id": "FR-59",
       "description": "إرشاد المختصة إلى إعداد الوسيلة التعليمية من خامات بسيطة متوفرة. [س26]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "2026-11-08 implementation in isolated MVP worktrees/root integration; PROJECT_STATUS.md has executed checks and remaining acceptance gaps; not DONE",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
+      ]
     },
     {
       "id": "FR-60",
       "description": "توليد مخرجات النشاط: العناصر الأساسية هي خطوات التنفيذ والأمثلة التطبيقية وطريقة التغذية الراجعة وآلية القياس؛ والعناصر الاختيارية هي اسم النشاط والهدف الإجرائي (مرتبط تلقائياً) والزمن والبدائل منخفضة التكلفة وملاحظات المعلمة. [س27]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "2026-11-08 implementation in isolated MVP worktrees/root integration; PROJECT_STATUS.md has executed checks and remaining acceptance gaps; not DONE",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
+      ]
     },
     {
       "id": "FR-61",
       "description": "كتابة النشاط بعربية مبسطة وواضحة تناسب مستوى الطالب. [س28]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "2026-11-08 implementation in isolated MVP worktrees/root integration; PROJECT_STATUS.md has executed checks and remaining acceptance gaps; not DONE",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
+      ]
     },
     {
       "id": "FR-62",
       "description": "مراعاة الظروف البيئية والنفسية والاجتماعية للطلبة: نبرة داعمة، وتجنب الأمثلة والمواقف التي قد تمسّ ظروفهم الصعبة. [س28]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "2026-11-08 implementation in isolated MVP worktrees/root integration; PROJECT_STATUS.md has executed checks and remaining acceptance gaps; not DONE",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
+      ]
     },
     {
       "id": "FR-63",
       "description": "ربط النشاط المولّد بهدف علاجي معتمد.",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "2026-11-08 implementation in isolated MVP worktrees/root integration; PROJECT_STATUS.md has executed checks and remaining acceptance gaps; not DONE",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
+      ]
     },
     {
       "id": "FR-64",
       "description": "تصدير النشاط للطباعة (ورقة عمل أو بطاقات) بصيغة PDF. [س11، س24]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "2026-11-08 implementation in isolated MVP worktrees/root integration; PROJECT_STATUS.md has executed checks and remaining acceptance gaps; not DONE",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
+      ]
     },
     {
       "id": "FR-65",
       "description": "تسجيل بيانات الجلسة الإلزامية: التاريخ، والهدف العلاجي، وعدد المحاولات، وعدد الإجابات الصحيحة، ومستوى الدعم، ومستوى تفاعل الطالب. [س29]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "2026-11-08 implementation in isolated MVP worktrees/root integration; PROJECT_STATUS.md has executed checks and remaining acceptance gaps; not DONE",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
+      ]
     },
     {
       "id": "FR-66",
       "description": "تسجيل بيانات الجلسة الاختيارية: النشاط المنفذ، والملاحظات السلوكية، ومدة الجلسة. [س29]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "2026-11-08 implementation in isolated MVP worktrees/root integration; PROJECT_STATUS.md has executed checks and remaining acceptance gaps; not DONE",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
+      ]
     },
     {
       "id": "FR-67",
       "description": "حساب نسبة الدقة تلقائياً: (الصحيح ÷ الكلي) × 100، واعتماد هذا المقياس لجميع الأهداف في النسخة الأولى دون مقاييس بديلة. [س30]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "2026-11-08 implementation in isolated MVP worktrees/root integration; PROJECT_STATUS.md has executed checks and remaining acceptance gaps; not DONE",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
+      ]
     },
     {
       "id": "FR-68",
       "description": "تحديد مستوى الدعم بالتصنيف المعتمد: كلي – جزئي – لفظي – مستقل. [س31]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "2026-11-08 implementation in isolated MVP worktrees/root integration; PROJECT_STATUS.md has executed checks and remaining acceptance gaps; not DONE",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
+      ]
     },
     {
       "id": "FR-69",
       "description": "تحديد مستوى تفاعل الطالب بتصنيف من ثلاثة مستويات (مقترح: مرتفع / متوسط / منخفض، وبانتظار تأكيد المختصة). [س29]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "2026-11-08 implementation in isolated MVP worktrees/root integration; PROJECT_STATUS.md has executed checks and remaining acceptance gaps; not DONE",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
+      ]
     },
     {
       "id": "FR-70",
       "description": "التسجيل اللاحق بتاريخ سابق والإدخال الدفعي لعدة جلسات في شاشة واحدة، لأن التسجيل يتم غالباً في نهاية اليوم. [س32]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "2026-11-08 implementation in isolated MVP worktrees/root integration; PROJECT_STATUS.md has executed checks and remaining acceptance gaps; not DONE",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
+      ]
     },
     {
       "id": "FR-71",
       "description": "تسجيل حالة الجلسة المجدولة (تمت / غاب الطالب / ألغيت) وحساب نسبة الانتظام، لأن الغياب من أسباب التعثر الشائعة. [س37]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "2026-11-08 implementation in isolated MVP worktrees/root integration; PROJECT_STATUS.md has executed checks and remaining acceptance gaps; not DONE",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
+      ]
     },
     {
       "id": "FR-72",
       "description": "عرض رسم بياني لتطور الأداء لكل هدف علاجي بنمط الأعمدة افتراضياً مع إمكانية العرض الخطي، وإظهار علامة معيار الإتقان. [س33]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "2026-11-08 implementation in isolated MVP worktrees/root integration; PROJECT_STATUS.md has executed checks and remaining acceptance gaps; not DONE",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
+      ]
     },
     {
       "id": "FR-73",
       "description": "أن تكون الرسوم واضحة ومفهومة لغير المتخصصين (ولي الأمر والإدارة): عناوين وعلامات بسيطة، وألا يعتمد المعنى على اللون وحده. [س33]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "2026-11-08 implementation in isolated MVP worktrees/root integration; PROJECT_STATUS.md has executed checks and remaining acceptance gaps; not DONE",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
+      ]
     },
     {
       "id": "FR-74",
@@ -693,78 +824,111 @@
       "id": "FR-88",
       "description": "توفير ثلاثة قوالب تقارير: تقرير تقدم دوري، وتقرير لولي الأمر، وتقرير للإدارة، إضافة إلى طباعة الخطة المعتمدة لحفظها في الملف الفردي. [س51، س11]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "2026-11-08 implementation in isolated MVP worktrees/root integration; PROJECT_STATUS.md has executed checks and remaining acceptance gaps; not DONE",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
+      ]
     },
     {
       "id": "FR-89",
       "description": "تضمين كل تقرير: البيانات الأساسية (رمز الطالب والصف وفترة التقرير)، والأهداف الإجرائية، والتدخلات التربوية، ومؤشرات التقدم مع الرسم البياني، والتوصيات، وتاريخ المتابعة القادم. [س52]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "2026-11-08 implementation in isolated MVP worktrees/root integration; PROJECT_STATUS.md has executed checks and remaining acceptance gaps; not DONE",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
+      ]
     },
     {
       "id": "FR-90",
       "description": "صياغة تقرير ولي الأمر بلغة مبسطة وإيجابية دون مصطلحات فنية، وتقرير الإدارة بملخص مركّز. [س33، س41]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "2026-11-08 implementation in isolated MVP worktrees/root integration; PROJECT_STATUS.md has executed checks and remaining acceptance gaps; not DONE",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
+      ]
     },
     {
       "id": "FR-91",
       "description": "تصدير التقارير بصيغتي PDF وWord قابل للتعديل باللغة العربية. [س54]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "2026-11-08 implementation in isolated MVP worktrees/root integration; PROJECT_STATUS.md has executed checks and remaining acceptance gaps; not DONE",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
+      ]
     },
     {
       "id": "FR-92",
       "description": "إمكانية رفع ترويسة أو شعار المؤسسة مرة واحدة لاستخدامه في ترويسة التقارير. [س54]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "2026-11-08 implementation in isolated MVP worktrees/root integration; PROJECT_STATUS.md has executed checks and remaining acceptance gaps; not DONE",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
+      ]
     },
     {
       "id": "FR-93",
       "description": "تجهيز التقارير للطباعة الملونة مع بقائها مقروءة عند الطباعة بالأبيض والأسود. [س54]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "2026-11-08 implementation in isolated MVP worktrees/root integration; PROJECT_STATUS.md has executed checks and remaining acceptance gaps; not DONE",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
+      ]
     },
     {
       "id": "FR-94",
       "description": "إخلاء التقرير من البيانات الشخصية مع تخصيص حيّز واضح لكتابة الاسم والبيانات يدوياً بعد الطباعة، أو إضافتها إلكترونياً في نسخة Word. [س53]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "2026-11-08 implementation in isolated MVP worktrees/root integration; PROJECT_STATUS.md has executed checks and remaining acceptance gaps; not DONE",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
+      ]
     },
     {
       "id": "FR-95",
       "description": "طباعة رمز الطالب ورقماً تسلسلياً فريداً للتقرير وترقيم الصفحات (صفحة x من y) في ترويسة كل صفحة، لمنع الخلط بين التقارير. [س62]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "2026-11-08 implementation in isolated MVP worktrees/root integration; PROJECT_STATUS.md has executed checks and remaining acceptance gaps; not DONE",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
+      ]
     },
     {
       "id": "FR-96",
       "description": "عند التصدير أو الطباعة الجماعية يُنتَج كل تقرير ملفاً مستقلاً، مع قائمة مطابقة بالرموز والأرقام التسلسلية دون أسماء. [س62]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "2026-11-08 implementation in isolated MVP worktrees/root integration; PROJECT_STATUS.md has executed checks and remaining acceptance gaps; not DONE",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
+      ]
     },
     {
       "id": "FR-97",
       "description": "حفظ سجل التصدير والطباعة: الرقم التسلسلي، ورمز الطالب، ونوع التقرير، وتاريخ التصدير، لدعم الأرشفة والتوثيق. [س62]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "2026-11-08 implementation in isolated MVP worktrees/root integration; PROJECT_STATUS.md has executed checks and remaining acceptance gaps; not DONE",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
+      ]
     },
     {
       "id": "FR-98",
       "description": "تضمين الرسوم البيانية ومؤشرات التقدم في التقارير دون إدراج بيانات شخصية.",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "2026-11-08 implementation in isolated MVP worktrees/root integration; PROJECT_STATUS.md has executed checks and remaining acceptance gaps; not DONE",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
+      ]
     },
     {
       "id": "FR-99",
@@ -793,7 +957,8 @@
       "scope": "MVP",
       "status": "IN_PROGRESS",
       "evidence": [
-        "mobile/lib/data/assessment_templates.dart; mobile/lib/models/assessment.dart; backend/test/schemas.test.ts; native academic-card acceptance and source review pending"
+        "mobile/lib/data/assessment_templates.dart; mobile/lib/models/assessment.dart; backend/test/schemas.test.ts; native academic-card acceptance and source review pending",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
       ]
     },
     {
@@ -802,7 +967,8 @@
       "scope": "MVP",
       "status": "IN_PROGRESS",
       "evidence": [
-        "mobile/lib/data/assessment_templates.dart; mobile/lib/models/assessment.dart; backend/test/schemas.test.ts; native academic-card acceptance and source review pending"
+        "mobile/lib/data/assessment_templates.dart; mobile/lib/models/assessment.dart; backend/test/schemas.test.ts; native academic-card acceptance and source review pending",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
       ]
     },
     {
@@ -811,7 +977,8 @@
       "scope": "MVP",
       "status": "IN_PROGRESS",
       "evidence": [
-        "mobile/lib/data/assessment_templates.dart; mobile/lib/models/assessment.dart; backend/test/schemas.test.ts; native academic-card acceptance and source review pending"
+        "mobile/lib/data/assessment_templates.dart; mobile/lib/models/assessment.dart; backend/test/schemas.test.ts; native academic-card acceptance and source review pending",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
       ]
     },
     {
@@ -820,7 +987,8 @@
       "scope": "MVP",
       "status": "IN_PROGRESS",
       "evidence": [
-        "mobile/lib/data/assessment_templates.dart; mobile/lib/models/assessment.dart; backend/test/schemas.test.ts; native academic-card acceptance and source review pending"
+        "mobile/lib/data/assessment_templates.dart; mobile/lib/models/assessment.dart; backend/test/schemas.test.ts; native academic-card acceptance and source review pending",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
       ]
     },
     {
@@ -829,7 +997,8 @@
       "scope": "MVP",
       "status": "IN_PROGRESS",
       "evidence": [
-        "mobile/lib/data/assessment_templates.dart; mobile/lib/models/assessment.dart; backend/test/schemas.test.ts; native academic-card acceptance and source review pending"
+        "mobile/lib/data/assessment_templates.dart; mobile/lib/models/assessment.dart; backend/test/schemas.test.ts; native academic-card acceptance and source review pending",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
       ]
     },
     {
@@ -838,7 +1007,8 @@
       "scope": "MVP",
       "status": "IN_PROGRESS",
       "evidence": [
-        "mobile/lib/data/assessment_templates.dart; mobile/lib/models/assessment.dart; backend/test/schemas.test.ts; native academic-card acceptance and source review pending"
+        "mobile/lib/data/assessment_templates.dart; mobile/lib/models/assessment.dart; backend/test/schemas.test.ts; native academic-card acceptance and source review pending",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
       ]
     },
     {
@@ -847,7 +1017,8 @@
       "scope": "MVP",
       "status": "IN_PROGRESS",
       "evidence": [
-        "mobile/lib/data/assessment_templates.dart; mobile/lib/models/assessment.dart; backend/test/schemas.test.ts; native academic-card acceptance and source review pending"
+        "mobile/lib/data/assessment_templates.dart; mobile/lib/models/assessment.dart; backend/test/schemas.test.ts; native academic-card acceptance and source review pending",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
       ]
     },
     {
@@ -856,7 +1027,8 @@
       "scope": "MVP",
       "status": "IN_PROGRESS",
       "evidence": [
-        "mobile/lib/data/assessment_templates.dart; mobile/lib/models/assessment.dart; backend/test/schemas.test.ts; native academic-card acceptance and source review pending"
+        "mobile/lib/data/assessment_templates.dart; mobile/lib/models/assessment.dart; backend/test/schemas.test.ts; native academic-card acceptance and source review pending",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
       ]
     },
     {
@@ -865,7 +1037,8 @@
       "scope": "MVP",
       "status": "IN_PROGRESS",
       "evidence": [
-        "mobile/lib/data/assessment_templates.dart; mobile/lib/models/assessment.dart; backend/test/schemas.test.ts; native academic-card acceptance and source review pending"
+        "mobile/lib/data/assessment_templates.dart; mobile/lib/models/assessment.dart; backend/test/schemas.test.ts; native academic-card acceptance and source review pending",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
       ]
     },
     {
@@ -874,7 +1047,8 @@
       "scope": "MVP",
       "status": "IN_PROGRESS",
       "evidence": [
-        "mobile/lib/data/assessment_templates.dart; mobile/lib/models/assessment.dart; backend/test/schemas.test.ts; native academic-card acceptance and source review pending"
+        "mobile/lib/data/assessment_templates.dart; mobile/lib/models/assessment.dart; backend/test/schemas.test.ts; native academic-card acceptance and source review pending",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
       ]
     },
     {
@@ -883,7 +1057,8 @@
       "scope": "MVP",
       "status": "IN_PROGRESS",
       "evidence": [
-        "mobile/lib/data/assessment_templates.dart; mobile/lib/models/assessment.dart; backend/test/schemas.test.ts; native academic-card acceptance and source review pending"
+        "mobile/lib/data/assessment_templates.dart; mobile/lib/models/assessment.dart; backend/test/schemas.test.ts; native academic-card acceptance and source review pending",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
       ]
     },
     {
@@ -892,7 +1067,8 @@
       "scope": "MVP",
       "status": "IN_PROGRESS",
       "evidence": [
-        "mobile/lib/data/assessment_templates.dart; mobile/lib/models/assessment.dart; backend/test/schemas.test.ts; native academic-card acceptance and source review pending"
+        "mobile/lib/data/assessment_templates.dart; mobile/lib/models/assessment.dart; backend/test/schemas.test.ts; native academic-card acceptance and source review pending",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
       ]
     },
     {
@@ -901,7 +1077,8 @@
       "scope": "MVP",
       "status": "IN_PROGRESS",
       "evidence": [
-        "mobile/lib/data/assessment_templates.dart; mobile/lib/models/assessment.dart; backend/test/schemas.test.ts; native academic-card acceptance and source review pending"
+        "mobile/lib/data/assessment_templates.dart; mobile/lib/models/assessment.dart; backend/test/schemas.test.ts; native academic-card acceptance and source review pending",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
       ]
     },
     {
@@ -910,7 +1087,8 @@
       "scope": "MVP",
       "status": "IN_PROGRESS",
       "evidence": [
-        "mobile/lib/data/assessment_templates.dart; mobile/lib/models/assessment.dart; backend/test/schemas.test.ts; native academic-card acceptance and source review pending"
+        "mobile/lib/data/assessment_templates.dart; mobile/lib/models/assessment.dart; backend/test/schemas.test.ts; native academic-card acceptance and source review pending",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
       ]
     },
     {
@@ -919,7 +1097,8 @@
       "scope": "MVP",
       "status": "IN_PROGRESS",
       "evidence": [
-        "mobile/lib/data/assessment_templates.dart; mobile/lib/models/assessment.dart; backend/test/schemas.test.ts; native academic-card acceptance and source review pending"
+        "mobile/lib/data/assessment_templates.dart; mobile/lib/models/assessment.dart; backend/test/schemas.test.ts; native academic-card acceptance and source review pending",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
       ]
     },
     {
@@ -928,7 +1107,8 @@
       "scope": "MVP",
       "status": "IN_PROGRESS",
       "evidence": [
-        "mobile/lib/data/assessment_templates.dart; mobile/lib/models/assessment.dart; backend/test/schemas.test.ts; native academic-card acceptance and source review pending"
+        "mobile/lib/data/assessment_templates.dart; mobile/lib/models/assessment.dart; backend/test/schemas.test.ts; native academic-card acceptance and source review pending",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
       ]
     },
     {
@@ -937,7 +1117,8 @@
       "scope": "MVP",
       "status": "IN_PROGRESS",
       "evidence": [
-        "mobile/lib/data/assessment_templates.dart; mobile/lib/models/assessment.dart; backend/test/schemas.test.ts; native academic-card acceptance and source review pending"
+        "mobile/lib/data/assessment_templates.dart; mobile/lib/models/assessment.dart; backend/test/schemas.test.ts; native academic-card acceptance and source review pending",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
       ]
     },
     {
@@ -946,7 +1127,8 @@
       "scope": "MVP",
       "status": "IN_PROGRESS",
       "evidence": [
-        "mobile/lib/data/assessment_templates.dart; mobile/lib/models/assessment.dart; backend/test/schemas.test.ts; native academic-card acceptance and source review pending"
+        "mobile/lib/data/assessment_templates.dart; mobile/lib/models/assessment.dart; backend/test/schemas.test.ts; native academic-card acceptance and source review pending",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
       ]
     },
     {
@@ -955,15 +1137,18 @@
       "scope": "MVP",
       "status": "IN_PROGRESS",
       "evidence": [
-        "backend/src/planning/; mobile/lib/features/plans_screen.dart; 22 backend domain tests PASS; Gemini integration and full plan edit/version acceptance pending"
+        "backend/src/planning/; mobile/lib/features/plans_screen.dart; 22 backend domain tests PASS; Gemini integration and full plan edit/version acceptance pending",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
       ]
     },
     {
       "id": "FR-121",
       "description": "دعم إكمال التقييم وتصحيح البنود والاعتماد المحلي دون اتصال، ومزامنة نسخة التقييم ونتائج البنود مع منع الازدواج وتعارض الإصدارات عند عودة الإنترنت. [ت]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
+      ]
     },
     {
       "id": "FR-122",
@@ -971,7 +1156,8 @@
       "scope": "MVP",
       "status": "IN_PROGRESS",
       "evidence": [
-        "mobile/lib/data/assessment_templates.dart; mobile/lib/models/assessment.dart; backend/test/schemas.test.ts; native academic-card acceptance and source review pending"
+        "mobile/lib/data/assessment_templates.dart; mobile/lib/models/assessment.dart; backend/test/schemas.test.ts; native academic-card acceptance and source review pending",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
       ]
     },
     {
@@ -980,7 +1166,8 @@
       "scope": "MVP",
       "status": "IN_PROGRESS",
       "evidence": [
-        "mobile/lib/data/assessment_templates.dart; mobile/lib/models/assessment.dart; backend/test/schemas.test.ts; native academic-card acceptance and source review pending"
+        "mobile/lib/data/assessment_templates.dart; mobile/lib/models/assessment.dart; backend/test/schemas.test.ts; native academic-card acceptance and source review pending",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
       ]
     },
     {
@@ -989,7 +1176,8 @@
       "scope": "MVP",
       "status": "IN_PROGRESS",
       "evidence": [
-        "mobile/lib/data/assessment_templates.dart; mobile/lib/models/assessment.dart; backend/test/schemas.test.ts; native academic-card acceptance and source review pending"
+        "mobile/lib/data/assessment_templates.dart; mobile/lib/models/assessment.dart; backend/test/schemas.test.ts; native academic-card acceptance and source review pending",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
       ]
     },
     {
@@ -998,29 +1186,36 @@
       "scope": "MVP",
       "status": "IN_PROGRESS",
       "evidence": [
-        "mobile/lib/data/assessment_templates.dart; mobile/lib/models/assessment.dart; backend/test/schemas.test.ts; native academic-card acceptance and source review pending"
+        "mobile/lib/data/assessment_templates.dart; mobile/lib/models/assessment.dart; backend/test/schemas.test.ts; native academic-card acceptance and source review pending",
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
       ]
     },
     {
       "id": "FR-126",
       "description": "تماثل جميع مسارات النسخة الأولى على المنصتين: إنشاء الحساب، التقييم الأكاديمي، حفظ ملف الطالب المجهّل، توليد مسودة الخطة واعتمادها، الأنشطة، الجلسات، الرسوم البيانية، وتصدير التقارير؛ ويُوثَّق ويُصحَّح أي فرق وظيفي قبل الاستلام. [قرار مالك المشروع 1.3]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
+      ]
     },
     {
       "id": "FR-127",
       "description": "حفظ البيانات محلياً بتشفير واستئناف التقييم والجلسات والمزامنة الآمنة على Android وiOS، مع معالجة انتقال التطبيق للخلفية وإغلاقه وانقطاع الشبكة من دون فقد بيانات، وفق قيود كل نظام. [قرار مالك المشروع 1.3]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
+      ]
     },
     {
       "id": "FR-128",
       "description": "تمكين المستخدم المخوّل من تسجيل الدخول إلى حسابه نفسه على جهاز متوافق من أيٍّ من النظامين واستعادة سجلاته التي تمت مزامنتها، مع الحفاظ على عزل الحسابات والصلاحيات وسجل التعارضات وعدم نقل البيانات غير المتزامنة تلقائياً. [قرار مالك المشروع 1.3]",
       "scope": "MVP",
-      "status": "TODO",
-      "evidence": []
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
+      ]
     }
   ]
 }

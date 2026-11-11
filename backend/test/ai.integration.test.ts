@@ -34,6 +34,7 @@ async function source(account: Account, approved = true, studentOverrides: Parti
     strengths: 'SYNTHETIC-PRIVATE-STRENGTHS', needs: 'SYNTHETIC-PRIVATE-NEEDS' });
   assessment.results['1a']!.response = 'SYNTHETIC-PRIVATE-RAW-ANSWER';
   assessment.results['1a']!.observation = 'SYNTHETIC-PRIVATE-OBSERVATION';
+  assessment.results['2a']!.structuredObservations = { spellingNotes: 'SYNTHETIC-PRIVATE-WRITING-OBSERVATION' };
   for (const operation of [operationFixture('student', student), operationFixture('assessment', assessment)]) {
     const response = await app.inject({ method: 'POST', url: '/v1/sync/push', headers: headers(account), payload: { operations: [operation] } });
     expect(response.json<{ results: SyncResult[] }>().results[0]?.status).toBe('applied');
@@ -294,6 +295,8 @@ describe('AI owner boundaries and consent on real PostgreSQL', () => {
     expect(skills.body).not.toContain('SYNTHETIC-PRIVATE');
     const value = await preview(account, data);
     expect(value.payload).toEqual(aiInput);
+    expect(JSON.stringify(value.payload)).not.toContain('structuredObservations');
+    expect(JSON.stringify(value.payload)).not.toContain('SYNTHETIC-PRIVATE');
     expect(value.expiresAt).toBe('2026-11-06T10:10:00.000Z');
     for (const patch of [{ confirmed: false }, { syntheticDataConfirmed: false }, { confirmedHash: 'a'.repeat(64) }, { rawText: 'SYNTHETIC-PRIVATE-TEXT' }]) {
       expect((await app.inject({ method: 'POST', url: '/v1/ai/generate', headers: headers(account), payload: { ...generationInput(value), ...patch } })).statusCode).toBe(400);

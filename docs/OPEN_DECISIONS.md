@@ -13,4 +13,6 @@ No educational/legal/hosting decision is silently resolved by implementation.
 
 Development is authorized with synthetic data; none of the above blocks foundation, account/owner boundaries, encrypted storage, or assessment infrastructure.
 
+2026-11-11 operational authorization: owner confirmed My Workspace and the reviewed free Frankfurt Render staging plan (separate API+private PostgreSQL17,30-day disposable database). This approves synthetic staging only. It does not decide production data country/provider processing, consent or retention. No paid service was purchased. Gemini model remains the user-selected gemini-flash-latest; protected server-side synthetic access was explicitly authorized earlier.
+
 Technical prototype policies (not educational approval): cancelled sessions are excluded from attendance denominator; absent sessions have no performance score. Engagement is an institution-entered label until its three-level scale is approved. Imported template v1.0 snapshots remain separate and preserved; no silent upgrade to v1.1. A supervised migration is still needed for any preexisting v1.0 data.
