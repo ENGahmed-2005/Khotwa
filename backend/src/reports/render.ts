@@ -6,10 +6,10 @@ import { ApiError } from '../errors.js';
 import { escapeHtml, goalCharts } from './charts.js';
 import { accuracyLabel, percentLabel, referenceHeadings, reviewSafeText, statusLabel, supportLabel, titleForType, type InstitutionLogo, type ReportDocument, type ReportGoal, type ReportSettings } from './model.js';
 
-let fontPromise: Promise<Buffer> | undefined;
-function fontData() {
-  fontPromise ??= readFile(process.env.KHOTWA_REPORT_FONT ?? fileURLToPath(new URL('./assets/NotoSansArabic.ttf', import.meta.url)));
-  return fontPromise;
+const fontPromises = new Map<'Regular' | 'Bold', Promise<Buffer>>();
+function fontData(style: 'Regular' | 'Bold' = 'Regular') {
+  if (!fontPromises.has(style)) fontPromises.set(style, readFile(process.env.KHOTWA_REPORT_FONT ?? fileURLToPath(new URL(`./assets/DejaVuSans${style === 'Bold' ? '-Bold' : ''}.ttf`, import.meta.url))));
+  return fontPromises.get(style)!;
 }
 async function launchBrowser(): Promise<Browser> {
   try {
@@ -28,8 +28,9 @@ function logoHtml(settings: ReportSettings) {
   return settings.logo ? `<img alt="شعار المؤسسة" width="78" height="${Math.min(45, 78 * settings.logo.height / settings.logo.width)}" src="data:image/png;base64,${settings.logo.base64}"/>` : '';
 }
 async function stylesheet() {
-  return `@font-face{font-family:NotoSansArabic;src:url(data:font/ttf;base64,${(await fontData()).toString('base64')}) format('truetype');font-weight:100 900}
-    *{box-sizing:border-box}html{font-family:NotoSansArabic,Arial,sans-serif;font-size:15px;color:#111;background:white}
+  return `@font-face{font-family:KhotwaArabic;src:url(data:font/ttf;base64,${(await fontData()).toString('base64')}) format('truetype');font-weight:400}
+    @font-face{font-family:KhotwaArabic;src:url(data:font/ttf;base64,${(await fontData('Bold')).toString('base64')}) format('truetype');font-weight:700}
+    *{box-sizing:border-box}html{font-family:KhotwaArabic,Arial,sans-serif;font-size:15px;color:#111;background:white}
     body{direction:rtl;line-height:1.8;margin:0}h1{font-size:23px;line-height:1.6;margin:0 0 12px;color:black}
     h2{font-size:19px;line-height:1.7;margin:22px 0 8px;break-after:avoid}h3{font-size:16px;line-height:1.7;margin:14px 0 6px;break-after:avoid}
     p{margin:7px 0;overflow-wrap:anywhere}bdi{direction:ltr;unicode-bidi:isolate}
@@ -38,7 +39,7 @@ async function stylesheet() {
     th{background:#eceff0;font-weight:700}thead{display:table-header-group}tr{break-inside:avoid}
     figure{margin:12px 0;break-inside:avoid}figure svg{display:block;width:100%;height:auto}.muted{font-size:12px;color:#333}
     .metric{font-weight:700}.manual{padding:9px 0;border-bottom:1px dotted #555}.section{margin:12px 0}.metadata{font-size:13px}
-    .logo{float:left;max-height:48px;max-width:100px}.reference-heading{font-family:Arial,sans-serif}ul,ol{padding-right:22px}li{margin:4px 0}@page{size:Letter}`;
+    .logo{float:left;max-height:48px;max-width:100px}.reference-heading{font-family:KhotwaArabic,Arial,sans-serif}ul,ol{padding-right:22px}li{margin:4px 0}@page{size:Letter}`;
 }
 function listHtml(values: string[]) {
   return values.length ? `<ul>${values.map(value => `<li>${escapeHtml(value)}</li>`).join('')}</ul>` : '<p>لم تسجل عناصر في الخطة المعتمدة.</p>';
@@ -137,7 +138,7 @@ export function reportHtml(report: ReportDocument): string {
 }
 
 function textRuns(text: string, bold = false, size = 24): TextRun[] {
-  return text.split(/([A-Za-z0-9][A-Za-z0-9 .:/%+-]*)/).filter(Boolean).map(part => new TextRun({ text: part, font: 'Arial', size, color: '000000', bold, rightToLeft: !/^[A-Za-z0-9]/.test(part) }));
+  return text.split(/([A-Za-z0-9][A-Za-z0-9 .:/%+-]*)/).filter(Boolean).map(part => new TextRun({ text: part, font: 'DejaVu Sans', size, color: '000000', bold, rightToLeft: !/^[A-Za-z0-9]/.test(part) }));
 }
 function paragraph(text: string, options: { heading?: boolean; title?: boolean; bold?: boolean } = {}) {
   return new Paragraph({ bidirectional: true, alignment: AlignmentType.RIGHT, spacing: { after: 130, line: 330 },
@@ -194,9 +195,10 @@ export async function renderReport(report: ReportDocument, format: 'pdf' | 'docx
     const headerChildren: ParagraphChild[] = [...textRuns(`${report.settings.institutionTitle || 'خطوة'} | رمز الطالب ${report.studentCode}`, true)];
     if (report.settings.logo) headerChildren.push(new ImageRun({ type: 'png', data: Buffer.from(report.settings.logo.base64, 'base64'), transformation: { width: Math.min(78, 45 * report.settings.logo.width / report.settings.logo.height), height: Math.min(45, 78 * report.settings.logo.height / report.settings.logo.width) }, altText: { title: 'شعار المؤسسة', description: 'شعار المؤسسة', name: 'institution-logo' } }));
     const document = new Document({ creator: 'Khotwa', title: titleForType(report.type), description: 'تقرير تربوي برمز مجهّل دون بيانات تعريفية',
-      styles: { default: { document: { run: { font: 'Arial', size: 24, color: '000000' }, paragraph: { alignment: AlignmentType.RIGHT } },
-        title: { run: { font: 'Arial', size: 38, bold: true, color: '000000' }, paragraph: { spacing: { after: 200 } } },
-        heading2: { run: { font: 'Arial', size: 30, bold: true, color: '000000' }, paragraph: { spacing: { before: 180, after: 120 }, keepNext: true } } } },
+      fonts: [{ name: 'DejaVu Sans', data: await fontData(), bold: await fontData('Bold') }],
+      styles: { default: { document: { run: { font: 'DejaVu Sans', size: 24, color: '000000' }, paragraph: { alignment: AlignmentType.RIGHT } },
+        title: { run: { font: 'DejaVu Sans', size: 38, bold: true, color: '000000' }, paragraph: { spacing: { after: 200 } } },
+        heading2: { run: { font: 'DejaVu Sans', size: 30, bold: true, color: '000000' }, paragraph: { spacing: { before: 180, after: 120 }, keepNext: true } } } },
       sections: [{ properties: { page: { size: { width: 12240, height: 15840 }, margin: { top: 1700, bottom: 1000, left: 900, right: 900, header: 500, footer: 500 } } },
         headers: { default: new Header({ children: [new Paragraph({ bidirectional: true, alignment: AlignmentType.RIGHT, children: headerChildren }),
           new Paragraph({ bidirectional: true, alignment: AlignmentType.RIGHT, children: [...textRuns(`رقم التقرير ${report.serial} | صفحة `), new TextRun({ children: [PageNumber.CURRENT], font: 'Arial', size: 20 }), ...textRuns(' من '), new TextRun({ children: [PageNumber.TOTAL_PAGES], font: 'Arial', size: 20 })] })] }) }, children }] });

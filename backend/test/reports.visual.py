@@ -77,29 +77,46 @@ def main() -> None:
     if not args.soffice or not args.pdftoppm:
         raise SystemExit("Install LibreOffice Writer and Poppler before claiming Word visual acceptance")
     directory = args.directory.resolve()
-    reference_results = check_reference_titles(directory)
     output = directory / "word-render"
     output.mkdir(parents=True, exist_ok=True)
     documents = sorted(directory.glob("*.docx"))
     assert documents, "Generate report test fixtures before running visual QA"
     results = []
+    failures: list[str] = []
+    def verify(label: str, check) -> bool:
+        try:
+            check()
+            return True
+        except AssertionError as error:
+            failures.append(f"{label}: {error}")
+            return False
+
     with tempfile.TemporaryDirectory(prefix="khotwa-report-lo-") as profile:
         for source in documents:
             code, serial = identifiers(source)
             subprocess.run([args.soffice, f"-env:UserInstallation={Path(profile).as_uri()}", "--headless", "--convert-to", "pdf:writer_pdf_Export", "--outdir", str(output), str(source)], check=True, timeout=90)
             converted = output / f"{source.stem}.pdf"
             assert converted.is_file(), f"No Word render created for {source.name}"
-            pages = check_pdf(converted, code, serial)
+            # Preserve actual Word PNGs even when text checks discover a font issue.
+            # The same checks still fail the job after all evidence has been written.
+            subprocess.run([args.pdftoppm, "-png", "-scale-to", "1500", str(converted), str(output / source.stem)], check=True, timeout=90)
+            pages = len(PdfReader(converted).pages)
+            identifiers_ok = verify(source.name, lambda: check_pdf(converted, code, serial))
             reference = next((row for row in json.loads((directory / "REFERENCE_EXPECTATIONS.json").read_text(encoding="utf-8")) if row["stem"] == source.stem), None)
             if reference is not None:
-                check_reference_pdf(converted, reference)
-            subprocess.run([args.pdftoppm, "-png", "-scale-to", "1500", str(converted), str(output / source.stem)], check=True, timeout=90)
+                verify(source.name, lambda: check_reference_pdf(converted, reference))
             original = directory / f"{source.stem}.pdf"
             if original.is_file():
-                check_pdf(original, code, serial)
-            results.append({"document": source.name, "pages": pages, "all_page_identifiers": True, "png_review_required": True})
+                verify(original.name, lambda: check_pdf(original, code, serial))
+            results.append({"document": source.name, "pages": pages, "all_page_identifiers": identifiers_ok, "png_review_required": True})
+    reference_results = []
+    def reference_checks() -> None:
+        reference_results.extend(check_reference_titles(directory))
+    verify("original PDF and Word source headings", reference_checks)
     (output / "QA.json").write_text(json.dumps(results, indent=2) + "\n", encoding="utf-8")
     (output / "REFERENCE_QA.json").write_text(json.dumps(reference_results, indent=2) + "\n", encoding="utf-8")
+    (output / "FAILURES.json").write_text(json.dumps(failures, indent=2) + "\n", encoding="utf-8")
+    assert not failures, "\n".join(failures)
     print(json.dumps({"word_documents_rendered": len(results), "results": results}, indent=2))
 
 

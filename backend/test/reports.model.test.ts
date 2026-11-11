@@ -133,8 +133,8 @@ describe('actual Arabic document renderers', () => {
     const browser = await chromium.launch({ headless: true, ...(process.env.KHOTWA_CHROMIUM_EXECUTABLE ? { executablePath: process.env.KHOTWA_CHROMIUM_EXECUTABLE } : { channel: 'chrome' }) });
     try {
       const page = await browser.newPage();
-      const font = await readFile(new URL('../src/reports/assets/NotoSansArabic.ttf', import.meta.url));
-      await page.setContent(`<style>@font-face{font-family:NotoSansArabic;src:url(data:font/ttf;base64,${font.toString('base64')})}body{direction:rtl}</style>${chart}`);
+      const font = await readFile(new URL('../src/reports/assets/DejaVuSans.ttf', import.meta.url));
+      await page.setContent(`<style>@font-face{font-family:KhotwaArabic;src:url(data:font/ttf;base64,${font.toString('base64')})}body{direction:rtl}</style>${chart}`);
       await page.evaluate(() => globalThis.document.fonts.ready);
       const labels = await page.locator('svg text').evaluateAll(nodes => nodes.map(node => {
         const bounds = (node as SVGTextElement).getBBox();
@@ -181,6 +181,11 @@ describe('actual Arabic document renderers', () => {
     expect(header).toContain(report.serial);
     expect(header).toContain(report.studentCode);
     expect(header).toMatch(/PAGE/); expect(header).toMatch(/NUMPAGES/);
+    expect(strFromU8(entries['word/fontTable.xml']!)).toContain('DejaVu Sans');
+    expect(strFromU8(entries['word/fontTable.xml']!)).toContain('w:embedRegular');
+    expect(strFromU8(entries['word/fontTable.xml']!)).toContain('w:embedBold');
+    expect(strFromU8(entries['word/settings.xml']!)).toContain('w:embedTrueTypeFonts');
+    expect(Object.keys(entries).filter(path => /^word\/fonts\/font\d+\.odttf$/.test(path))).toHaveLength(2);
     if (type === 'parent') {
       expect(xml).toContain('كيف ندعم التعلم'); expect(xml).toContain('خطوات الدعم القادمة');
       expect(xml).toContain('نسبة الإجابات الصحيحة'); expect(xml).not.toContain('مقام الانتظام');

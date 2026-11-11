@@ -28,6 +28,6 @@ export function goalCharts(goal: ReportGoal): ChartPanel[] {
     }).join('');
     const empty = sessions.length ? '' : `<text x="${left + plotWidth / 2}" y="${top + height / 2}" text-anchor="middle" font-size="19" direction="rtl">لا توجد جلسات مسجلة ضمن الفترة</text>`;
     return { part: part + 1, totalParts: parts,
-      svg: `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="246" viewBox="0 0 ${width} 246" role="img" aria-label="${escapeHtml('دقة الجلسات للهدف ' + goal.behavior)}"><title>${escapeHtml(goal.behavior)}</title><rect width="${width}" height="246" fill="white"/><g font-family="NotoSansArabic,Arial,sans-serif" fill="#111">${grid}${target}${marks}${empty}</g></svg>` };
+      svg: `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="246" viewBox="0 0 ${width} 246" role="img" aria-label="${escapeHtml('دقة الجلسات للهدف ' + goal.behavior)}"><title>${escapeHtml(goal.behavior)}</title><rect width="${width}" height="246" fill="white"/><g font-family="KhotwaArabic,Arial,sans-serif" fill="#111">${grid}${target}${marks}${empty}</g></svg>` };
   });
 }
