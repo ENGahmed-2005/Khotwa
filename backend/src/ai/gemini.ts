@@ -4,6 +4,7 @@ import type { PlanProvider } from '../planning/gateway.js';
 import { planContentSchema, type GenerationInput } from '../planning/domain.js';
 import { ApiError } from '../errors.js';
 import { toolLabels } from './catalog.js';
+import { providerHttpError } from './provider-errors.js';
 
 export interface GeminiOptions { apiKey: string; model: string; fetchImpl?: typeof fetch; timeoutMs?: number; clock?: () => Date }
 
@@ -40,7 +41,7 @@ export class GeminiPlanProvider implements PlanProvider {
           generationConfig: { temperature: 0.3, maxOutputTokens: 8192, responseMimeType: 'application/json', responseJsonSchema: schema } }),
       });
     } catch { throw new ApiError(502, 'AI_PROVIDER_UNAVAILABLE', 'تعذر الاتصال بمولد الخطة؛ المدخلات محفوظة لإعادة المحاولة.'); }
-    if (!response.ok) throw new ApiError(502, 'AI_PROVIDER_UNAVAILABLE', 'تعذر توليد الخطة من المزود حاليًا؛ حاول لاحقًا.');
+    if (!response.ok) throw providerHttpError(response.status);
     try {
       const raw: unknown = await response.json();
       const envelope = z.object({ candidates: z.array(z.object({ finishReason: z.string(), content: z.object({ parts: z.array(z.object({ text: z.string().optional(), thought: z.boolean().optional() })) }) })).min(1) }).parse(raw);
