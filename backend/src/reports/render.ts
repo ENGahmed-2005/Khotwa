@@ -43,6 +43,9 @@ async function stylesheet() {
 function listHtml(values: string[]) {
   return values.length ? `<ul>${values.map(value => `<li>${escapeHtml(value)}</li>`).join('')}</ul>` : '<p>لم تسجل عناصر في الخطة المعتمدة.</p>';
 }
+function recordedTextHtml(text: string): string {
+  return escapeHtml(text).replace(/\d{4}-\d{2}-\d{2}|\d+(?:\.\d+)?%?/g, value => `<bdi>${value}</bdi>`);
+}
 function headerHtml(studentCode: string, serial: string, settings: ReportSettings) {
   return `<div style="font-family:Arial,sans-serif;font-size:13px;direction:rtl;width:100%;padding:0 16mm;line-height:1.7;color:black"><div style="float:left;margin-right:8px">${logoHtml(settings)}</div><div>${escapeHtml(settings.institutionTitle || 'خطوة')} | رمز الطالب <span dir="ltr">${escapeHtml(studentCode)}</span></div><div>رقم التقرير <span dir="ltr">${escapeHtml(serial)}</span> | صفحة <span class="pageNumber"></span> من <span class="totalPages"></span></div></div>`;
 }
@@ -118,12 +121,12 @@ export function reportHtml(report: ReportDocument): string {
   const title = report.type === 'plan' ? headings.plan : titleForType(report.type);
   const metadata = `<p class="metadata">رمز الطالب <bdi>${escapeHtml(report.studentCode)}</bdi>${report.grade === null ? '' : ' | الصف ' + escapeHtml(report.grade)}<br/>الفترة <bdi>${report.periodStart}</bdi> إلى <bdi>${report.periodEnd}</bdi> | التصدير <bdi>${report.exportedOn}</bdi></p>`;
   const overview = `<h2 class="reference-heading">ملخص ${escapeHtml(headings.plan)}</h2><p><strong>الهدف العام </strong>${escapeHtml(report.content.generalGoal)}</p>${view.administration ? '' : `<p><strong>نقاط القوة </strong>${escapeHtml(report.content.strengthsSummary)}</p><p><strong>${view.needs} </strong>${escapeHtml(report.content.needsSummary)}</p><p><strong>${view.baseline} </strong>${escapeHtml(report.content.baseline)}</p>`}`;
-  const attendanceHtml = report.type === 'plan' ? '' : `<h2>${view.parent ? 'الحضور خلال الفترة' : 'الانتظام خلال الفترة'}</h2><p>${escapeHtml(attendanceText(report))}</p>`;
+  const attendanceHtml = report.type === 'plan' ? '' : `<h2>${view.parent ? 'الحضور خلال الفترة' : 'الانتظام خلال الفترة'}</h2><p>${recordedTextHtml(attendanceText(report))}</p>`;
   const goals = report.goals.map((goal, index) => {
     const title = `<h2>الهدف ${index + 1}</h2><p>${escapeHtml(goal.behavior)} ${escapeHtml(goal.condition)}</p><p><strong>${view.criterion} </strong>${escapeHtml(goal.criterion)} | ${view.timeframe} ${goal.timeframeWeeks} أسابيع</p>`;
     if (report.type === 'plan') return title;
     const graphs = goalCharts(goal).map(panel => `<figure>${panel.svg}<figcaption class="muted">${escapeHtml(chartCaption(report, goal, panel))}</figcaption></figure>`).join('');
-    if (view.administration) return `${title}<p>${escapeHtml(administrativeGoalSummary(goal))}</p>${graphs}`;
+    if (view.administration) return `${title}<p>${recordedTextHtml(administrativeGoalSummary(goal))}</p>${graphs}`;
     const rows = goal.sessions.map(session => `<tr><td><bdi>${session.occurredOn}</bdi></td><td>${statusLabel(session.status)}</td><td>${session.status === 'completed' ? `<bdi>${session.correct} / ${session.total}</bdi>` : 'لا أداء مسجل'}</td><td><bdi>${accuracyLabel(session)}</bdi></td><td>${supportLabel(session.support)}</td></tr>`).join('');
     return `${title}${graphs}${goal.sessions.length ? `<table><thead><tr>${sessionColumns(report).map(label => `<th>${label}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table>` : '<p>لا توجد بيانات جلسات لهذا الهدف ضمن الفترة المحددة.</p>'}`;
   }).join('');

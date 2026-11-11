@@ -111,8 +111,11 @@ describe('report selection and descriptive data boundary', () => {
     expect(parent).toContain('نسبة الإجابات الصحيحة'); expect(parent).toContain('لا نعد الغياب أو الإلغاء إجابات خاطئة');
     expect(parent).not.toContain('مقام الانتظام'); expect(parent).not.toContain('الإطار الزمني');
     const administration = reportHtml({ ...report, type: 'administration' });
-    expect(administration).toContain('جلسات منفذة 2 | غياب 1 | إلغاء 1');
-    expect(administration).toContain('آخر جلسة منفذة 2026-11-02: 8 إجابات صحيحة من 8 محاولات، الدقة 100%');
+    const administrationText = administration.replace(/<[^>]+>/g, '');
+    expect(administrationText).toContain('جلسات منفذة 2 | غياب 1 | إلغاء 1');
+    expect(administrationText).toContain('آخر جلسة منفذة 2026-11-02: 8 إجابات صحيحة من 8 محاولات، الدقة 100%');
+    expect(administration).toContain('<bdi>2026-11-02</bdi>'); expect(administration).toContain('<bdi>100%</bdi>');
+    expect(parent).toContain('<bdi>66.67%</bdi>');
     expect(administration).toContain('<svg'); expect(administration).not.toContain('<table');
     expect(administration).not.toContain('نقاط القوة');
     const empty = reportHtml({ ...report, type: 'administration', goals: report.goals.map(goal => ({ ...goal, sessions: [] })) });
