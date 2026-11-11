@@ -58,4 +58,10 @@ describe('Gemini activity transport', () => {
     const provider = new GeminiActivityProvider({ apiKey: 'synthetic-test-key', model: 'gemini-flash-latest', fetchImpl: vi.fn().mockResolvedValue(new Response(JSON.stringify({ candidates: [{ finishReason: 'MAX_TOKENS', content: { parts: [{ text: '{}' }] } }] }))) });
     await expect(provider.generate(payload)).rejects.toMatchObject({ code: 'AI_OUTPUT_INVALID' });
   });
+  it('validates numeric bounds after decoding a successful provider response', async () => {
+    const transport = vi.fn<typeof fetch>().mockResolvedValue(Response.json({ candidates: [{ finishReason: 'STOP', content: { parts: [{ text: JSON.stringify({ ...content(), minutes: 0 }) }] } }] }));
+    const provider = new GeminiActivityProvider({ apiKey: 'synthetic-test-key', model: 'gemini-flash-latest', fetchImpl: transport });
+    await expect(provider.generate(payload)).rejects.toMatchObject({ code: 'AI_OUTPUT_INVALID' });
+    expect(transport).toHaveBeenCalledTimes(1);
+  });
 });

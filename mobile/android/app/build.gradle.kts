@@ -29,10 +29,24 @@ android {
         versionName = flutter.versionName
     }
 
+    val distributionStore = System.getenv("KHOTWA_ANDROID_KEYSTORE_PATH")
+    if (!distributionStore.isNullOrBlank()) {
+        signingConfigs {
+            create("distribution") {
+                storeFile = file(distributionStore)
+                storeType = "PKCS12"
+                storePassword = requireNotNull(System.getenv("KHOTWA_ANDROID_STORE_PASSWORD"))
+                keyAlias = requireNotNull(System.getenv("KHOTWA_ANDROID_KEY_ALIAS"))
+                keyPassword = requireNotNull(System.getenv("KHOTWA_ANDROID_KEY_PASSWORD"))
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // Release signing is configured only for an authorized distribution.
-            // Debug previews use the default debug build type.
+            if (!distributionStore.isNullOrBlank()) {
+                signingConfig = signingConfigs.getByName("distribution")
+            }
         }
     }
 }

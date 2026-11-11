@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { ApiError } from '../errors.js';
 import { providerHttpError } from '../ai/provider-errors.js';
+import { geminiResponseSchema } from '../ai/provider-schema.js';
 import { activityContentSchema, type ActivityPayload } from './domain.js';
 
 export interface ActivityProvider { generate(payload: ActivityPayload): Promise<unknown> }
@@ -10,8 +11,7 @@ export class GeminiActivityProvider implements ActivityProvider {
     if (!options.apiKey.trim() || !/^gemini-[a-z0-9.-]+$/.test(options.model)) throw new Error('Invalid server activity configuration');
   }
   async generate(payload: ActivityPayload): Promise<unknown> {
-    const schema = z.toJSONSchema(activityContentSchema);
-    delete schema.$schema;
+    const schema = geminiResponseSchema(z.toJSONSchema(activityContentSchema));
     const instructions = `أنت مساعد تربوي يصوغ مسودة نشاط بالعربية البسيطة الداعمة من المدخلات المراجعة فقط.
 لا بيانات شخصية ولا تشخيص أو تصنيف أو حكم عام أو تنبؤ أو دواء. تجنب كل الألفاظ السلبية حتى عند النفي، وأي أمثلة مؤذية عن الحرب أو الفقد أو ظروف الطفل الصعبة.
 النشاط مرتبط بالهدف المرفق، ويستعمل الأدوات المتاحة فقط. أعد tools كمعرّفات من availableTools حصراً وحافظ على minutes كما هي. لا تفترض أجهزة أو اتصالاً أو خامات أخرى.

@@ -10,7 +10,7 @@ on:
         description: 'HTTPS API address compiled into the app; localhost is a build placeholder only'
         required: true
         type: string
-        default: 'https://localhost:3000'
+        default: 'https://khotwa-api-staging-p4le.onrender.com'
 
 permissions:
   contents: read
@@ -24,7 +24,7 @@ jobs:
     runs-on: macos-15
     timeout-minutes: 45
     env:
-      API_BASE_URL: ${{ inputs.api_base_url || 'https://localhost:3000' }}
+      API_BASE_URL: ${{ inputs.api_base_url || 'https://khotwa-api-staging-p4le.onrender.com' }}
       BUILD_NUMBER: ${{ github.run_number }}
     defaults:
       run:
