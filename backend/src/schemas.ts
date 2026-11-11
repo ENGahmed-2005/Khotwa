@@ -27,6 +27,13 @@ export const interventionRecordSchema = sessionSchema.safeExtend({
   createdAt: timestamp, activityId: uuid.nullable(), notes: educationalText, privacyReviewed: z.literal(true),
 });
 
+export const structuredObservationsSchema = z.strictObject({
+  pencilGrip: educationalText.max(1000).optional(), writingDirection: educationalText.max(1000).optional(),
+  letterDots: educationalText.max(1000).optional(), taaForms: educationalText.max(1000).optional(),
+  tanween: educationalText.max(1000).optional(), spellingNotes: educationalText.max(1000).optional(),
+  solutionMethod: educationalText.max(1000).optional(),
+});
+
 export const itemResultSchema = z.strictObject({
   execution: z.enum(['notDone', 'performed', 'unable']),
   judgment: z.enum(['independentCorrect', 'supportedCorrect', 'incorrect', 'notScorable']).nullable(),
@@ -35,6 +42,7 @@ export const itemResultSchema = z.strictObject({
   readingErrors: z.number().int().nonnegative().nullable(),
   wordsRead: z.number().int().nonnegative().nullable().optional(),
   selfCorrections: z.number().int().nonnegative().nullable().optional(),
+  structuredObservations: structuredObservationsSchema.optional(),
 }).superRefine((result, ctx) => {
   if (result.execution !== 'performed' && result.judgment !== null) ctx.addIssue({ code: 'custom', message: 'Nonperformed items have no judgment' });
   if (result.judgment === 'independentCorrect' && result.support !== 'independent') ctx.addIssue({ code: 'custom', message: 'Independent correctness requires independent support' });
@@ -56,12 +64,20 @@ export const assessmentSchema = z.strictObject({
   status: z.enum(['draft', 'completed', 'approved']), ageOverrideReason: text,
   results: z.record(z.string(), itemResultSchema), strengths: text, needs: text,
   approvedAt: timestamp.nullable(), privacyReviewed: z.literal(true),
+  assessedOn: z.iso.date().optional(), gradeAtAssessment: z.enum(schoolGrades).optional(),
 }).superRefine((assessment, ctx) => {
   const expected: readonly string[] = assessmentTemplate.groups[assessment.ageGroup];
   const subjective: readonly string[] = assessmentTemplate.subjective;
   for (const [id, result] of Object.entries(assessment.results)) {
     if (!expected.includes(id)) ctx.addIssue({ code: 'custom', path: ['results', id], message: 'Unknown item for this template and age group' });
     if (subjective.includes(id) && result.judgment !== null && result.judgment !== 'notScorable') ctx.addIssue({ code: 'custom', path: ['results', id], message: 'Extended tasks require descriptive specialist review' });
+    const writing = ['2a', '2b', '5a', '5b'].includes(id);
+    const math = id.startsWith('3') || id.startsWith('6');
+    for (const key of Object.keys(result.structuredObservations ?? {})) {
+      if ((key === 'solutionMethod' && !math) || (key !== 'solutionMethod' && !writing)) {
+        ctx.addIssue({ code: 'custom', path: ['results', id, 'structuredObservations', key], message: 'Structured observation does not belong to this assessment item' });
+      }
+    }
   }
   if ((assessment.status === 'approved') !== (assessment.approvedAt !== null)) ctx.addIssue({ code: 'custom', path: ['approvedAt'], message: 'Approval date only accompanies explicit approval' });
   if (assessment.status !== 'draft') {

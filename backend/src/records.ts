@@ -146,6 +146,7 @@ export class RecordStore {
         const previous = this.toEnvelope(existing).data as AssessmentData;
         if (previous.status === 'approved') throw new ApiError(409, 'ASSESSMENT_IMMUTABLE', 'التقييم المعتمد محفوظ؛ أنشئ إعادة تقييم جديدة.');
         if (previous.templateVersion !== data.templateVersion || previous.ageGroup !== data.ageGroup || previous.createdAt !== data.createdAt) throw new ApiError(400, 'TEMPLATE_IMMUTABLE', 'إصدار التقييم وفئته وتاريخ إنشائه ثابتة.');
+        if (previous.assessedOn !== data.assessedOn || previous.gradeAtAssessment !== data.gradeAtAssessment) throw new ApiError(400, 'ASSESSMENT_METADATA_IMMUTABLE', 'تاريخ التقييم والصف وقت إنشائه ثابتان؛ لا تُضاف بيانات تاريخية إلى سجل قديم.');
       }
       return data;
     }

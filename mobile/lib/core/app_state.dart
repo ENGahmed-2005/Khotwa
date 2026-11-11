@@ -706,12 +706,15 @@ class AppState extends ChangeNotifier {
     if (overrideReason.length > 500) {
       throw StateError('المسوّغ أطول من الحد المسموح.');
     }
+    final createdAt = _now;
     final assessment = AssessmentRecord(
       id: _uuid.v4(),
       studentId: studentId,
       ageGroup: group,
       templateVersion: assessmentTemplateVersion,
-      createdAt: _now,
+      createdAt: createdAt,
+      assessedOn: createdAt.substring(0, 10),
+      gradeAtAssessment: student.grade,
       ageOverrideReason: group == recommended ? '' : overrideReason.trim(),
       privacyReviewed: true,
     );
@@ -736,6 +739,7 @@ class AppState extends ChangeNotifier {
     required String assessmentId,
     required String itemId,
     required AssessmentItemResult result,
+    String? draftKey,
   }) => _serial(() async {
     final a = assessmentById(assessmentId);
     _editable(a);
@@ -768,17 +772,35 @@ class AppState extends ChangeNotifier {
     if (result.response.length > 160 || result.observation.length > 500) {
       throw StateError('النص أطول من الحد المسموح.');
     }
+    final textIssue =
+        educationalTextIssue([result.response, result.observation]) ??
+        structuredObservationIssue(result.structuredObservations);
+    if (textIssue != null) {
+      throw StateError(textIssue);
+    }
+    if (result.structuredObservations.keys.any(
+      (key) => !structuredKeysForTask(itemId).contains(key),
+    )) {
+      throw StateError('الملاحظة المنظمة لا تنتمي إلى هذا البند.');
+    }
     final next = a.copyWith(
       results: {...a.results, itemId: result},
       status: AssessmentStatus.draft,
     );
-    await _put('assessment', a.id, next.toJson(), parentId: a.studentId);
+    await _put(
+      'assessment',
+      a.id,
+      next.toJson(),
+      parentId: a.studentId,
+      clearDraftKey: draftKey,
+    );
   });
   Future<void> saveSummary({
     required String assessmentId,
     required String strengths,
     required String needs,
     required bool privacyReviewed,
+    String? draftKey,
   }) => _serial(() async {
     final a = assessmentById(assessmentId);
     _editable(a);
@@ -787,6 +809,10 @@ class AppState extends ChangeNotifier {
     }
     if (strengths.length > 350 || needs.length > 350) {
       throw StateError('النص أطول من الحد المسموح.');
+    }
+    final textIssue = educationalTextIssue([strengths, needs]);
+    if (textIssue != null) {
+      throw StateError(textIssue);
     }
     final allVisited = tasksForAge(
       a.ageGroup,
@@ -805,7 +831,13 @@ class AppState extends ChangeNotifier {
       needs: needs.trim(),
       status: complete ? AssessmentStatus.completed : AssessmentStatus.draft,
     );
-    await _put('assessment', a.id, next.toJson(), parentId: a.studentId);
+    await _put(
+      'assessment',
+      a.id,
+      next.toJson(),
+      parentId: a.studentId,
+      clearDraftKey: draftKey,
+    );
   });
   Future<void> approveAssessment(String assessmentId) => _serial(() async {
     final a = assessmentById(assessmentId);

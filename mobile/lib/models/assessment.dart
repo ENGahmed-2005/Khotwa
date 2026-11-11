@@ -1,3 +1,36 @@
+import 'initial_assessment.dart' show educationalTextIssue;
+
+const structuredObservationLabels = <String, String>{
+  'pencilGrip': 'ملاحظة مسك القلم',
+  'writingDirection': 'اتجاه الكتابة',
+  'letterDots': 'نقاط الحروف',
+  'taaForms': 'التاء المفتوحة والمربوطة',
+  'tanween': 'التنوين',
+  'spellingNotes': 'ملاحظات الإملاء',
+  'solutionMethod': 'طريقة حل المسألة',
+};
+
+List<String> structuredKeysForTask(String itemId) {
+  if (const {'2a', '2b', '5a', '5b'}.contains(itemId)) {
+    return structuredObservationLabels.keys
+        .where((key) => key != 'solutionMethod')
+        .toList();
+  }
+  return itemId.startsWith('3') || itemId.startsWith('6')
+      ? ['solutionMethod']
+      : [];
+}
+
+String? structuredObservationIssue(Map<String, String> values) {
+  if (values.keys.any((key) => !structuredObservationLabels.containsKey(key))) {
+    return 'حقل الملاحظة المنظمة غير معروف.';
+  }
+  if (values.values.any((value) => value.length > 1000)) {
+    return 'كل ملاحظة منظمة لا تتجاوز 1000 حرف.';
+  }
+  return educationalTextIssue(values.values);
+}
+
 enum AssessmentStatus { draft, completed, approved }
 
 enum ItemExecution { notDone, performed, unable }
@@ -22,6 +55,7 @@ class AssessmentItemResult {
     this.readingErrors,
     this.wordsRead,
     this.selfCorrections,
+    this.structuredObservations = const {},
   });
 
   final ItemExecution execution;
@@ -33,6 +67,7 @@ class AssessmentItemResult {
   final int? readingErrors;
   final int? wordsRead;
   final int? selfCorrections;
+  final Map<String, String> structuredObservations;
 
   bool get isScorable =>
       execution == ItemExecution.performed &&
@@ -51,6 +86,8 @@ class AssessmentItemResult {
     'readingErrors': readingErrors,
     'wordsRead': wordsRead,
     'selfCorrections': selfCorrections,
+    if (structuredObservations.isNotEmpty)
+      'structuredObservations': {...structuredObservations},
   };
 
   factory AssessmentItemResult.fromJson(Map<String, dynamic> json) =>
@@ -66,7 +103,19 @@ class AssessmentItemResult {
         readingErrors: (json['readingErrors'] as num?)?.toInt(),
         wordsRead: (json['wordsRead'] as num?)?.toInt(),
         selfCorrections: (json['selfCorrections'] as num?)?.toInt(),
+        structuredObservations: _readStructuredObservations(
+          json['structuredObservations'],
+        ),
       );
+
+  static Map<String, String> _readStructuredObservations(Object? raw) {
+    final values = Map<String, String>.from((raw as Map?) ?? {});
+    final issue = structuredObservationIssue(values);
+    if (issue != null) {
+      throw FormatException(issue);
+    }
+    return values;
+  }
 }
 
 class AssessmentRecord {
@@ -83,6 +132,8 @@ class AssessmentRecord {
     this.needs = '',
     this.approvedAt,
     this.privacyReviewed = false,
+    this.assessedOn,
+    this.gradeAtAssessment,
   });
 
   final String id;
@@ -97,6 +148,7 @@ class AssessmentRecord {
   final String needs;
   final String? approvedAt;
   final bool privacyReviewed;
+  final String? assessedOn, gradeAtAssessment;
 
   AssessmentRecord copyWith({
     Map<String, AssessmentItemResult>? results,
@@ -117,6 +169,8 @@ class AssessmentRecord {
     status: status ?? this.status,
     approvedAt: approvedAt ?? this.approvedAt,
     privacyReviewed: privacyReviewed,
+    assessedOn: assessedOn,
+    gradeAtAssessment: gradeAtAssessment,
   );
 
   Map<String, dynamic> toJson() => {
@@ -132,6 +186,8 @@ class AssessmentRecord {
     'needs': needs,
     'approvedAt': approvedAt,
     'privacyReviewed': privacyReviewed,
+    if (assessedOn != null) 'assessedOn': assessedOn,
+    if (gradeAtAssessment != null) 'gradeAtAssessment': gradeAtAssessment,
   };
 
   factory AssessmentRecord.fromJson(Map<String, dynamic> data) {
@@ -156,6 +212,8 @@ class AssessmentRecord {
       needs: (data['needs'] as String?) ?? '',
       approvedAt: data['approvedAt'] as String?,
       privacyReviewed: data['privacyReviewed'] == true,
+      assessedOn: data['assessedOn'] as String?,
+      gradeAtAssessment: data['gradeAtAssessment'] as String?,
     );
   }
 }

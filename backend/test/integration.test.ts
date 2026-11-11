@@ -234,6 +234,35 @@ describe('owner isolation and encrypted durable synchronization', () => {
 });
 
 describe('academic assessment API and human approval', () => {
+  it('persists structured observations encrypted and freezes the date and grade captured at assessment creation', async () => {
+    const account = await register();
+    const { data: student } = await createStudent(account);
+    const assessment = assessmentFixture(student.id, { assessedOn: '2026-11-01', gradeAtAssessment: 'الثاني الأساسي' });
+    assessment.results['2a']!.structuredObservations = { pencilGrip: 'وصف تعليمي اصطناعي لمسكة القلم', spellingNotes: 'راجع التنوين في النشاط' };
+    const created = await push(account, [operationFixture('assessment', assessment)]);
+    expect(created[0]?.record?.data).toEqual(assessment);
+    const stored = await prisma.record.findUniqueOrThrow({ where: { ownerId_id: { ownerId: account.user.id, id: assessment.id } } });
+    expect(stored.encryptedPayload).not.toContain('وصف تعليمي');
+    for (const metadata of [ { assessedOn: '2026-11-02' }, { gradeAtAssessment: 'الثالث الأساسي' }, { assessedOn: undefined }, { gradeAtAssessment: undefined } ]) {
+      expect((await push(account, [operationFixture('assessment', { ...assessment, ...metadata }, { baseRevision: 1 })]))[0]?.error?.code).toBe('ASSESSMENT_METADATA_IMMUTABLE');
+    }
+    assessment.results['2a']!.structuredObservations = { pencilGrip: 'وصف الأداء بعد متابعة النشاط' };
+    expect((await push(account, [operationFixture('assessment', assessment, { baseRevision: 1 })]))[0]?.status).toBe('applied');
+    const other = await register();
+    expect((await app.inject({ url: `/v1/records/${assessment.id}`, headers: headers(other) })).statusCode).toBe(404);
+  });
+  it('retains legacy absence of date and grade and refuses to backfill historical metadata', async () => {
+    const account = await register();
+    const { data: student } = await createStudent(account);
+    const legacy = assessmentFixture(student.id);
+    expect((await push(account, [operationFixture('assessment', legacy)]))[0]?.status).toBe('applied');
+    expect((await push(account, [operationFixture('assessment', { ...legacy, assessedOn: '2026-11-01', gradeAtAssessment: 'الثاني الأساسي' }, { baseRevision: 1 })]))[0]?.error?.code).toBe('ASSESSMENT_METADATA_IMMUTABLE');
+    const edited = { ...legacy, needs: 'مراجعة أداء تعليمي اصطناعي' };
+    const saved = (await push(account, [operationFixture('assessment', edited, { baseRevision: 1 })]))[0];
+    expect(saved?.status).toBe('applied');
+    expect(saved?.record?.data).not.toHaveProperty('assessedOn');
+    expect(saved?.record?.data).not.toHaveProperty('gradeAtAssessment');
+  });
   it('accepts ordered parent/assessment creation and preserves exact item judgments', async () => {
     const account = await register();
     const student = studentFixture();

@@ -20,6 +20,42 @@ describe('strict anonymous student contract', () => {
 });
 
 describe('academic assessment without invented scoring', () => {
+  it('preserves optional historical assessment metadata without inventing it for legacy records', () => {
+    const legacy = assessmentSchema.parse(assessmentFixture(randomUUID()));
+    expect(legacy).not.toHaveProperty('assessedOn');
+    expect(legacy).not.toHaveProperty('gradeAtAssessment');
+    const current = assessmentSchema.parse({ ...legacy, assessedOn: '2026-11-01', gradeAtAssessment: 'الثاني الأساسي' });
+    expect(current.assessedOn).toBe('2026-11-01');
+    expect(current.gradeAtAssessment).toBe('الثاني الأساسي');
+    expect(assessmentSchema.safeParse({ ...legacy, assessedOn: '2026-02-30' }).success).toBe(false);
+    expect(assessmentSchema.safeParse({ ...legacy, gradeAtAssessment: 'unapproved grade' }).success).toBe(false);
+  });
+  it('keeps structured writing and solution observations descriptive and outside scoring', () => {
+    const before = assessmentFixture(randomUUID());
+    const after = structuredClone(before);
+    after.results['2a']!.structuredObservations = {
+      pencilGrip: 'استخدم القبضة التي تناسبه في النشاط', writingDirection: 'كتب من اليمين إلى اليسار',
+      letterDots: 'راجع مواضع النقاط', taaForms: 'راجع نهاية الكلمة', tanween: 'جرّب كتابة التنوين', spellingNotes: 'ملاحظة إملائية تعليمية اصطناعية',
+    };
+    after.results['3a']!.structuredObservations = { solutionMethod: 'عدّ باستخدام الرسم' };
+    expect(assessmentSchema.parse(after)).toEqual(after);
+    expect(assessmentCounts(after)).toEqual(assessmentCounts(before));
+  });
+  it('rejects unsupported or misplaced observation fields', () => {
+    const data = assessmentFixture(randomUUID());
+    for (const [itemId, structuredObservations] of [
+      ['2a', { diagnosis: 'synthetic' }], ['2a', { solutionMethod: 'عدّ' }],
+      ['3a', { pencilGrip: 'وصف تعليمي' }], ['1a', { writingDirection: 'وصف تعليمي' }],
+    ] as const) {
+      const result = { ...data.results[itemId]!, structuredObservations };
+      expect(assessmentSchema.safeParse({ ...data, results: { ...data.results, [itemId]: result } }).success).toBe(false);
+    }
+  });
+  it.each(['synthetic-private@example.test', '0000000000', 'تشخيص طبي اصطناعي', 'س'.repeat(1001)])('rejects identifying, clinical or oversized structured observation %#', value => {
+    const data = assessmentFixture(randomUUID());
+    data.results['2a']!.structuredObservations = { spellingNotes: value };
+    expect(assessmentSchema.safeParse(data).success).toBe(false);
+  });
   it('accepts both complete template groups', () => {
     for (const ageGroup of ['6-8', '9-12'] as const) expect(assessmentSchema.safeParse(assessmentFixture(randomUUID(), { ageGroup, status: 'completed' })).success).toBe(true);
   });
