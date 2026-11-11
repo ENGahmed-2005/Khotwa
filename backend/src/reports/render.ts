@@ -4,7 +4,7 @@ import { chromium, type Browser, type Page } from 'playwright-core';
 import { AlignmentType, BorderStyle, Document, Header, HeadingLevel, ImageRun, Packer, PageNumber, Paragraph, Table, TableCell, TableRow, TextRun, WidthType, type ParagraphChild } from 'docx';
 import { ApiError } from '../errors.js';
 import { escapeHtml, goalCharts } from './charts.js';
-import { accuracyLabel, percentLabel, referenceHeadings, reviewSafeText, statusLabel, supportLabel, titleForType, type InstitutionLogo, type ReportDocument, type ReportSettings } from './model.js';
+import { accuracyLabel, percentLabel, referenceHeadings, reviewSafeText, statusLabel, supportLabel, titleForType, type InstitutionLogo, type ReportDocument, type ReportGoal, type ReportSettings } from './model.js';
 
 let fontPromise: Promise<Buffer> | undefined;
 function fontData() {
@@ -58,29 +58,79 @@ export async function renderArabicPdf(input: { bodyHtml: string; studentCode: st
   try { return await pdfFromPage(await privatePage(browser), input.bodyHtml, input.studentCode, input.serial, input.settings); }
   finally { await browser.close(); }
 }
+
+function reportPresentation(report: ReportDocument) {
+  const parent = report.type === 'parent';
+  return {
+    parent,
+    administration: report.type === 'administration',
+    intro: parent
+      ? 'توضح هذه المتابعة المهارات التي نتدرب عليها والخطوات القادمة لدعم التعلم. تعرض الأرقام ما سُجّل في التدريب فقط، ولا تقارن الطفل بأطفال آخرين.'
+      : report.type === 'administration'
+      ? 'ملخص الأهداف المعتمدة والتدخلات والحضور وآخر أداء مسجل لكل هدف خلال الفترة المحددة. تُعرض الأرقام المسجلة دون استنتاج تشخيص أو حكم على الطالب.'
+      : report.type === 'plan'
+      ? 'نسخة الخطة التي راجعتها المختصة واعتمدتها؛ تعرض الأهداف ومعاييرها وخطوات المتابعة.'
+      : 'يعرض التقرير الأهداف المعتمدة والتدخلات التربوية والجلسات المسجلة. دقة الجلسة هي الصحيح مقسومًا على المحاولات المنفذة، وتبقى نتائج التقييم الأولي منفصلة عنها.',
+    needs: parent ? 'ما نعمل على تنميته' : 'الاحتياج التعليمي',
+    baseline: parent ? 'بداية التدريب' : 'مستوى الأداء الأولي',
+    criterion: parent ? 'كيف نتابع الهدف' : 'المعيار',
+    timeframe: parent ? 'مدة التدريب على الهدف' : 'الإطار الزمني',
+    strategies: parent ? 'كيف ندعم التعلم' : 'التدخلات التربوية',
+    tools: parent ? 'أدوات التدريب والمتابعة' : 'الوسائل وأدوات المتابعة',
+    recommendations: parent ? 'خطوات الدعم القادمة' : 'توصيات المتابعة',
+    // FR-38 visibility is a plan setting. FR-89 requires these sections in every report.
+    showStrategies: report.type !== 'plan' || report.optionalSections.strategies,
+    showRecommendations: report.type !== 'plan' || report.optionalSections.recommendations,
+  };
+}
+
+function attendanceText(report: ReportDocument): string {
+  const { completed, scheduled, percent } = report.attendance;
+  return report.type === 'parent'
+    ? `تم التدريب في ${completed} جلسات من ${scheduled} جلسات مسجلة للحضور والغياب. نسبة الحضور ${percentLabel(percent)}. لا تدخل الجلسات الملغاة في حساب الحضور، ولا نعد الغياب أو الإلغاء إجابات خاطئة.`
+    : report.type === 'administration'
+    ? `جلسات منفذة ${completed} من ${scheduled} جلسات حضور وغياب | الانتظام ${percentLabel(percent)}. الجلسات الملغاة مستبعدة من حساب الانتظام.`
+    : `${completed} جلسات منفذة من ${scheduled} جلسات تشمل الحضور والغياب. نسبة الانتظام ${percentLabel(percent)}. الجلسات الملغاة خارج مقام الانتظام، والغياب والإلغاء لا ينتجان نسبة أداء.`;
+}
+
+function administrativeGoalSummary(goal: ReportGoal): string {
+  const completed = goal.sessions.filter(session => session.status === 'completed');
+  const latest = completed.at(-1);
+  const counts = `جلسات منفذة ${completed.length} | غياب ${goal.sessions.filter(session => session.status === 'absent').length} | إلغاء ${goal.sessions.filter(session => session.status === 'cancelled').length}`;
+  return latest
+    ? `${counts}. آخر جلسة منفذة ${latest.occurredOn}: ${latest.correct} إجابات صحيحة من ${latest.total} محاولات، الدقة ${accuracyLabel(latest)}، الدعم ${supportLabel(latest.support)}.`
+    : `${counts}. لا توجد جلسة منفذة لعرض أداء مسجل لهذا الهدف خلال الفترة.`;
+}
+
+function chartCaption(report: ReportDocument, goal: ReportGoal, panel: { part: number; totalParts: number }): string {
+  const parent = report.type === 'parent';
+  return `${parent ? 'الإجابات الصحيحة في التدريب' : 'دقة الجلسات'}${panel.totalParts > 1 ? ` | جزء ${panel.part} من ${panel.totalParts}` : ''}. ${goal.targetPercent === null ? 'نوع المساعدة المطلوبة موضح مع الهدف.' : 'الخط المتقطع يوضح النسبة التي نعمل للوصول إليها.'} غ: غياب، أ: إلغاء؛ لا يحسبان إجابات خاطئة.`;
+}
+
+function sessionColumns(report: ReportDocument): string[] {
+  return report.type === 'parent'
+    ? ['التاريخ', 'الحضور', 'إجابات صحيحة / فرص التدريب', 'نسبة الإجابات الصحيحة', 'المساعدة']
+    : ['التاريخ', 'الحالة', 'صحيح / محاولات', 'الدقة', 'الدعم'];
+}
 export function reportHtml(report: ReportDocument): string {
   const headings = referenceHeadings(report.studentReference);
+  const view = reportPresentation(report);
   const title = report.type === 'plan' ? headings.plan : titleForType(report.type);
-  const intro = report.type === 'parent'
-    ? 'تعرض هذه المتابعة ما تدربت عليه المهارة وما سُجّل من أداء خلال الفترة. النسبة تعني الإجابات الصحيحة من فرص التدريب المسجلة، ولا تقارن أداء الطفل بأطفال آخرين.'
-    : report.type === 'administration'
-    ? 'يعرض هذا الملخص الأهداف المعتمدة والتدخلات والانتظام وبيانات الأداء المسجلة خلال الفترة المحددة.'
-    : report.type === 'plan' ? 'نسخة الخطة التي راجعتها المختصة واعتمدتها؛ تعرض الأهداف ومعاييرها وخطوات المتابعة.'
-    : 'يعرض التقرير الأهداف المعتمدة والتدخلات التربوية والجلسات المسجلة. دقة الجلسة هي الصحيح مقسومًا على المحاولات المنفذة، وتبقى نتائج التقييم الأولي منفصلة عنها.';
   const metadata = `<p class="metadata">رمز الطالب <bdi>${escapeHtml(report.studentCode)}</bdi>${report.grade === null ? '' : ' | الصف ' + escapeHtml(report.grade)}<br/>الفترة <bdi>${report.periodStart}</bdi> إلى <bdi>${report.periodEnd}</bdi> | التصدير <bdi>${report.exportedOn}</bdi></p>`;
-  const overview = `<h2 class="reference-heading">ملخص ${escapeHtml(headings.plan)}</h2><p><strong>الهدف العام </strong>${escapeHtml(report.content.generalGoal)}</p><p><strong>نقاط القوة </strong>${escapeHtml(report.content.strengthsSummary)}</p><p><strong>الاحتياج التعليمي </strong>${escapeHtml(report.content.needsSummary)}</p><p><strong>مستوى الأداء الأولي </strong>${escapeHtml(report.content.baseline)}</p>`;
-  const attendanceHtml = report.type === 'plan' ? '' : `<h2>الانتظام خلال الفترة</h2><p>${report.attendance.completed} جلسات منفذة من ${report.attendance.scheduled} جلسات تشمل الحضور والغياب. نسبة الانتظام <bdi class="metric">${percentLabel(report.attendance.percent)}</bdi>. الجلسات الملغاة خارج مقام الانتظام، والغياب والإلغاء لا ينتجان نسبة أداء.</p>`;
+  const overview = `<h2 class="reference-heading">ملخص ${escapeHtml(headings.plan)}</h2><p><strong>الهدف العام </strong>${escapeHtml(report.content.generalGoal)}</p>${view.administration ? '' : `<p><strong>نقاط القوة </strong>${escapeHtml(report.content.strengthsSummary)}</p><p><strong>${view.needs} </strong>${escapeHtml(report.content.needsSummary)}</p><p><strong>${view.baseline} </strong>${escapeHtml(report.content.baseline)}</p>`}`;
+  const attendanceHtml = report.type === 'plan' ? '' : `<h2>${view.parent ? 'الحضور خلال الفترة' : 'الانتظام خلال الفترة'}</h2><p>${escapeHtml(attendanceText(report))}</p>`;
   const goals = report.goals.map((goal, index) => {
-    const title = `<h2>الهدف ${index + 1}</h2><p>${escapeHtml(goal.behavior)} ${escapeHtml(goal.condition)}</p><p><strong>المعيار </strong>${escapeHtml(goal.criterion)} | الإطار الزمني ${goal.timeframeWeeks} أسابيع</p>`;
+    const title = `<h2>الهدف ${index + 1}</h2><p>${escapeHtml(goal.behavior)} ${escapeHtml(goal.condition)}</p><p><strong>${view.criterion} </strong>${escapeHtml(goal.criterion)} | ${view.timeframe} ${goal.timeframeWeeks} أسابيع</p>`;
     if (report.type === 'plan') return title;
-    const graphs = goalCharts(goal).map(panel => `<figure>${panel.svg}<figcaption class="muted">دقة الجلسات${panel.totalParts > 1 ? ` | جزء ${panel.part} من ${panel.totalParts}` : ''}. ${goal.targetPercent === null ? 'معيار الدعم موضح نصيًا أعلاه.' : 'الخط المتقطع يمثل النسبة المستهدفة.'} غ: غياب، أ: إلغاء؛ لا يحسبان أداءً صفرًا.</figcaption></figure>`).join('');
+    const graphs = goalCharts(goal).map(panel => `<figure>${panel.svg}<figcaption class="muted">${escapeHtml(chartCaption(report, goal, panel))}</figcaption></figure>`).join('');
+    if (view.administration) return `${title}<p>${escapeHtml(administrativeGoalSummary(goal))}</p>${graphs}`;
     const rows = goal.sessions.map(session => `<tr><td><bdi>${session.occurredOn}</bdi></td><td>${statusLabel(session.status)}</td><td>${session.status === 'completed' ? `<bdi>${session.correct} / ${session.total}</bdi>` : 'لا أداء مسجل'}</td><td><bdi>${accuracyLabel(session)}</bdi></td><td>${supportLabel(session.support)}</td></tr>`).join('');
-    return `${title}${graphs}${goal.sessions.length ? `<table><thead><tr><th>التاريخ</th><th>الحالة</th><th>صحيح / محاولات</th><th>الدقة</th><th>الدعم</th></tr></thead><tbody>${rows}</tbody></table>` : '<p>لا توجد بيانات جلسات لهذا الهدف ضمن الفترة المحددة.</p>'}`;
+    return `${title}${graphs}${goal.sessions.length ? `<table><thead><tr>${sessionColumns(report).map(label => `<th>${label}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table>` : '<p>لا توجد بيانات جلسات لهذا الهدف ضمن الفترة المحددة.</p>'}`;
   }).join('');
-  const strategies = report.optionalSections.strategies ? `<h2>التدخلات التربوية</h2>${listHtml(report.content.strategies)}` : '';
-  const recommendations = report.optionalSections.recommendations ? `<h2>توصيات المتابعة</h2>${listHtml(report.content.recommendations)}` : '';
+  const strategies = view.showStrategies ? `<h2>${view.strategies}</h2>${listHtml(report.content.strategies)}` : '';
+  const recommendations = view.showRecommendations ? `<h2>${view.recommendations}</h2>${listHtml(report.content.recommendations)}` : '';
   const schedule = report.optionalSections.sessionSchedule ? `<p>مدة الخطة ${report.content.durationWeeks} أسابيع | ${report.content.sessionsPerWeek} جلسات أسبوعيًا</p>` : '';
-  return `${logoHtml(report.settings)}<h1${report.type === 'plan' ? ' class="reference-heading"' : ''}>${title}</h1>${metadata}<p>${intro}</p><p class="manual">الاسم يكتب يدويًا بعد الطباعة أو في نسخة Word: ........................................</p>${overview}${attendanceHtml}<h2 class="reference-heading">${escapeHtml(headings.goals)}</h2>${goals}${strategies}<h2>الوسائل وأدوات المتابعة</h2>${listHtml(report.content.tools)}${listHtml(report.content.measurementTools)}${schedule}${recommendations}<p><strong>المتابعة القادمة </strong><bdi>${report.content.nextFollowUp}</bdi></p>`;
+  return `${logoHtml(report.settings)}<h1${report.type === 'plan' ? ' class="reference-heading"' : ''}>${title}</h1>${metadata}<p>${view.intro}</p><p class="manual">الاسم يكتب يدويًا بعد الطباعة أو في نسخة Word: ........................................</p>${overview}${attendanceHtml}<h2 class="reference-heading">${escapeHtml(headings.goals)}</h2>${goals}${strategies}<h2>${view.tools}</h2>${listHtml(report.content.tools)}${listHtml(report.content.measurementTools)}${schedule}${recommendations}<p><strong>المتابعة القادمة </strong><bdi>${report.content.nextFollowUp}</bdi></p>`;
 }
 
 function textRuns(text: string, bold = false, size = 24): TextRun[] {
@@ -110,30 +160,33 @@ export async function renderReport(report: ReportDocument, format: 'pdf' | 'docx
     const page = await privatePage(browser);
     if (format === 'pdf') return await pdfFromPage(page, reportHtml(report), report.studentCode, report.serial, report.settings);
     const headings = referenceHeadings(report.studentReference);
+    const view = reportPresentation(report);
     const children: (Paragraph | Table)[] = [paragraph(report.type === 'plan' ? headings.plan : titleForType(report.type), { title: true }),
       paragraph(`رمز الطالب ${report.studentCode}${report.grade === null ? '' : ' | الصف ' + report.grade}`),
       paragraph(`الفترة ${report.periodStart} إلى ${report.periodEnd} | التصدير ${report.exportedOn}`),
       paragraph('الاسم يكتب بعد الطباعة أو في هذه النسخة خارج التطبيق: ........................................'),
-      paragraph(report.type === 'parent' ? 'تعرض المتابعة ما سُجّل من تدريب وأداء. النسبة هي الصحيح من فرص التدريب، ولا تقارن الطفل بأطفال آخرين.' : 'تعرض الوثيقة الخطة المعتمدة وبيانات الجلسات المسجلة، مع فصلها عن نتائج التقييم الأولي.'),
-      paragraph(`ملخص ${headings.plan}`, { heading: true }), paragraph(`الهدف العام ${report.content.generalGoal}`),
-      paragraph(`نقاط القوة ${report.content.strengthsSummary}`), paragraph(`الاحتياج التعليمي ${report.content.needsSummary}`), paragraph(`مستوى الأداء الأولي ${report.content.baseline}`)];
-    if (report.type !== 'plan') children.push(paragraph('الانتظام خلال الفترة', { heading: true }),
-      paragraph(`${report.attendance.completed} جلسات منفذة من ${report.attendance.scheduled} جلسات حضور وغياب. الانتظام ${percentLabel(report.attendance.percent)}. الجلسات الملغاة خارج المقام، والغياب والإلغاء لا ينتجان نسبة أداء.`));
+      paragraph(view.intro),
+      paragraph(`ملخص ${headings.plan}`, { heading: true }), paragraph(`الهدف العام ${report.content.generalGoal}`)];
+    if (!view.administration) children.push(paragraph(`نقاط القوة ${report.content.strengthsSummary}`),
+      paragraph(`${view.needs} ${report.content.needsSummary}`), paragraph(`${view.baseline} ${report.content.baseline}`));
+    if (report.type !== 'plan') children.push(paragraph(view.parent ? 'الحضور خلال الفترة' : 'الانتظام خلال الفترة', { heading: true }), paragraph(attendanceText(report)));
     children.push(paragraph(headings.goals, { heading: true }));
     for (const [index, goal] of report.goals.entries()) {
-      children.push(paragraph(`الهدف ${index + 1}`, { heading: true }), paragraph(`${goal.behavior} ${goal.condition}`), paragraph(`المعيار ${goal.criterion} | الإطار الزمني ${goal.timeframeWeeks} أسابيع`));
+      children.push(paragraph(`الهدف ${index + 1}`, { heading: true }), paragraph(`${goal.behavior} ${goal.condition}`), paragraph(`${view.criterion} ${goal.criterion} | ${view.timeframe} ${goal.timeframeWeeks} أسابيع`));
       if (report.type === 'plan') continue;
+      if (view.administration) children.push(paragraph(administrativeGoalSummary(goal)));
       for (const panel of goalCharts(goal)) {
         const data = await chartPng(page, panel.svg);
         children.push(new Paragraph({ alignment: AlignmentType.CENTER, children: [new ImageRun({ type: 'png', data, transformation: { width: 630, height: 215.25 }, altText: { title: 'دقة الجلسات', description: goal.behavior, name: `goal-${index + 1}-${panel.part}` } })] }),
-          paragraph(`دقة الجلسات${panel.totalParts > 1 ? ` | جزء ${panel.part} من ${panel.totalParts}` : ''}. ${goal.targetPercent === null ? 'معيار الدعم موضح نصيًا.' : 'الخط المتقطع يمثل النسبة المستهدفة.'} غ: غياب، أ: إلغاء؛ لا يحسبان أداءً صفرًا.`));
+          paragraph(chartCaption(report, goal, panel)));
       }
-      if (goal.sessions.length) children.push(table([['التاريخ', 'الحالة', 'صحيح / محاولات', 'الدقة', 'الدعم'], ...goal.sessions.map(session => [session.occurredOn, statusLabel(session.status), session.status === 'completed' ? `${session.correct} / ${session.total}` : 'لا أداء مسجل', accuracyLabel(session), supportLabel(session.support)])]));
+      if (!view.administration && goal.sessions.length) children.push(table([sessionColumns(report), ...goal.sessions.map(session => [session.occurredOn, statusLabel(session.status), session.status === 'completed' ? `${session.correct} / ${session.total}` : 'لا أداء مسجل', accuracyLabel(session), supportLabel(session.support)])]));
+      else if (!view.administration && !goal.sessions.length) children.push(paragraph('لا توجد بيانات جلسات لهذا الهدف ضمن الفترة المحددة.'));
     }
-    if (report.optionalSections.strategies) children.push(paragraph('التدخلات التربوية', { heading: true }), ...report.content.strategies.map(value => paragraph(value)));
-    children.push(paragraph('الوسائل وأدوات المتابعة', { heading: true }), ...[...report.content.tools, ...report.content.measurementTools].map(value => paragraph(value)));
+    if (view.showStrategies) children.push(paragraph(view.strategies, { heading: true }), ...report.content.strategies.map(value => paragraph(value)));
+    children.push(paragraph(view.tools, { heading: true }), ...[...report.content.tools, ...report.content.measurementTools].map(value => paragraph(value)));
     if (report.optionalSections.sessionSchedule) children.push(paragraph(`مدة الخطة ${report.content.durationWeeks} أسابيع | ${report.content.sessionsPerWeek} جلسات أسبوعيًا`));
-    if (report.optionalSections.recommendations) children.push(paragraph('توصيات المتابعة', { heading: true }), ...report.content.recommendations.map(value => paragraph(value)));
+    if (view.showRecommendations) children.push(paragraph(view.recommendations, { heading: true }), ...report.content.recommendations.map(value => paragraph(value)));
     children.push(paragraph(`المتابعة القادمة ${report.content.nextFollowUp}`));
     const headerChildren: ParagraphChild[] = [...textRuns(`${report.settings.institutionTitle || 'خطوة'} | رمز الطالب ${report.studentCode}`, true)];
     if (report.settings.logo) headerChildren.push(new ImageRun({ type: 'png', data: Buffer.from(report.settings.logo.base64, 'base64'), transformation: { width: Math.min(78, 45 * report.settings.logo.width / report.settings.logo.height), height: Math.min(45, 78 * report.settings.logo.height / report.settings.logo.width) }, altText: { title: 'شعار المؤسسة', description: 'شعار المؤسسة', name: 'institution-logo' } }));

@@ -88,13 +88,36 @@ describe('report selection and descriptive data boundary', () => {
     expect(goalCharts({ ...goal, sessions: Array.from({ length: 25 }, () => fixtures.session()) })).toHaveLength(3);
   });
   it('escapes text and respects optional layout choices without hiding required goals', () => {
-    const report = document({ optionalSections: { strategies: false, recommendations: false, sessionSchedule: false } });
+    const report = document({ type: 'plan', optionalSections: { strategies: false, recommendations: false, sessionSchedule: false } });
     report.content = { ...report.content, generalGoal: '<script>test()</script>' };
     const html = reportHtml(report);
     expect(html).toContain('&lt;script&gt;'); expect(html).not.toContain('<script>');
     expect(html).not.toContain('<h2>التدخلات التربوية');
     expect(html).not.toContain('<h2>توصيات المتابعة');
     expect(html).toContain('الهدف 1');
+  });
+  it.each(['progress', 'parent', 'administration'] as const)('keeps FR-89 sections in %s even when the plan hides them', type => {
+    const report = document({ type, optionalSections: { strategies: false, recommendations: false, sessionSchedule: false } });
+    const html = reportHtml(report);
+    for (const value of [...report.content.strategies, ...report.content.recommendations, report.content.nextFollowUp]) expect(html).toContain(value);
+    for (const goal of report.goals) {
+      expect(html).toContain(goal.behavior); expect(html).toContain(goal.condition); expect(html).toContain(goal.criterion);
+    }
+  });
+  it('presents simple parent labels and a focused administration summary from the same recorded data', () => {
+    const report = document(), original = JSON.stringify(report);
+    const parent = reportHtml({ ...report, type: 'parent' });
+    expect(parent).toContain('كيف ندعم التعلم'); expect(parent).toContain('خطوات الدعم القادمة');
+    expect(parent).toContain('نسبة الإجابات الصحيحة'); expect(parent).toContain('لا نعد الغياب أو الإلغاء إجابات خاطئة');
+    expect(parent).not.toContain('مقام الانتظام'); expect(parent).not.toContain('الإطار الزمني');
+    const administration = reportHtml({ ...report, type: 'administration' });
+    expect(administration).toContain('جلسات منفذة 2 | غياب 1 | إلغاء 1');
+    expect(administration).toContain('آخر جلسة منفذة 2026-11-02: 8 إجابات صحيحة من 8 محاولات، الدقة 100%');
+    expect(administration).toContain('<svg'); expect(administration).not.toContain('<table');
+    expect(administration).not.toContain('نقاط القوة');
+    const empty = reportHtml({ ...report, type: 'administration', goals: report.goals.map(goal => ({ ...goal, sessions: [] })) });
+    expect(empty).toContain('لا توجد جلسة منفذة لعرض أداء مسجل'); expect(empty).not.toContain('الدقة 0%');
+    expect(JSON.stringify(report)).toBe(original);
   });
 });
 
@@ -155,6 +178,14 @@ describe('actual Arabic document renderers', () => {
     expect(header).toContain(report.serial);
     expect(header).toContain(report.studentCode);
     expect(header).toMatch(/PAGE/); expect(header).toMatch(/NUMPAGES/);
+    if (type === 'parent') {
+      expect(xml).toContain('كيف ندعم التعلم'); expect(xml).toContain('خطوات الدعم القادمة');
+      expect(xml).toContain('نسبة الإجابات الصحيحة'); expect(xml).not.toContain('مقام الانتظام');
+    }
+    if (type === 'administration') {
+      expect(xml).toContain('آخر جلسة منفذة'); expect(xml).not.toContain('<w:tbl>');
+      expect(xml).not.toContain('نقاط القوة');
+    }
     if (type !== 'plan') expect(Object.keys(entries).some(path => path.startsWith('word/media/'))).toBe(true);
     await mkdir('../.artifacts/reports', { recursive: true });
     await writeFile(`../.artifacts/reports/${type}.pdf`, pdf);
@@ -163,10 +194,39 @@ describe('actual Arabic document renderers', () => {
   it('renders all pages with code/serial metadata and real chart data for a longer report', async () => {
     const report = document();
     report.goals = Array.from({ length: 4 }, (_, index) => ({ ...report.goals[0]!, behavior: `مهارة تعليمية تجريبية ${index + 1}`, sessions: Array.from({ length: 15 }, (_, session) => fixtures.session({ occurredOn: `2026-11-${String(session + 1).padStart(2, '0')}` })) }));
-    const pdf = await renderReport(report, 'pdf');
+    const [pdf, docx] = await Promise.all([renderReport(report, 'pdf'), renderReport(report, 'docx')]);
     expect(pdf.toString('latin1').match(/\/Type\s*\/Page\b/g)!.length).toBeGreaterThan(3);
     await writeFile('../.artifacts/reports/multipage.pdf', pdf);
+    await writeFile('../.artifacts/reports/multipage.docx', docx);
     await writeFile('../.artifacts/reports/multipage-metadata.json', JSON.stringify({ code: report.studentCode, serial: report.serial }));
+  }, 60000);
+  it('puts the institution logo and matching identifiers in the repeating Word header', async () => {
+    const browser = await chromium.launch({ headless: true, ...(process.env.KHOTWA_CHROMIUM_EXECUTABLE ? { executablePath: process.env.KHOTWA_CHROMIUM_EXECUTABLE } : { channel: 'chrome' }) });
+    let bytes: Buffer;
+    try {
+      const page = await browser.newPage({ viewport: { width: 120, height: 60 } });
+      await page.setContent('<body style="margin:0;background:#176370"><div style="width:40px;height:40px;margin:10px;border:6px solid white;box-sizing:border-box"></div></body>');
+      bytes = await page.screenshot({ type: 'png' });
+    } finally { await browser.close(); }
+    const logo = await normalizeLogo({ mime: 'image/png', base64: bytes.toString('base64') });
+    const report = document({ settings: { institutionTitle: 'مؤسسة تعليمية تجريبية', logo, privacyReviewed: true } });
+    const [pdf, docx] = await Promise.all([renderReport(report, 'pdf'), renderReport(report, 'docx')]);
+    const archive = unzipSync(docx), header = strFromU8(archive['word/header1.xml']!);
+    expect(header).toContain('مؤسسة تعليمية تجريبية'); expect(header).toContain(report.studentCode);
+    expect(header).toContain(report.serial); expect(header).toContain('شعار المؤسسة'); expect(header).toContain('<w:drawing>');
+    expect(strFromU8(archive['word/_rels/header1.xml.rels']!)).toContain('/image');
+    await writeFile('../.artifacts/reports/logo-header.pdf', pdf);
+    await writeFile('../.artifacts/reports/logo-header.docx', docx);
+  }, 60000);
+  it('keeps interventions and recommendations in editable reports independently of plan visibility', async () => {
+    for (const type of ['progress', 'parent', 'administration', 'plan'] as const) {
+      const report = document({ type, optionalSections: { strategies: false, recommendations: false, sessionSchedule: false } });
+      const xml = strFromU8(unzipSync(await renderReport(report, 'docx'))['word/document.xml']!);
+      for (const value of [...report.content.strategies, ...report.content.recommendations]) {
+        if (type === 'plan') expect(xml).not.toContain(value);
+        else expect(xml).toContain(value);
+      }
+    }
   }, 60000);
   it('rejects fake, excessive or medical logo inputs before rendering', async () => {
     await expect(normalizeLogo({ mime: 'image/png', base64: Buffer.from('<svg>INVALID</svg>INVALID').toString('base64') })).rejects.toThrow();
