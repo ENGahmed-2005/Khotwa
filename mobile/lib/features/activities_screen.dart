@@ -786,7 +786,13 @@ class _ActivitiesScreenState extends State<ActivitiesScreen> {
                           '/v1/activities/${record['id']}/export',
                           {'optionalSections': _sections},
                         );
-                        if (mounted) await shareExport(context, document);
+                        if (mounted) {
+                          await shareExport(
+                            context,
+                            document,
+                            auth: widget.auth,
+                          );
+                        }
                       }),
                 child: const Text('تصدير النشاط PDF للطباعة'),
               ),

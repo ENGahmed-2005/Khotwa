@@ -4,6 +4,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'core/api_client.dart';
 import 'core/auth_state.dart';
+import 'core/export_cache.dart';
 import 'core/secure_local_store.dart';
 import 'features/home_screen.dart';
 import 'features/auth_screen.dart';
@@ -28,6 +29,8 @@ Future<void> main() async {
     ),
     secrets: secrets,
     storeForOwner: (owner) => EncryptedFileStore.forOwner(owner, secrets),
+    clearExportsForOwner: (owner) => clearExportFiles(ownerId: owner),
+    clearStaleExports: () => clearExportFiles(),
   );
   await auth.restore();
   runApp(KhotwaApp(auth: auth));
@@ -86,7 +89,22 @@ class KhotwaApp extends StatelessWidget {
       ),
       builder: (context, child) => Directionality(
         textDirection: TextDirection.rtl,
-        child: child ?? const SizedBox.shrink(),
+        child: Column(
+          children: [
+            if (auth.cleanupWarning != null)
+              Material(
+                color: const Color(0xFFFFF6E5),
+                child: SafeArea(
+                  bottom: false,
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Text(auth.cleanupWarning!),
+                  ),
+                ),
+              ),
+            Expanded(child: child ?? const SizedBox.shrink()),
+          ],
+        ),
       ),
       home: AnimatedBuilder(
         animation: auth,

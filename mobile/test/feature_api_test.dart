@@ -63,6 +63,7 @@ void main() {
       ).export('/v1/reports/export', {'format': 'pdf'});
       expect(document.filename, 'KH-RPT-test.pdf');
       expect(document.serial, 'KH-RPT-test');
+      expect(document.ownerId, 'synthetic-owner-a');
     },
   );
   test(
@@ -92,6 +93,34 @@ void main() {
           ).export('/v1/reports/export', {}),
           throwsA(isA<ApiException>()),
         );
+      }
+    },
+  );
+  test(
+    'unsafe and mismatched export filenames fall back to the validated MIME extension',
+    () async {
+      for (final filename in [
+        '../outside.pdf',
+        '.hidden.pdf',
+        'report..pdf',
+        'report.docx',
+        'report.exe',
+        '${'a' * 161}.pdf',
+      ]) {
+        final document = await FeatureApi(
+          account(),
+          downloadClient: MockClient(
+            (_) async => http.Response(
+              '%PDF-synthetic',
+              200,
+              headers: {
+                'content-type': 'application/pdf',
+                'content-disposition': 'attachment; filename="$filename"',
+              },
+            ),
+          ),
+        ).export('/v1/reports/export', {});
+        expect(document.filename, 'Khotwa-report.pdf', reason: filename);
       }
     },
   );

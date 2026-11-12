@@ -13,10 +13,11 @@ class ExportDocument {
     required this.bytes,
     required this.mimeType,
     required this.filename,
+    required this.ownerId,
     this.serial,
   });
   final Uint8List bytes;
-  final String mimeType, filename;
+  final String mimeType, filename, ownerId;
   final String? serial;
 }
 
@@ -108,10 +109,19 @@ class FeatureApi {
       final name = RegExp(
         r'filename="?([A-Za-z0-9_.-]{1,180})"?',
       ).firstMatch(disposition)?.group(1);
+      final safeName =
+          name != null &&
+          !name.contains('..') &&
+          RegExp(
+            r'^[A-Za-z0-9][A-Za-z0-9_.-]{0,159}\.(pdf|docx|zip)$',
+            caseSensitive: false,
+          ).hasMatch(name) &&
+          name.toLowerCase().endsWith('.${extensions[mime]}');
       return ExportDocument(
+        ownerId: ownerId!,
         bytes: response.bodyBytes,
         mimeType: mime,
-        filename: name ?? 'Khotwa-report.${extensions[mime]}',
+        filename: safeName ? name : 'Khotwa-report.${extensions[mime]}',
         serial:
             response.headers['x-khotwa-report-serial'] ??
             response.headers['x-report-serial'],

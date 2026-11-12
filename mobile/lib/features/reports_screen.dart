@@ -302,7 +302,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
             'format': _format,
           });
     _lastSerial = document.serial;
-    if (mounted) await shareExport(context, document);
+    if (mounted) await shareExport(context, document, auth: widget.auth);
     final history = await _api.json('GET', '/v1/reports/exports');
     _exports = [
       for (final item in history['exports'] as List)
