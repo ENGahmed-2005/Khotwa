@@ -125,17 +125,40 @@ describe('report selection and descriptive data boundary', () => {
 });
 
 describe('actual Arabic document renderers', () => {
+  it.each(['progress', 'administration'] as const)('isolates Word dates and percentages from the RTL paragraph in %s', async type => {
+    const report = document({ type }), original = JSON.stringify(report);
+    const xml = strFromU8(unzipSync(await renderReport(report, 'docx'))['word/document.xml']!);
+    const runs = [...xml.matchAll(/<w:r(?: [^>]*)?>([\s\S]*?)<\/w:r>/g)].map(match => ({
+      properties: match[1]!, text: [...match[1]!.matchAll(/<w:t(?: [^>]*)?>([\s\S]*?)<\/w:t>/g)].map(value => value[1]).join(''),
+    }));
+    const latest = report.goals[0]!.sessions.filter(session => session.status === 'completed').at(-1)!;
+    const dates = [report.periodStart, report.periodEnd, report.exportedOn, report.content.nextFollowUp,
+      ...(type === 'progress' ? report.goals[0]!.sessions.map(session => session.occurredOn) : [latest.occurredOn])];
+    for (const token of [...new Set(dates), '66.67%', '100%', ...(type === 'progress' ? ['4 / 8'] : [])]) {
+      const matching = runs.filter(run => run.text.includes(token));
+      expect(matching.length, `Missing visible Word token ${token}`).toBeGreaterThan(0);
+      for (const run of matching) {
+        expect(run.text.startsWith('\u2066'), `Word token ${token} must start in an LTR isolate`).toBe(true);
+        expect(run.text.endsWith('\u2069'), `Word token ${token} must close its LTR isolate`).toBe(true);
+        expect(run.properties).toMatch(/<w:rtl w:val="(?:false|0)"\/>/);
+      }
+    }
+    expect(JSON.stringify(report)).toBe(original);
+  }, 60000);
   it('keeps twelve recorded dates and accuracy labels readable without changing the data', async () => {
     const goal = { ...document().goals[0]!, sessions: Array.from({ length: 12 }, (_, index) => fixtures.session({ occurredOn: `2026-11-${String(index + 1).padStart(2, '0')}` })) };
     const recorded = JSON.stringify(goal);
     const chart = goalCharts(goal)[0]!.svg;
     expect(JSON.stringify(goal)).toBe(recorded);
-    const browser = await chromium.launch({ headless: true, ...(process.env.KHOTWA_CHROMIUM_EXECUTABLE ? { executablePath: process.env.KHOTWA_CHROMIUM_EXECUTABLE } : { channel: 'chrome' }) });
+    const browser = await chromium.launch({ headless: true, timeout: 20000, ...(process.env.KHOTWA_CHROMIUM_EXECUTABLE ? { executablePath: process.env.KHOTWA_CHROMIUM_EXECUTABLE } : { channel: 'chrome' }) });
     try {
       const page = await browser.newPage();
+      page.setDefaultTimeout(15000);
+      await page.route('**/*', route => route.abort());
       const font = await readFile(new URL('../src/reports/assets/DejaVuSans.ttf', import.meta.url));
-      await page.setContent(`<style>@font-face{font-family:KhotwaArabic;src:url(data:font/ttf;base64,${font.toString('base64')})}body{direction:rtl}</style>${chart}`);
-      await page.evaluate(() => globalThis.document.fonts.ready);
+      await page.setContent(`<style>@font-face{font-family:KhotwaArabic;src:url(data:font/ttf;base64,${font.toString('base64')})}body{direction:rtl}</style>${chart}`, { waitUntil: 'domcontentloaded', timeout: 10000 });
+      await page.waitForFunction(() => globalThis.document.fonts.status === 'loaded'
+        && globalThis.document.fonts.check('12px KhotwaArabic'), undefined, { timeout: 15000 });
       const labels = await page.locator('svg text').evaluateAll(nodes => nodes.map(node => {
         const bounds = (node as SVGTextElement).getBBox();
         return { text: node.textContent!, date: node.getAttribute('aria-label') ?? node.textContent!,
@@ -151,7 +174,7 @@ describe('actual Arabic document renderers', () => {
         expect(overlap, `Overlapping chart labels: ${a.date} / ${b.date}`).toBe(false);
       }
     } finally { await browser.close(); }
-  }, 30000);
+  }, 60000);
   it.each(referenceCases)('writes the approved $reference headings into real Word and PDF fixtures', async ({ reference, stem, plan, goals }) => {
     const report = { ...withReference(reference), type: 'plan' as const, serial: `KH-RPT-${randomUUID().toUpperCase()}` };
     const [pdf, docx] = await Promise.all([renderReport(report, 'pdf'), renderReport(report, 'docx')]);

@@ -138,7 +138,12 @@ export function reportHtml(report: ReportDocument): string {
 }
 
 function textRuns(text: string, bold = false, size = 24): TextRun[] {
-  return text.split(/([A-Za-z0-9][A-Za-z0-9 .:/%+-]*)/).filter(Boolean).map(part => new TextRun({ text: part, font: 'DejaVu Sans', size, color: '000000', bold, rightToLeft: !/^[A-Za-z0-9]/.test(part) }));
+  return text.split(/([A-Za-z0-9][A-Za-z0-9 .:/%+-]*)/).filter(Boolean).map(part => {
+    const ltr = /^[A-Za-z0-9]/.test(part);
+    // Word's RTL paragraph can reorder neutral date separators, % and fractions
+    // even when w:rtl is false. Isolate the displayed run without changing data.
+    return new TextRun({ text: ltr ? `\u2066${part}\u2069` : part, font: 'DejaVu Sans', size, color: '000000', bold, rightToLeft: !ltr });
+  });
 }
 function paragraph(text: string, options: { heading?: boolean; title?: boolean; bold?: boolean } = {}) {
   return new Paragraph({ bidirectional: true, alignment: AlignmentType.RIGHT, spacing: { after: 130, line: 330 },
