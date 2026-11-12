@@ -1,10 +1,9 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 
 import '../core/app_state.dart';
 import '../core/auth_state.dart';
+import '../core/sync_retry_coordinator.dart';
 import '../models/assessment.dart';
 import '../widgets/common.dart';
 import 'students_screen.dart';
@@ -30,23 +29,64 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   int _tab = 0;
   int _guideStep = 0;
+  late SyncRetryCoordinator _syncRetry;
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    unawaited(widget.auth.sync());
+    _configureSyncRetry();
+  }
+
+  void _configureSyncRetry() {
+    _syncRetry = SyncRetryCoordinator(
+      ownerId: widget.state.ownerId,
+      currentOwnerId: () =>
+          mounted &&
+              widget.auth.signedIn &&
+              identical(widget.auth.records, widget.state) &&
+              widget.auth.ownerId == widget.state.ownerId
+          ? widget.state.ownerId
+          : null,
+      sync: widget.auth.sync,
+      isSyncing: () => widget.state.syncing || widget.auth.busy,
+      hasPendingWork: () => widget.state.pendingCount > 0,
+      hasSyncError: () => widget.state.syncError != null,
+    );
+    widget.state.addListener(_syncRetry.stateChanged);
+    widget.auth.addListener(_syncRetry.stateChanged);
+    final lifecycle = WidgetsBinding.instance.lifecycleState;
+    if (lifecycle == null || lifecycle == AppLifecycleState.resumed) {
+      _syncRetry.resume();
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant HomeScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.state, widget.state) ||
+        !identical(oldWidget.auth, widget.auth)) {
+      oldWidget.state.removeListener(_syncRetry.stateChanged);
+      oldWidget.auth.removeListener(_syncRetry.stateChanged);
+      _syncRetry.dispose();
+      _configureSyncRetry();
+    }
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    widget.state.removeListener(_syncRetry.stateChanged);
+    widget.auth.removeListener(_syncRetry.stateChanged);
+    _syncRetry.dispose();
     super.dispose();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed && !widget.state.syncing) {
-      unawaited(widget.auth.sync());
+    if (state == AppLifecycleState.resumed) {
+      _syncRetry.resume();
+    } else {
+      _syncRetry.pause();
     }
   }
 
@@ -115,7 +155,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         actions: [
           IconButton(
             tooltip: 'مزامنة الآن',
-            onPressed: widget.state.syncing ? null : widget.auth.sync,
+            onPressed: widget.state.syncing ? null : _syncRetry.syncNow,
             icon: const Icon(Icons.sync),
           ),
           PopupMenuButton<String>(
@@ -403,7 +443,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ),
         ),
       FilledButton.icon(
-        onPressed: widget.state.syncing ? null : widget.auth.sync,
+        onPressed: widget.state.syncing ? null : _syncRetry.syncNow,
         icon: const Icon(Icons.sync),
         label: const Text('مزامنة / إعادة المحاولة'),
       ),
