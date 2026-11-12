@@ -17,7 +17,7 @@ permissions:
 
 concurrency:
   group: khotwa-ios-package-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   ios-package:
