@@ -111,8 +111,37 @@ jobs:
           fi
       - uses: actions/upload-artifact@v4
         with:
-          name: khotwa-android-https-installers-${{ github.sha }}
-          path: mobile/build/installers/
+          name: khotwa-android-https-arm64-${{ github.sha }}
+          path: |
+            mobile/build/installers/Khotwa-arm64-v8a.apk
+            mobile/build/installers/SIGNATURE-arm64-v8a.txt
+            mobile/build/installers/PACKAGE-arm64-v8a.txt
+            mobile/build/installers/BUILD_METADATA.json
+            mobile/build/installers/SHA256SUMS.txt
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        with:
+          name: khotwa-android-https-arm32-${{ github.sha }}
+          path: |
+            mobile/build/installers/Khotwa-armeabi-v7a.apk
+            mobile/build/installers/SIGNATURE-armeabi-v7a.txt
+            mobile/build/installers/PACKAGE-armeabi-v7a.txt
+            mobile/build/installers/BUILD_METADATA.json
+            mobile/build/installers/SHA256SUMS.txt
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        with:
+          name: khotwa-android-https-x86_64-${{ github.sha }}
+          path: |
+            mobile/build/installers/Khotwa-x86_64.apk
+            mobile/build/installers/SIGNATURE-x86_64.txt
+            mobile/build/installers/PACKAGE-x86_64.txt
+            mobile/build/installers/BUILD_METADATA.json
+            mobile/build/installers/SHA256SUMS.txt
           if-no-files-found: error
           compression-level: 0
           retention-days: 14

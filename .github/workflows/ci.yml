@@ -2,7 +2,8 @@ name: Khotwa quality and native builds
 on:
   pull_request:
   push:
-    branches: ['feat/**', 'fix/**', 'test/**', 'codex/**']
+    # Work branches already run on their draft PR; avoid a duplicate native matrix.
+    branches: ['main']
   workflow_dispatch:
 
 permissions:
