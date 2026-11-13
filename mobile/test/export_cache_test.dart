@@ -28,6 +28,8 @@ void main() {
   final bytes = Uint8List.fromList('%PDF-synthetic-export'.codeUnits);
   setUp(() async {
     temporary = await Directory.systemTemp.createTemp('khotwa-exports-test-');
+    // Match the native adapter: macOS exposes its trusted temp parent via /var.
+    temporary = Directory(await temporary.resolveSymbolicLinks());
     directory = Directory('${temporary.path}/exports');
   });
   tearDown(() async {

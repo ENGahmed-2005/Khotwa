@@ -183,9 +183,11 @@ void main() {
         ),
       );
       await tester.runAsync(() async {
-        final temporary = await Directory.systemTemp.createTemp(
+        final created = await Directory.systemTemp.createTemp(
           'khotwa-share-test-',
         );
+        // The native adapter resolves the trusted OS temp parent before use.
+        final temporary = Directory(await created.resolveSymbolicLinks());
         try {
           final saved = File('${temporary.path}/user-saved.pdf');
           await saved.writeAsString('%PDF-synthetic-user-copy');
