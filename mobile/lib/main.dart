@@ -5,6 +5,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'core/api_client.dart';
 import 'core/auth_state.dart';
 import 'core/export_cache.dart';
+import 'core/khotwa_theme.dart';
 import 'core/secure_local_store.dart';
 import 'features/home_screen.dart';
 import 'features/auth_screen.dart';
@@ -57,36 +58,7 @@ class KhotwaApp extends StatelessWidget {
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      theme: ThemeData(
-        fontFamily: 'NotoSansArabic',
-        useMaterial3: true,
-        scaffoldBackgroundColor: const Color(0xFFF6FAFB),
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF0A6B78),
-          primary: const Color(0xFF0A6B78),
-          secondary: const Color(0xFF267E5E),
-        ),
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xFFF6FAFB),
-          centerTitle: true,
-          elevation: 0,
-        ),
-        cardTheme: CardThemeData(
-          margin: const EdgeInsets.symmetric(vertical: 5),
-          color: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(18),
-            side: const BorderSide(color: Color(0xFFE2ECEF)),
-          ),
-        ),
-        inputDecorationTheme: InputDecorationTheme(
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 14,
-            vertical: 14,
-          ),
-        ),
-      ),
+      theme: KhotwaTheme.light,
       builder: (context, child) => Directionality(
         textDirection: TextDirection.rtl,
         child: Column(
