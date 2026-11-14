@@ -2,7 +2,7 @@ name: Package unsigned iOS preview
 
 on:
   push:
-    branches: ['feat/fnd-02-foundation']
+    branches: ['feat/fnd-02-foundation', 'codex/installer-candidate']
     paths: ['mobile/**', '.github/workflows/native-preview.yml']
   workflow_dispatch:
     inputs:

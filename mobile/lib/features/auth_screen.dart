@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../core/api_client.dart';
 import '../core/auth_state.dart';
 import '../widgets/common.dart';
 
@@ -31,6 +32,9 @@ class _AuthScreenState extends State<AuthScreen> {
       );
     } catch (e) {
       if (mounted) {
+        if (e is ApiException && e.code == 'ACCOUNT_UNAVAILABLE') {
+          setState(() => _register = false);
+        }
         showError(context, e);
       }
     } finally {
@@ -76,6 +80,8 @@ class _AuthScreenState extends State<AuthScreen> {
               const SizedBox(height: 16),
               TextField(
                 controller: _email,
+                enabled: !_busy,
+                autocorrect: false,
                 keyboardType: TextInputType.emailAddress,
                 textDirection: TextDirection.ltr,
                 autofillHints: const [AutofillHints.username],
@@ -86,9 +92,16 @@ class _AuthScreenState extends State<AuthScreen> {
               const SizedBox(height: 12),
               TextField(
                 controller: _password,
+                enabled: !_busy,
+                autocorrect: false,
+                enableSuggestions: false,
                 obscureText: !_showPassword,
                 textDirection: TextDirection.ltr,
-                autofillHints: const [AutofillHints.password],
+                autofillHints: [
+                  _register
+                      ? AutofillHints.newPassword
+                      : AutofillHints.password,
+                ],
                 maxLength: 128,
                 decoration: InputDecoration(
                   labelText: 'كلمة المرور — 12 حرفًا على الأقل',
@@ -106,7 +119,7 @@ class _AuthScreenState extends State<AuthScreen> {
                 onPressed: _busy ? null : _submit,
                 child: Text(
                   _busy
-                      ? 'جارٍ التحقق…'
+                      ? widget.auth.busyMessage ?? 'جارٍ التحقق…'
                       : _register
                       ? 'إنشاء الحساب'
                       : 'ابدأ الآن',

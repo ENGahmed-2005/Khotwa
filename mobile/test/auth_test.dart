@@ -19,6 +19,9 @@ void main() {
         api: ApiClient(
           baseUrl: 'https://example.test',
           client: MockClient((request) async {
+            if (request.url.path == '/health') {
+              return http.Response('{"status":"ok","database":"ready"}', 200);
+            }
             if (request.url.path.endsWith('/login')) {
               return http.Response(
                 jsonEncode({
@@ -73,6 +76,9 @@ void main() {
         api: ApiClient(
           baseUrl: 'https://example.test',
           client: MockClient((request) async {
+            if (request.url.path == '/health') {
+              return http.Response('{"status":"ok","database":"ready"}', 200);
+            }
             if (request.method == 'DELETE') {
               return http.Response(
                 deleteAllowed ? '' : '{"error":{"code":"invalid_credentials"}}',
@@ -202,6 +208,9 @@ void main() {
       final api = ApiClient(
         baseUrl: 'https://example.test',
         client: MockClient((r) async {
+          if (r.url.path == '/health') {
+            return http.Response('{"status":"ok","database":"ready"}', 200);
+          }
           if (r.url.path.endsWith('/logout')) {
             return http.Response('', 204);
           }

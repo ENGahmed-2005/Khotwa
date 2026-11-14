@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:uuid/uuid.dart';
 
 import 'api_client.dart';
@@ -26,6 +27,7 @@ class AuthState extends ChangeNotifier {
   String? email, ownerId, token, error;
   String? cleanupWarning;
   bool busy = false;
+  String? busyMessage;
   bool get signedIn => token != null && records != null;
   static const _sessionKey = 'khotwa-session-v2';
   static const _deletionKey = 'khotwa-deletion-cleanup-v1';
@@ -215,30 +217,42 @@ class AuthState extends ChangeNotifier {
       );
     }
     busy = true;
+    busyMessage = 'جارٍ الاتصال… قد يستغرق ذلك نحو دقيقة.';
     error = null;
     notifyListeners();
     try {
+      await api.prepareAuthentication();
+      busyMessage = register ? 'جارٍ إنشاء حسابك…' : 'جارٍ تسجيل الدخول…';
+      notifyListeners();
       final response = await api.request(
         'POST',
         register ? '/v1/auth/register' : '/v1/auth/login',
         data: {'email': email.trim(), 'password': password},
       );
-      final id = (response['user'] as Map)['id'] as String;
-      final deletions = await _resumeDeletions();
-      if (deletions[id] == true) {
-        throw const ApiException('local_cleanup_pending', _cleanupMessage);
+      try {
+        final id = (response['user'] as Map)['id'] as String;
+        final deletions = await _resumeDeletions();
+        if (deletions[id] == true) {
+          throw const ApiException('local_cleanup_pending', _cleanupMessage);
+        }
+        if (deletions.containsKey(id)) {
+          // A successful server login resolves an unconfirmed delete request
+          // without deleting any of this account's pending offline work.
+          deletions.remove(id);
+          await _writeDeletions(deletions);
+          if (cleanupWarning == _pendingMessage) cleanupWarning = null;
+        }
+        await secrets.write(_sessionKey, jsonEncode(response));
+        await _open(response);
+      } on PlatformException {
+        throw const ApiException(
+          'secure_storage_unavailable',
+          'تم التحقق من الحساب، لكن تعذّر حفظ الجلسة بأمان على هذا الجهاز. احتُفظ بالملفات؛ لا تُعِد إنشاء الحساب.',
+        );
       }
-      if (deletions.containsKey(id)) {
-        // A successful server login resolves an unconfirmed delete request
-        // without deleting any of this account's pending offline work.
-        deletions.remove(id);
-        await _writeDeletions(deletions);
-        if (cleanupWarning == _pendingMessage) cleanupWarning = null;
-      }
-      await secrets.write(_sessionKey, jsonEncode(response));
-      await _open(response);
     } finally {
       busy = false;
+      busyMessage = null;
       notifyListeners();
     }
   }
