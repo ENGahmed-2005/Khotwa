@@ -493,76 +493,77 @@ class _ReportsScreenState extends State<ReportsScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              ExpansionTile(
-                tilePadding: EdgeInsets.zero,
-                initiallyExpanded: _headerDirty,
-                leading: _logo == null
-                    ? const Icon(Icons.school_outlined)
-                    : Image.memory(
+              if (_storageReady)
+                ExpansionTile(
+                  tilePadding: EdgeInsets.zero,
+                  initiallyExpanded: _headerDirty,
+                  leading: _logo == null
+                      ? const Icon(Icons.school_outlined)
+                      : Image.memory(
+                          base64Decode(_logo!['base64'] as String),
+                          width: 44,
+                          height: 44,
+                          fit: BoxFit.contain,
+                          semanticLabel: 'شعار المؤسسة',
+                        ),
+                  title: const Text('ترويسة المؤسسة (اختياري)'),
+                  subtitle: Text(
+                    _institution.text.isEmpty
+                        ? 'إضافة اسم المؤسسة وشعارها'
+                        : _institution.text,
+                  ),
+                  children: [
+                    const Text(
+                      'اسم المؤسسة وشعارها فقط. لا تُرفقي صور الأطفال أو أوراقهم أو بياناتهم.',
+                    ),
+                    const SizedBox(height: 14),
+                    TextField(
+                      controller: _institution,
+                      enabled: !_busy,
+                      maxLength: 160,
+                      decoration: const InputDecoration(
+                        labelText: 'عنوان المؤسسة (اختياري)',
+                      ),
+                      onChanged: (_) => _edit(() => _headerDirty = true),
+                    ),
+                    if (_logo != null)
+                      Image.memory(
                         base64Decode(_logo!['base64'] as String),
-                        width: 44,
-                        height: 44,
+                        height: 90,
                         fit: BoxFit.contain,
-                        semanticLabel: 'شعار المؤسسة',
+                        semanticLabel: 'معاينة شعار المؤسسة',
                       ),
-                title: const Text('ترويسة المؤسسة (اختياري)'),
-                subtitle: Text(
-                  _institution.text.isEmpty
-                      ? 'إضافة اسم المؤسسة وشعارها'
-                      : _institution.text,
+                    Wrap(
+                      spacing: 10,
+                      runSpacing: 10,
+                      children: [
+                        OutlinedButton(
+                          onPressed: _busy ? null : () => _run(_chooseLogo),
+                          child: const Text('اختيار شعار المؤسسة'),
+                        ),
+                        if (_logo != null)
+                          TextButton(
+                            onPressed: _busy
+                                ? null
+                                : () => _edit(() {
+                                    _logo = null;
+                                    _headerDirty = true;
+                                  }),
+                            child: const Text('إزالة الشعار'),
+                          ),
+                        OutlinedButton(
+                          onPressed: _busy ? null : () => _run(_saveHeader),
+                          child: const Text('حفظ الترويسة'),
+                        ),
+                        if (_headerDirty)
+                          TextButton(
+                            onPressed: _busy ? null : () => _run(_reloadHeader),
+                            child: const Text('تحميل ترويسة الخادم'),
+                          ),
+                      ],
+                    ),
+                  ],
                 ),
-                children: [
-                  const Text(
-                    'اسم المؤسسة وشعارها فقط. لا تُرفقي صور الأطفال أو أوراقهم أو بياناتهم.',
-                  ),
-                  const SizedBox(height: 14),
-                  TextField(
-                    controller: _institution,
-                    enabled: !_busy,
-                    maxLength: 160,
-                    decoration: const InputDecoration(
-                      labelText: 'عنوان المؤسسة (اختياري)',
-                    ),
-                    onChanged: (_) => _edit(() => _headerDirty = true),
-                  ),
-                  if (_logo != null)
-                    Image.memory(
-                      base64Decode(_logo!['base64'] as String),
-                      height: 90,
-                      fit: BoxFit.contain,
-                      semanticLabel: 'معاينة شعار المؤسسة',
-                    ),
-                  Wrap(
-                    spacing: 10,
-                    runSpacing: 10,
-                    children: [
-                      OutlinedButton(
-                        onPressed: _busy ? null : () => _run(_chooseLogo),
-                        child: const Text('اختيار شعار المؤسسة'),
-                      ),
-                      if (_logo != null)
-                        TextButton(
-                          onPressed: _busy
-                              ? null
-                              : () => _edit(() {
-                                  _logo = null;
-                                  _headerDirty = true;
-                                }),
-                          child: const Text('إزالة الشعار'),
-                        ),
-                      OutlinedButton(
-                        onPressed: _busy ? null : () => _run(_saveHeader),
-                        child: const Text('حفظ الترويسة'),
-                      ),
-                      if (_headerDirty)
-                        TextButton(
-                          onPressed: _busy ? null : () => _run(_reloadHeader),
-                          child: const Text('تحميل ترويسة الخادم'),
-                        ),
-                    ],
-                  ),
-                ],
-              ),
               const SizedBox(height: 10),
               CheckboxListTile(
                 value: _privacyReviewed,

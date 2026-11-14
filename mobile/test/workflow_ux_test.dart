@@ -32,7 +32,8 @@ AuthState account({
         client: MockClient((request) async {
           final data = switch (request.url.path) {
             '/v1/reports/settings' => {
-              'settings': {'institutionTitle': '', 'logo': null, 'revision': 0},
+              'revision': 0,
+              'settings': {'institutionTitle': '', 'logo': null},
             },
             '/v1/reports/exports' => {'exports': []},
             _ => {'records': plans},
@@ -215,6 +216,7 @@ void main() {
       final stores = <String, FakeStore>{};
       final auth = account(stores: stores);
       await screen(tester, ReportsScreen(auth: auth));
+      expect(find.textContaining('تعذّر تحديث بيانات التقارير'), findsNothing);
       expect(find.text('١. نوع التقرير وفترته'), findsOneWidget);
       expect(find.byType(TextField), findsNothing);
       await reveal(tester, find.text('ترويسة المؤسسة (اختياري)'));
