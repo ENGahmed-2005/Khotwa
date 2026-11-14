@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../core/api_client.dart';
 import '../core/auth_state.dart';
+import '../core/khotwa_theme.dart';
+import '../widgets/khotwa_ui.dart';
 import '../widgets/common.dart';
 
 class AuthScreen extends StatefulWidget {
@@ -52,103 +54,223 @@ class _AuthScreenState extends State<AuthScreen> {
           constraints: const BoxConstraints(maxWidth: 520),
           child: ListView(
             shrinkWrap: true,
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.all(22),
             children: [
-              const Icon(
-                Icons.spa_outlined,
-                size: 64,
-                color: Color(0xFF0A6B78),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  const KhotwaBrandMark(size: 72),
+                  const SizedBox(width: 18),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'خطوة',
+                          style: Theme.of(context).textTheme.headlineLarge,
+                        ),
+                        const SizedBox(height: 3),
+                        const Text(
+                          'معًا.. نحو تعلّم أفضل',
+                          style: TextStyle(
+                            color: KhotwaPalette.muted,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 26),
               Text(
-                'خطوة',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.headlineLarge,
+                'عملكِ التربوي، خطوة بخطوة.',
+                style: Theme.of(context).textTheme.headlineSmall,
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 8),
               const Text(
-                'لكل طالب طريقته في التعلم، ولكل خطوة أثر في التقدم',
-                textAlign: TextAlign.center,
+                'ملفات منظمة وخطط تراجعينها بنفسكِ، لتكون متابعة كل طالب أوضح وأسهل.',
+                style: TextStyle(color: KhotwaPalette.muted, height: 1.8),
               ),
               const SizedBox(height: 24),
               const PrototypeNote(),
-              const SizedBox(height: 20),
-              Text(
-                _register ? 'إنشاء حساب المختصة' : 'تسجيل الدخول',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _email,
-                enabled: !_busy,
-                autocorrect: false,
-                keyboardType: TextInputType.emailAddress,
-                textDirection: TextDirection.ltr,
-                autofillHints: const [AutofillHints.username],
-                decoration: const InputDecoration(
-                  labelText: 'البريد الإلكتروني للمختصة',
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _password,
-                enabled: !_busy,
-                autocorrect: false,
-                enableSuggestions: false,
-                obscureText: !_showPassword,
-                textDirection: TextDirection.ltr,
-                autofillHints: [
-                  _register
-                      ? AutofillHints.newPassword
-                      : AutofillHints.password,
-                ],
-                maxLength: 128,
-                decoration: InputDecoration(
-                  labelText: 'كلمة المرور — 12 حرفًا على الأقل',
-                  suffixIcon: IconButton(
-                    onPressed: () =>
-                        setState(() => _showPassword = !_showPassword),
-                    icon: Icon(
-                      _showPassword ? Icons.visibility_off : Icons.visibility,
+              Card(
+                margin: EdgeInsets.zero,
+                child: Padding(
+                  padding: const EdgeInsets.all(22),
+                  child: AutofillGroup(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text(
+                          _register ? 'إنشاء حساب المختصة' : 'تسجيل الدخول',
+                          style: Theme.of(context).textTheme.titleLarge,
+                        ),
+                        const SizedBox(height: 5),
+                        Text(
+                          _register
+                              ? 'ابدئي مساحة عمل خاصة بملفات طلابكِ.'
+                              : 'أهلاً بعودتكِ. لنكمل من حيث توقفتِ.',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                        Align(
+                          alignment: AlignmentDirectional.centerStart,
+                          child: TextButton(
+                            onPressed: _busy
+                                ? null
+                                : () => setState(() => _register = !_register),
+                            child: Text(
+                              _register ? 'لدي حساب بالفعل' : 'إنشاء حساب جديد',
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: _email,
+                          enabled: !_busy,
+                          autocorrect: false,
+                          keyboardType: TextInputType.emailAddress,
+                          textInputAction: TextInputAction.next,
+                          textDirection: TextDirection.ltr,
+                          autofillHints: const [AutofillHints.username],
+                          decoration: const InputDecoration(
+                            labelText: 'البريد الإلكتروني للمختصة',
+                            prefixIcon: Icon(Icons.mail_outline_rounded),
+                          ),
+                        ),
+                        const SizedBox(height: 18),
+                        TextField(
+                          controller: _password,
+                          enabled: !_busy,
+                          autocorrect: false,
+                          enableSuggestions: false,
+                          obscureText: !_showPassword,
+                          textDirection: TextDirection.ltr,
+                          textInputAction: TextInputAction.done,
+                          onSubmitted: _busy ? null : (_) => _submit(),
+                          autofillHints: [
+                            _register
+                                ? AutofillHints.newPassword
+                                : AutofillHints.password,
+                          ],
+                          maxLength: 128,
+                          decoration: InputDecoration(
+                            labelText: 'كلمة المرور — 12 حرفًا على الأقل',
+                            counterText: '',
+                            prefixIcon: const Icon(Icons.lock_outline_rounded),
+                            suffixIcon: IconButton(
+                              tooltip: _showPassword
+                                  ? 'إخفاء كلمة المرور'
+                                  : 'إظهار كلمة المرور',
+                              onPressed: () => setState(
+                                () => _showPassword = !_showPassword,
+                              ),
+                              icon: Icon(
+                                _showPassword
+                                    ? Icons.visibility_off_outlined
+                                    : Icons.visibility_outlined,
+                              ),
+                            ),
+                          ),
+                        ),
+                        if (!_register)
+                          Align(
+                            alignment: AlignmentDirectional.centerEnd,
+                            child: TextButton(
+                              onPressed: _busy
+                                  ? null
+                                  : () => Navigator.push(
+                                      context,
+                                      MaterialPageRoute<void>(
+                                        builder: (_) => PasswordResetScreen(
+                                          auth: widget.auth,
+                                        ),
+                                      ),
+                                    ),
+                              child: const Text('استعادة كلمة المرور'),
+                            ),
+                          ),
+                        if (widget.auth.error != null)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            child: Text(
+                              widget.auth.error!,
+                              style: TextStyle(
+                                color: Theme.of(context).colorScheme.error,
+                              ),
+                            ),
+                          ),
+                        const SizedBox(height: 14),
+                        FilledButton(
+                          onPressed: _busy ? null : _submit,
+                          style: _busy
+                              ? FilledButton.styleFrom(
+                                  disabledBackgroundColor: KhotwaPalette.navy,
+                                  disabledForegroundColor: Colors.white,
+                                )
+                              : null,
+                          child: _busy
+                              ? Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    const SizedBox(
+                                      width: 17,
+                                      height: 17,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Flexible(
+                                      child: Text(
+                                        widget.auth.busyMessage ??
+                                            'جارٍ التحقق…',
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ),
+                                  ],
+                                )
+                              : Text(_register ? 'إنشاء الحساب' : 'ابدأ الآن'),
+                        ),
+                      ],
                     ),
                   ),
                 ),
               ),
-              const SizedBox(height: 12),
-              FilledButton(
-                onPressed: _busy ? null : _submit,
-                child: Text(
-                  _busy
-                      ? widget.auth.busyMessage ?? 'جارٍ التحقق…'
-                      : _register
-                      ? 'إنشاء الحساب'
-                      : 'ابدأ الآن',
+              const SizedBox(height: 22),
+              const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.shield_outlined,
+                    size: 17,
+                    color: KhotwaPalette.muted,
+                  ),
+                  SizedBox(width: 7),
+                  Flexible(
+                    child: Text(
+                      'ملفات الطلبة برموز مجهّلة',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: KhotwaPalette.muted,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              const Text(
+                'يلزم الاتصال لأول دخول. بعدها يمكنكِ حفظ العمل على هذا الجهاز ومزامنته عند عودة الاتصال.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 12,
+                  height: 1.8,
+                  color: KhotwaPalette.muted,
                 ),
               ),
-              TextButton(
-                onPressed: _busy
-                    ? null
-                    : () => setState(() => _register = !_register),
-                child: Text(_register ? 'لدي حساب بالفعل' : 'إنشاء حساب جديد'),
-              ),
-              TextButton(
-                onPressed: _busy
-                    ? null
-                    : () => Navigator.push(
-                        context,
-                        MaterialPageRoute<void>(
-                          builder: (_) =>
-                              PasswordResetScreen(auth: widget.auth),
-                        ),
-                      ),
-                child: const Text('استعادة كلمة المرور'),
-              ),
-              if (widget.auth.error != null) Text(widget.auth.error!),
               const SizedBox(height: 12),
-              const Text(
-                'يلزم الاتصال لأول دخول. بعد ذلك تُحفظ ملفات هذا الحساب مشفّرة على الجهاز للعمل دون اتصال، وتتم مزامنتها من زر المزامنة أو عند العودة للتطبيق.',
-                style: TextStyle(fontSize: 12),
-              ),
             ],
           ),
         ),

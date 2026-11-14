@@ -4,7 +4,9 @@ import 'package:flutter/foundation.dart';
 import '../core/app_state.dart';
 import '../core/auth_state.dart';
 import '../core/sync_retry_coordinator.dart';
-import '../models/assessment.dart';
+import '../core/khotwa_theme.dart';
+import '../widgets/khotwa_ui.dart';
+import '../widgets/specialist_dashboard.dart';
 import '../widgets/common.dart';
 import 'students_screen.dart';
 import 'plans_screen.dart';
@@ -28,7 +30,6 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   int _tab = 0;
-  int _guideStep = 0;
   late SyncRetryCoordinator _syncRetry;
   @override
   void initState() {
@@ -151,286 +152,193 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     animation: widget.state,
     builder: (context, _) => Scaffold(
       appBar: AppBar(
-        title: const Text('خطوة'),
+        title: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            KhotwaBrandMark(size: 36),
+            SizedBox(width: 9),
+            Text('خطوة'),
+          ],
+        ),
         actions: [
           IconButton(
             tooltip: 'مزامنة الآن',
             onPressed: widget.state.syncing ? null : _syncRetry.syncNow,
-            icon: const Icon(Icons.sync),
+            icon: const Icon(Icons.sync_rounded),
           ),
-          PopupMenuButton<String>(
-            enabled: !widget.state.syncing,
-            onSelected: _accountAction,
-            itemBuilder: (_) => const [
-              PopupMenuItem(
-                value: 'logout',
-                child: Text('تسجيل الخروج وإبطال الجلسة'),
-              ),
-              PopupMenuItem(
-                value: 'lock',
-                child: Text('قفل محلي وحفظ العمل غير المتزامن'),
-              ),
-              PopupMenuItem(
-                value: 'delete',
-                child: Text('حذف الحساب والبيانات'),
-              ),
-            ],
+          IconButton(
+            tooltip: 'الإعدادات والحساب',
+            onPressed: () => setState(() => _tab = 2),
+            icon: const Icon(Icons.tune_rounded),
           ),
+          const SizedBox(width: 6),
         ],
       ),
       body: SafeArea(
-        child: Column(
-          children: [
-            Material(
-              color: const Color(0xFFE7F3F2),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 18,
-                  vertical: 10,
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      widget.state.syncing
-                          ? Icons.sync
-                          : widget.state.syncError != null
-                          ? Icons.cloud_off
-                          : Icons.lock_outline,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        widget.state.syncing
-                            ? 'جارٍ المزامنة…'
-                            : '${widget.state.pendingCount} تغيير بانتظار المزامنة · ${widget.state.conflicts.length} تعارض',
-                        style: const TextStyle(fontSize: 12),
-                      ),
-                    ),
-                    TextButton(
-                      onPressed: () => setState(() => _tab = 2),
-                      child: const Text('التفاصيل'),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            Expanded(
-              child: _tab == 0
-                  ? _dashboard()
-                  : _tab == 1
-                  ? StudentsScreen(state: widget.state)
-                  : _syncPanel(),
-            ),
-          ],
-        ),
-      ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _tab,
-        onDestinationSelected: (value) => setState(() => _tab = value),
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.dashboard_outlined),
-            label: 'الرئيسية',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.school_outlined),
-            label: 'ملفات الطلبة',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.sync),
-            label: 'المزامنة والحساب',
-          ),
-        ],
-      ),
-    ),
-  );
-  Widget _dashboard() => ListView(
-    padding: const EdgeInsets.all(18),
-    children: [
-      Text(
-        'لكل طالب طريقته في التعلم،',
-        style: Theme.of(context).textTheme.headlineSmall,
-      ),
-      Text(
-        'ولكل خطوة أثر في التقدم',
-        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-          color: Theme.of(context).colorScheme.primary,
-        ),
-      ),
-      const SizedBox(height: 18),
-      const PrototypeNote(),
-      if (!widget.state.guideSeen)
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 900),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text(
-                  'دليل البداية · ${_guideStep + 1} من 3',
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-                Text(
-                  const [
-                    'أنشئي ملفًا برمز عشوائي. احفظي المطابقة مع الاسم على الورق خارج التطبيق، وأكدي الموافقة. لا تكتبي معلومات تعريفية أو صحية.',
-                    'سجّلي ملاحظات الأداء وتقييمًا تربويًا حرًا أو بطاقات مناسبة للعمر، ثم راجعي القوة والاحتياج واعتمدي المصدر.',
-                    'راجعي الحقول التي ستُرسل وأكديها لتوليد مسودة. عدّلي الأهداف واعتمدي الخطة قبل الجلسات. احفظي محليًا ثم زامني قبل الانتقال إلى جهاز آخر.',
-                  ][_guideStep],
-                ),
-                Wrap(
-                  spacing: 8,
-                  children: [
-                    if (_guideStep > 0)
-                      TextButton(
-                        onPressed: () => setState(() => _guideStep--),
-                        child: const Text('السابق'),
-                      ),
-                    FilledButton(
-                      onPressed: () async {
-                        if (_guideStep < 2) {
-                          setState(() => _guideStep++);
-                        } else {
-                          try {
-                            await widget.state.markGuideSeen();
-                          } catch (e) {
-                            if (mounted) showError(context, e);
-                          }
-                        }
-                      },
-                      child: Text(
-                        _guideStep < 2 ? 'التالي' : 'فهمت، أبدأ العمل',
-                      ),
-                    ),
-                  ],
+                if (widget.state.pendingCount > 0 ||
+                    widget.state.syncing ||
+                    widget.state.syncError != null ||
+                    widget.state.conflicts.isNotEmpty)
+                  _syncNotice(),
+                Expanded(
+                  child: _tab == 0
+                      ? _dashboard()
+                      : _tab == 1
+                      ? StudentsScreen(state: widget.state)
+                      : _syncPanel(),
                 ),
               ],
             ),
           ),
         ),
-      const SectionHeading('نظرة سريعة'),
-      Card(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Text(
-            '${widget.state.students.length} ملفات مجهّلة    ·    ${widget.state.assessments.where((a) => a.status == AssessmentStatus.approved).length} تقييمات معتمدة',
-          ),
-        ),
       ),
-      const SectionHeading('ابدأ العمل'),
-      Wrap(
-        spacing: 8,
-        runSpacing: 8,
-        children: [
-          FilledButton.icon(
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute<void>(
-                builder: (_) => PlansScreen(auth: widget.auth),
-              ),
+      bottomNavigationBar: DecoratedBox(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          border: Border(top: BorderSide(color: KhotwaPalette.line)),
+        ),
+        child: NavigationBar(
+          selectedIndex: _tab,
+          onDestinationSelected: (value) => setState(() => _tab = value),
+          destinations: const [
+            NavigationDestination(
+              icon: Icon(Icons.home_outlined),
+              selectedIcon: Icon(Icons.home_rounded),
+              label: 'الرئيسية',
             ),
-            icon: const Icon(Icons.add),
-            label: const Text('إضافة خطة جديدة'),
-          ),
-          OutlinedButton.icon(
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute<void>(
-                builder: (_) => SessionsScreen(auth: widget.auth),
-              ),
+            NavigationDestination(
+              icon: Icon(Icons.groups_2_outlined),
+              selectedIcon: Icon(Icons.groups_2_rounded),
+              label: 'الطلبة',
             ),
-            icon: const Icon(Icons.edit_calendar_outlined),
-            label: const Text('تسجيل جلسة سريع'),
-          ),
-        ],
-      ),
-      Card(
-        child: ListTile(
-          leading: const Icon(Icons.assignment_outlined),
-          title: const Text('ملفات الطلبة والتقييم الأكاديمي'),
-          subtitle: const Text('بطاقات العربية والرياضيات للأعمار 6–12 سنة'),
-          trailing: const Icon(Icons.chevron_left),
-          onTap: () => setState(() => _tab = 1),
-        ),
-      ),
-      Card(
-        child: ListTile(
-          leading: const Icon(Icons.auto_awesome_outlined),
-          title: const Text('الخطط العلاجية الذكية'),
-          subtitle: const Text(
-            'معاينة البيانات وتوليد مسودة ثم مراجعتها واعتمادها',
-          ),
-          trailing: const Icon(Icons.chevron_left),
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute<void>(
-              builder: (_) => PlansScreen(auth: widget.auth),
+            NavigationDestination(
+              icon: Icon(Icons.settings_outlined),
+              selectedIcon: Icon(Icons.settings_rounded),
+              label: 'الإعدادات',
             ),
-          ),
+          ],
         ),
       ),
-      Card(
-        child: ListTile(
-          leading: const Icon(Icons.extension_outlined),
-          title: const Text('الأنشطة العلاجية'),
-          subtitle: const Text('أنشطة مرتبطة بأهداف معتمدة وأدوات متاحة'),
-          trailing: const Icon(Icons.chevron_left),
-          onTap: widget.activitiesBuilder == null
-              ? null
-              : () => Navigator.push(
-                  context,
-                  MaterialPageRoute<void>(builder: widget.activitiesBuilder!),
-                ),
-        ),
-      ),
-      Card(
-        child: ListTile(
-          leading: const Icon(Icons.bar_chart_outlined),
-          title: const Text('الجلسات ورحلة التقدم'),
-          subtitle: const Text('تسجيل دفعات الجلسات وقراءة الرسوم الوصفية'),
-          trailing: const Icon(Icons.chevron_left),
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute<void>(
-              builder: (_) => SessionsScreen(auth: widget.auth),
-            ),
-          ),
-        ),
-      ),
-      OutlinedButton.icon(
-        onPressed: () => Navigator.push(
-          context,
-          MaterialPageRoute<void>(
-            builder: (_) => ProgressScreen(state: widget.state),
-          ),
-        ),
-        icon: const Icon(Icons.show_chart),
-        label: const Text('عرض رسوم التقدم'),
-      ),
-      Card(
-        child: ListTile(
-          leading: const Icon(Icons.description_outlined),
-          title: const Text('التقارير والتصدير'),
-          subtitle: const Text('تقارير عربية للطباعة والمراجعة'),
-          trailing: const Icon(Icons.chevron_left),
-          onTap: widget.reportsBuilder == null
-              ? null
-              : () => Navigator.push(
-                  context,
-                  MaterialPageRoute<void>(builder: widget.reportsBuilder!),
-                ),
-        ),
-      ),
-      const SectionHeading('مسار الاستخدام'),
-      const Text(
-        '١. أنشئي ملفًا برمز عشوائي وسجّلي إقرار الموافقة.\n٢. نفّذي البطاقات وسجّلي الأداء واحفظيه مشفّرًا.\n٣. راجعي الملخص واعتمديه بقرار صريح.\n٤. زامني العمل قبل الانتقال لجهاز آخر؛ العمل غير المتزامن يبقى على هذا الجهاز.',
-      ),
-    ],
+    ),
   );
+
+  Widget _syncNotice() => Container(
+    margin: const EdgeInsets.fromLTRB(20, 3, 20, 8),
+    padding: const EdgeInsetsDirectional.fromSTEB(13, 4, 5, 4),
+    decoration: BoxDecoration(
+      color: widget.state.syncError != null || widget.state.conflicts.isNotEmpty
+          ? KhotwaPalette.paleAmber
+          : KhotwaPalette.paleBlue,
+      borderRadius: BorderRadius.circular(14),
+    ),
+    child: Row(
+      children: [
+        Icon(
+          widget.state.syncError != null
+              ? Icons.cloud_off_outlined
+              : Icons.cloud_sync_outlined,
+          size: 20,
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            widget.state.syncing
+                ? 'جارٍ مزامنة عملكِ…'
+                : widget.state.conflicts.isNotEmpty
+                ? 'يوجد تعارض يحتاج مراجعتكِ'
+                : widget.state.syncError != null
+                ? 'تعذّرت المزامنة. عملكِ المحفوظ باقٍ على هذا الجهاز.'
+                : '${widget.state.pendingCount} تغييرات بانتظار المزامنة',
+            style: const TextStyle(fontSize: 11, height: 1.6),
+          ),
+        ),
+        TextButton(
+          onPressed: () => setState(() => _tab = 2),
+          child: const Text('التفاصيل'),
+        ),
+      ],
+    ),
+  );
+
+  void _open(WidgetBuilder builder) =>
+      Navigator.push(context, MaterialPageRoute<void>(builder: builder));
+
+  Widget _dashboard() => SpecialistDashboard(
+    state: widget.state,
+    onStudents: () => setState(() => _tab = 1),
+    onAddStudent: () => _open((_) => StudentFormScreen(state: widget.state)),
+    onPlans: () => _open((_) => PlansScreen(auth: widget.auth)),
+    onSessions: () => _open((_) => SessionsScreen(auth: widget.auth)),
+    onProgress: () => _open((_) => ProgressScreen(state: widget.state)),
+    onActivities: widget.activitiesBuilder == null
+        ? null
+        : () => _open(widget.activitiesBuilder!),
+    onReports: widget.reportsBuilder == null
+        ? null
+        : () => _open(widget.reportsBuilder!),
+  );
+
   Widget _syncPanel() => ListView(
-    padding: const EdgeInsets.all(18),
+    padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
     children: [
-      Text(widget.auth.email ?? '', textDirection: TextDirection.ltr),
+      const KhotwaPageIntro(
+        title: 'الإعدادات والحساب',
+        description: 'راجعي حفظ عملكِ واتصال أجهزتكِ من مكان واحد.',
+        icon: Icons.tune_rounded,
+      ),
+      KhotwaSectionCard(
+        title: 'حساب المختصّة',
+        icon: Icons.person_outline_rounded,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (widget.auth.email != null)
+              Text(widget.auth.email!, textDirection: TextDirection.ltr),
+            const SizedBox(height: 14),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: widget.state.syncing || widget.auth.busy
+                      ? null
+                      : () => _accountAction('lock'),
+                  icon: const Icon(Icons.lock_outline_rounded),
+                  label: const Text('قفل التطبيق'),
+                ),
+                TextButton(
+                  onPressed: widget.state.syncing || widget.auth.busy
+                      ? null
+                      : () => _accountAction('logout'),
+                  child: const Text('تسجيل الخروج'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 7),
+            Text(
+              'قفل التطبيق يحتفظ بعملكِ على الجهاز إلى حين تسجيل الدخول مجددًا.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+        ),
+      ),
+      const Card(
+        child: ExpansionTile(
+          title: Text('دليل الاستخدام'),
+          leading: Icon(Icons.lightbulb_outline_rounded),
+          childrenPadding: EdgeInsets.fromLTRB(18, 0, 18, 18),
+          children: [
+            Text(
+              '١. أضيفي ملف طالب برمز مجهّل وأكدي الموافقة.\n٢. سجّلي التقييم وشواهد الأداء وراجعيها.\n٣. عايني بيانات التوليد ثم راجعي مسودة الخطة واعتمديها.\n٤. سجّلي الجلسات وتابعي التقدّم وصدّري التقرير.\n٥. زامني العمل قبل الانتقال لجهاز آخر.',
+            ),
+          ],
+        ),
+      ),
       const SectionHeading('حالة البيانات'),
       Text('تغييرات معلّقة: ${widget.state.pendingCount}'),
       Text('آخر مزامنة: ${widget.state.lastSyncedAt ?? 'لم تتم بعد'}'),
@@ -451,7 +359,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       const Text(
         kIsWeb
             ? 'معاينة المتصفح تحفظ البيانات في الذاكرة مؤقتًا فقط. تُستعاد البيانات المتزامنة من الخادم بعد تسجيل الدخول. التشفير المحلي مخصص لتطبيق Android وiOS.'
-            : 'البيانات المحلية محفوظة بتشفير AES-GCM، ومفتاحها في مخزن الجهاز الآمن. عند التعارض تبقى النسختان محفوظتين. لا تُحذف السجلات بسبب غيابها من استجابة الخادم.',
+            : 'يُحفظ عملكِ مشفّرًا على هذا الجهاز. زامني قبل الانتقال إلى جهاز آخر. عند التعارض تحتفظ خطوة بالنسختين حتى تراجعي القرار.',
       ),
       for (final entry in widget.state.conflicts.entries)
         Card(
@@ -486,6 +394,17 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             ),
           ),
         ),
+      const SizedBox(height: 22),
+      TextButton.icon(
+        onPressed: widget.state.syncing || widget.auth.busy
+            ? null
+            : () => _accountAction('delete'),
+        icon: const Icon(Icons.delete_outline_rounded),
+        label: const Text('حذف الحساب والبيانات'),
+        style: TextButton.styleFrom(
+          foregroundColor: Theme.of(context).colorScheme.error,
+        ),
+      ),
     ],
   );
   Future<void> _resolve(String id, bool keepLocal) async {
