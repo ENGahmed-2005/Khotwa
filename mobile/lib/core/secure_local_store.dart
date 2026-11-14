@@ -17,7 +17,10 @@ abstract class SecretStore {
 
 class DeviceSecretStore implements SecretStore {
   const DeviceSecretStore();
-  static const _storage = FlutterSecureStorage();
+  // A transient Keystore error must not erase keys needed by offline records.
+  static const _storage = FlutterSecureStorage(
+    aOptions: AndroidOptions(resetOnError: false),
+  );
   @override
   Future<String?> read(String key) => _storage.read(key: key);
   @override
