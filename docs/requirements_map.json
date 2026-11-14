@@ -144,7 +144,8 @@
       "status": "IN_PROGRESS",
       "evidence": [
         "mobile/lib/core/app_state.dart; encrypted_file_store.dart; backend/src/records.ts; native device interruption tests pending",
-        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md",
+        "2026-11-14: Keystore failure surfaced on GameLoop; source6675f3b forbids destructive reset; 2 regression tests and full Flutter143PASS; new native package/encryption validation pending"
       ]
     },
     {
@@ -1187,7 +1188,8 @@
       "status": "IN_PROGRESS",
       "evidence": [
         "mobile/lib/data/assessment_templates.dart; mobile/lib/models/assessment.dart; backend/test/schemas.test.ts; native academic-card acceptance and source review pending",
-        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md",
+        "2026-11-14: signed Android installer43209934240/c42ac25 digest and CRC verified; installed and launched on GameLoop Android13; signed iPhone package remains blocked"
       ]
     },
     {
@@ -1205,7 +1207,8 @@
       "scope": "MVP",
       "status": "IN_PROGRESS",
       "evidence": [
-        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md",
+        "2026-11-14: preserve Android secret keys on Keystore errors via explicit no-reset option; native cryptographic/lifecycle acceptance still pending: docs/PROJECT_STATUS.md"
       ]
     },
     {

@@ -31,30 +31,31 @@ class PrototypeNote extends StatelessWidget {
   const PrototypeNote({super.key});
 
   @override
-  Widget build(BuildContext context) => Container(
-    width: double.infinity,
-    padding: const EdgeInsets.all(15),
-    decoration: BoxDecoration(
-      color: const Color(0xFFFFF6E5),
-      borderRadius: BorderRadius.circular(16),
-      border: Border.all(color: const Color(0xFFF4D9A6)),
-    ),
-    child: const Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(Icons.info_outline, color: Color(0xFF855611)),
-        SizedBox(width: 12),
-        Expanded(
-          child: Text(
-            kIsWeb
-                ? 'معاينة متصفح ببيانات مصطنعة فقط. التخزين هنا مؤقت في الذاكرة ويُفقد عند إعادة التحميل؛ زامني بالخادم لحفظ عمل التجربة. هذه المعاينة لا تختبر تشفير Android أو iOS.'
-                : 'نسخة تطوير ببيانات تجريبية مصطنعة فقط. يلزم اعتماد سياسة الاستضافة والموافقة والاحتفاظ ومراجعة المختصة والاختبارات الميدانية قبل بيانات الطلبة الحقيقية.',
-            style: TextStyle(color: Color(0xFF654611)),
+  Widget build(BuildContext context) {
+    if (!kIsWeb) return const SizedBox.shrink();
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(15),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF6E5),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFF4D9A6)),
+      ),
+      child: const Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.info_outline, color: Color(0xFF855611)),
+          SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              'معاينة متصفح ببيانات مصطنعة فقط. التخزين هنا مؤقت في الذاكرة ويُفقد عند إعادة التحميل؛ زامني بالخادم لحفظ عمل التجربة. هذه المعاينة لا تختبر تشفير Android أو iOS.',
+              style: TextStyle(color: Color(0xFF654611)),
+            ),
           ),
-        ),
-      ],
-    ),
-  );
+        ],
+      ),
+    );
+  }
 }
 
 void showError(BuildContext context, Object error) {
