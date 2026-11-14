@@ -309,16 +309,18 @@ void main() {
       final api = ApiClient(
         baseUrl: 'https://example.test',
         client: MockClient(
-          (_) async => http.Response(
-            jsonEncode({
-              'token': 'synthetic-token',
-              'expiresAt': '2099-01-01T00:00:00Z',
-              'user': {
-                'id': 'draft-relogin',
-                'email': 'synthetic@example.test',
-                'role': 'specialist',
-              },
-            }),
+          (request) async => http.Response(
+            request.url.path == '/health'
+                ? '{"status":"ok","database":"ready"}'
+                : jsonEncode({
+                    'token': 'synthetic-token',
+                    'expiresAt': '2099-01-01T00:00:00Z',
+                    'user': {
+                      'id': 'draft-relogin',
+                      'email': 'synthetic@example.test',
+                      'role': 'specialist',
+                    },
+                  }),
             200,
           ),
         ),

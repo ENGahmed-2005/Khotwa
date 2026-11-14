@@ -9,7 +9,8 @@
       "status": "IN_PROGRESS",
       "evidence": [
         "backend/src/app.ts; backend/test/integration.test.ts; 70 backend tests PASS 2026-11-05; password-reset delivery and native deletion acceptance pending",
-        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md",
+        "2026-11-14 SEC-01 auth readiness/timeout/credential-vs-session errors and existing-account UI; mobile/test/auth_connection_test.dart; Flutter153/153 PASS; native auth acceptance pending; docs/PROJECT_STATUS.md"
       ]
     },
     {
@@ -19,7 +20,8 @@
       "status": "IN_PROGRESS",
       "evidence": [
         "backend/src/app.ts; backend/test/integration.test.ts; 70 backend tests PASS 2026-11-05; password-reset delivery and native deletion acceptance pending",
-        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md",
+        "2026-11-14 SEC-01 auth readiness/timeout/credential-vs-session errors and existing-account UI; mobile/test/auth_connection_test.dart; Flutter153/153 PASS; native auth acceptance pending; docs/PROJECT_STATUS.md"
       ]
     },
     {

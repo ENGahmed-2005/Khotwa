@@ -58,6 +58,9 @@ Map<String, dynamic> session(String id) => {
 ApiClient api() => ApiClient(
   baseUrl: 'https://example.test',
   client: MockClient((request) async {
+    if (request.url.path == '/health') {
+      return http.Response('{"status":"ok","database":"ready"}', 200);
+    }
     if (request.method == 'DELETE') return http.Response('', 204);
     final email = (jsonDecode(request.body) as Map)['email'] as String;
     return http.Response(
@@ -79,6 +82,9 @@ void main() {
           api: ApiClient(
             baseUrl: 'https://example.test',
             client: MockClient((request) async {
+              if (request.url.path == '/health') {
+                return http.Response('{"status":"ok","database":"ready"}', 200);
+              }
               if (request.method == 'DELETE') {
                 deleteRequests++;
                 if (response == 'lost') {
@@ -150,7 +156,9 @@ void main() {
         api: ApiClient(
           baseUrl: 'https://example.test',
           client: MockClient(
-            (request) async => request.method == 'DELETE'
+            (request) async => request.url.path == '/health'
+                ? http.Response('{"status":"ok","database":"ready"}', 200)
+                : request.method == 'DELETE'
                 ? http.Response('{"error":{"code":"invalid_credentials"}}', 401)
                 : http.Response(jsonEncode(session('owner-a')), 200),
           ),
