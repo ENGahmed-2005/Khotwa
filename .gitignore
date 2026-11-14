@@ -1,0 +1,47 @@
+# Flutter/Dart build outputs
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+build/
+coverage/
+*.iml
+.idea/
+
+# Generated native runners created by bootstrap (track after careful review)
+# Keep platform folders in git only after verification and security configuration.
+
+# Sensitive data and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.p12
+*.p8
+*.keystore
+*.jks
+*.mobileprovision
+*.key
+*.sqlite
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+.DS_Store
+
+# OS/editor temporary files
+Thumbs.db
+*.log
+*.tmp
+
+# Server / local tools
+node_modules/
+dist/
+.local/
+.artifacts/
+*.enc
+*.enc.bak
+android/local.properties
+**/key.properties

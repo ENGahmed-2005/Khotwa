@@ -1,0 +1,172 @@
+name: Khotwa quality and native builds
+on:
+  pull_request:
+  push:
+    # Work branches already run on their draft PR; avoid a duplicate native matrix.
+    branches: ['main']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+concurrency:
+  group: khotwa-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  planning:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python scripts/validate_planning.py
+
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: khotwa
+          POSTGRES_PASSWORD: ci-only-synthetic-password
+          POSTGRES_DB: khotwa_ci
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U khotwa -d khotwa_ci"
+          --health-interval 5s --health-timeout 5s --health-retries 12
+    env:
+      DATABASE_URL: postgresql://khotwa:ci-only-synthetic-password@127.0.0.1:5432/khotwa_ci
+      TEST_DATABASE_URL: postgresql://khotwa:ci-only-synthetic-password@127.0.0.1:5432/khotwa_ci
+      NODE_ENV: test
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - run: npm run db:generate
+      - run: npm run db:migrate:ci
+      - name: Confirm migrations are repeatable
+        run: npm run db:migrate:ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run test:ci
+      - run: npm run build
+
+  flutter:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: android
+          - os: macos-15
+            platform: ios
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        if: matrix.platform == 'android'
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: actions/cache@v4
+        if: matrix.platform == 'android'
+        with:
+          path: ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-wrapper-${{ hashFiles('mobile/android/gradle/wrapper/gradle-wrapper.properties') }}
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: '3.47.9'
+          cache: true
+      - run: flutter --version
+      - run: flutter pub get --enforce-lockfile
+      - run: dart format --output=none --set-exit-if-changed lib test
+      - run: flutter analyze
+      - run: flutter test --coverage
+      - name: Build Android debug APK
+        if: matrix.platform == 'android'
+        run: flutter build apk --debug --split-per-abi --dart-define=API_BASE_URL=http://127.0.0.1:3000
+      - name: Verify Android signatures and record delivery metadata
+        if: matrix.platform == 'android'
+        run: |
+          set -euo pipefail
+          tools="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)"
+          for abi in arm64-v8a armeabi-v7a x86_64; do
+            package="build/app/outputs/flutter-apk/app-$abi-debug.apk"
+            output="build/delivery/android-$abi"
+            mkdir -p "$output"
+            cp "$package" "$output/Khotwa-Android-$abi-preview.apk"
+            "$tools/apksigner" verify --verbose --print-certs "$package" > "$output/SIGNATURE.txt"
+            "$tools/aapt" dump badging "$package" > "$output/PACKAGE.txt"
+            cp "$GITHUB_WORKSPACE/docs/ANDROID_INSTALLATION.md" "$output/INSTALLATION.md"
+            (cd "$output" && sha256sum "Khotwa-Android-$abi-preview.apk" > SHA256SUMS.txt)
+          done
+          python3 - <<'PY'
+          import json, os, zipfile
+          from pathlib import Path
+          for abi in ('arm64-v8a', 'armeabi-v7a', 'x86_64'):
+              output = Path('build/delivery') / f'android-{abi}'
+              apk = output / f'Khotwa-Android-{abi}-preview.apk'
+              with zipfile.ZipFile(apk) as archive:
+                  assert archive.testzip() is None, 'APK CRC verification failed'
+                  assert 'AndroidManifest.xml' in archive.namelist()
+                  assert f'lib/{abi}/libflutter.so' in archive.namelist()
+              metadata = {
+                  'commit': os.environ['GITHUB_SHA'],
+                  'workflow_run_id': os.environ['GITHUB_RUN_ID'],
+                  'package_identifier': 'org.khotwa.khotwa',
+                  'abi': abi,
+                  'signing': 'Android debug certificate; verified with apksigner',
+                  'api_base_url': 'http://127.0.0.1:3000',
+                  'requires_local_backend_and_usb_forwarding': True,
+                  'physical_device_tested': False,
+                  'synthetic_development_only': True,
+              }
+              (output / 'BUILD_METADATA.json').write_text(json.dumps(metadata, indent=2) + '\n')
+          PY
+      - name: Build iOS without signing
+        if: matrix.platform == 'ios'
+        run: flutter build ios --debug --no-codesign
+      - name: Upload Android preview
+        if: matrix.platform == 'android'
+        uses: actions/upload-artifact@v4
+        with:
+          name: khotwa-android-arm64-preview-${{ github.sha }}
+          path: mobile/build/delivery/android-arm64-v8a/
+          if-no-files-found: error
+          retention-days: 7
+      - name: Upload older Android architecture preview
+        if: matrix.platform == 'android'
+        uses: actions/upload-artifact@v4
+        with:
+          name: khotwa-android-arm32-preview-${{ github.sha }}
+          path: mobile/build/delivery/android-armeabi-v7a/
+          if-no-files-found: error
+          retention-days: 7
+      - name: Upload Android emulator preview
+        if: matrix.platform == 'android'
+        uses: actions/upload-artifact@v4
+        with:
+          name: khotwa-android-x86_64-preview-${{ github.sha }}
+          path: mobile/build/delivery/android-x86_64/
+          if-no-files-found: error
+          retention-days: 7
+      - name: Upload unsigned iOS build
+        if: matrix.platform == 'ios'
+        uses: actions/upload-artifact@v4
+        with:
+          name: khotwa-ios-unsigned-${{ github.sha }}
+          path: mobile/build/ios/iphoneos/Runner.app
+          retention-days: 7

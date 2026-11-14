@@ -1,0 +1,79 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url = env("DATABASE_URL")
+}
+
+model User {
+  id String @id @default(uuid())
+  email String @unique
+  passwordHash String
+  role String @default("specialist")
+  createdAt DateTime @default(now())
+  sessions AuthSession[]
+  resets PasswordReset[]
+  records Record[]
+  operations SyncOperation[]
+  audits AuditEvent[]
+}
+
+model AuthSession {
+  id String @id @default(uuid())
+  userId String
+  tokenHash String @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId])
+}
+
+model PasswordReset {
+  id String @id @default(uuid())
+  userId String
+  tokenHash String @unique
+  expiresAt DateTime
+  usedAt DateTime?
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId])
+}
+
+// Strict kind-specific application schemas; AES-256-GCM encrypted payload.
+// The encrypted document is the synchronization aggregate; revision is server-owned.
+model Record {
+  id String
+  ownerId String
+  kind String
+  parentId String?
+  revision Int @default(1)
+  encryptedPayload String
+  deletedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  owner User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  @@id([ownerId, id])
+  @@index([ownerId, kind, updatedAt])
+  @@index([ownerId, parentId])
+}
+
+model SyncOperation {
+  ownerId String
+  operationId String
+  requestHash String
+  encryptedResult String
+  createdAt DateTime @default(now())
+  owner User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  @@id([ownerId, operationId])
+}
+
+model AuditEvent {
+  id String @id @default(uuid())
+  ownerId String
+  action String
+  entityId String?
+  createdAt DateTime @default(now())
+  owner User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  @@index([ownerId, createdAt])
+}

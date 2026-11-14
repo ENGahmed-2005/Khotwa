@@ -1,0 +1,54 @@
+{
+  "name": "khotwa-backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": "^22.12.0 || ^24.0.0 || >=26.0.0"
+  },
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "start": "tsx src/server.ts",
+    "build": "tsc",
+    "postbuild": "node src/reports/copy-assets.mjs",
+    "lint": "eslint src test",
+    "typecheck": "tsc --noEmit",
+    "test:ci": "vitest run",
+    "db:generate": "prisma generate",
+    "db:migrate:ci": "prisma migrate deploy",
+    "db:migrate": "prisma migrate dev"
+  },
+  "dependencies": {
+    "@fastify/helmet": "^13.0.2",
+    "@fastify/rate-limit": "^10.3.0",
+    "@prisma/client": "6.19.0",
+    "docx": "9.15.3",
+    "dotenv": "^17.2.3",
+    "fastify": "^5.6.2",
+    "fflate": "0.8.3",
+    "nodemailer": "10.4.0",
+    "playwright-core": "1.65.0",
+    "zod": "^4.1.12"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.0",
+    "@types/node": "^22.19.0",
+    "@types/nodemailer": "8.0.2",
+    "eslint": "^9.39.0",
+    "prisma": "6.19.0",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.46.2",
+    "vite": "7.3.7",
+    "vitest": "5.1.0"
+  },
+  "overrides": {
+    "@prisma/config": {
+      "deepmerge-ts": "8.0.0",
+      "effect": "3.20.0"
+    },
+    "@typescript-eslint/typescript-estree": {
+      "minimatch": "11.0.1"
+    }
+  }
+}

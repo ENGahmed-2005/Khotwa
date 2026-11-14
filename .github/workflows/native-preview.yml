@@ -1,0 +1,112 @@
+name: Package unsigned iOS preview
+
+on:
+  push:
+    branches: ['feat/fnd-02-foundation']
+    paths: ['mobile/**', '.github/workflows/native-preview.yml']
+  workflow_dispatch:
+    inputs:
+      api_base_url:
+        description: 'HTTPS API address compiled into the app; localhost is a build placeholder only'
+        required: true
+        type: string
+        default: 'https://khotwa-api-staging-p4le.onrender.com'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: khotwa-ios-package-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ios-package:
+    runs-on: macos-15
+    timeout-minutes: 45
+    env:
+      API_BASE_URL: ${{ inputs.api_base_url || 'https://khotwa-api-staging-p4le.onrender.com' }}
+      BUILD_NUMBER: ${{ github.run_number }}
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.9'
+          channel: stable
+          cache: true
+      - name: Validate non-secret API build input
+        run: |
+          python3 - <<'PY'
+          import os
+          from urllib.parse import urlsplit
+          value = urlsplit(os.environ['API_BASE_URL'])
+          if value.scheme != 'https' or not value.hostname or value.username or value.password or value.query or value.fragment:
+              raise SystemExit('API address must be HTTPS without credentials, query, or fragment')
+          if value.hostname in {'localhost', '127.0.0.1', '::1'}:
+              print('Build placeholder: an iPhone cannot reach the development computer through its own localhost')
+          PY
+      - name: Resolve locked Flutter dependencies
+        run: flutter pub get --enforce-lockfile
+      - name: Check Dart formatting
+        run: dart format --output=none --set-exit-if-changed lib test
+      - name: Analyze Flutter source
+        run: flutter analyze --no-pub
+      - name: Run all Flutter tests
+        run: flutter test --no-pub --reporter expanded
+      - name: Build actual iOS device release without signing
+        run: |
+          flutter build ios --release --no-codesign --no-pub --build-number="$BUILD_NUMBER" --dart-define="API_BASE_URL=$API_BASE_URL"
+      - name: Verify device bundle and package explicitly unsigned IPA
+        run: |
+          set -euo pipefail
+          app="build/ios/iphoneos/Runner.app"
+          test -s "$app/Runner"
+          plutil -lint "$app/Info.plist"
+          xcrun lipo "$app/Runner" -verify_arch arm64
+          stage="$RUNNER_TEMP/khotwa-ios-package-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          output="$GITHUB_WORKSPACE/delivery/ios"
+          mkdir -p "$stage/Payload" "$output"
+          ditto --norsrc --noextattr "$app" "$stage/Payload/Runner.app"
+          ditto -c -k --keepParent "$stage/Payload" "$output/Khotwa-iOS-UNSIGNED.ipa"
+          cp "$GITHUB_WORKSPACE/docs/IOS_INSTALLATION.md" "$output/INSTALLATION.md"
+          python3 - <<'PY'
+          import json, os, plistlib, zipfile
+          from pathlib import Path
+          output = Path(os.environ['GITHUB_WORKSPACE']) / 'delivery/ios'
+          ipa = output / 'Khotwa-iOS-UNSIGNED.ipa'
+          with zipfile.ZipFile(ipa) as archive:
+              assert archive.testzip() is None, 'IPA CRC verification failed'
+              assert 'Payload/Runner.app/Runner' in archive.namelist(), 'Missing device executable'
+              info = plistlib.loads(archive.read('Payload/Runner.app/Info.plist'))
+              assert info.get('CFBundleSupportedPlatforms') == ['iPhoneOS'], 'Not an iOS device bundle'
+              metadata = {
+                  'commit': os.environ['GITHUB_SHA'],
+                  'workflow_run_id': os.environ['GITHUB_RUN_ID'],
+                  'bundle_identifier': info['CFBundleIdentifier'],
+                  'version': info['CFBundleShortVersionString'],
+                  'build': info['CFBundleVersion'],
+                  'minimum_ios': info.get('MinimumOSVersion'),
+                  'api_base_url': os.environ['API_BASE_URL'],
+                  'signed_for_installation': False,
+                  'requires_apple_signing_and_provisioning': True,
+                  'synthetic_development_only': True,
+              }
+          (output / 'BUILD_METADATA.json').write_text(json.dumps(metadata, indent=2) + '\n')
+          PY
+          (cd "$output" && shasum -a 256 Khotwa-iOS-UNSIGNED.ipa > SHA256SUMS.txt)
+          {
+            echo '### Unsigned iOS package built'
+            echo 'Real arm64 iPhoneOS release bundle and ZIP CRC verified. All Flutter checks passed.'
+            echo 'This IPA is unsigned and cannot be installed on an iPhone until Apple signing and provisioning are configured.'
+            echo 'No App Store or TestFlight upload was performed.'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload unsigned device package and installation requirements
+        uses: actions/upload-artifact@v4
+        with:
+          name: khotwa-ios-unsigned-ipa
+          path: delivery/ios/
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 7
