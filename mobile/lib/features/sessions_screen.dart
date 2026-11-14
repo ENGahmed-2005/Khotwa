@@ -4,10 +4,14 @@ import 'package:uuid/uuid.dart';
 import '../core/auth_state.dart';
 import '../core/app_state.dart';
 import '../core/form_draft.dart';
+import '../core/khotwa_theme.dart';
 import '../core/plan_api.dart';
 import '../models/intervention_session.dart';
 import '../models/initial_assessment.dart';
 import '../widgets/common.dart';
+import '../widgets/khotwa_ui.dart';
+import 'plans_screen.dart';
+import 'students_screen.dart';
 
 class SessionsScreen extends StatefulWidget {
   const SessionsScreen({super.key, required this.auth});
@@ -266,6 +270,48 @@ class _SessionsScreenState extends State<SessionsScreen> {
     }
   }
 
+  Future<void> _openStudents() async {
+    await Navigator.push<void>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => Scaffold(
+          appBar: AppBar(title: const Text('ملفات الطلبة')),
+          body: StudentsScreen(state: _state),
+        ),
+      ),
+    );
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _openPlans() async {
+    await Navigator.push<void>(
+      context,
+      MaterialPageRoute(builder: (_) => PlansScreen(auth: widget.auth)),
+    );
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _chooseSessionDate(_SessionInput row) async {
+    final today = DateUtils.dateOnly(DateTime.now());
+    final parsed = DateTime.tryParse(row.date.text);
+    final initial =
+        parsed == null || parsed.isAfter(today) || parsed.year < 1900
+        ? today
+        : parsed;
+    final chosen = await showDatePicker(
+      context: context,
+      initialDate: initial,
+      firstDate: DateTime(1900),
+      lastDate: today,
+    );
+    if (chosen != null && mounted) {
+      _edit(
+        () => row.date.text =
+            '${chosen.year.toString().padLeft(4, '0')}-${chosen.month.toString().padLeft(2, '0')}-${chosen.day.toString().padLeft(2, '0')}',
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = _state;
@@ -299,8 +345,14 @@ class _SessionsScreenState extends State<SessionsScreen> {
           children: [
             const PrototypeNote(),
             FormDraftStatus(controller: _formDraft),
+            const KhotwaPageIntro(
+              title: 'متابعة الطالب، جلسة بجلسة',
+              description:
+                  'سجلي الأداء الفعلي وتابعي الأهداف من جلسة إلى أخرى.',
+              icon: Icons.edit_calendar_outlined,
+            ),
             const Text(
-              'يمكن التسجيل دون اتصال بعد حفظ الخطة المعتمدة على الجهاز. التاريخ السابق مسموح؛ الدقة من نتائج الجلسة وحدها. لا تُحوّل نتائج البطاقات إلى محاولات تدخل.',
+              'يمكن التسجيل دون اتصال بعد حفظ الخطة المعتمدة على الجهاز. تُحسب الدقة من نتائج هذه الجلسة فقط.',
             ),
             if (_error != null)
               Padding(
@@ -312,81 +364,143 @@ class _SessionsScreenState extends State<SessionsScreen> {
                 ),
               ),
             if (_busy) const LinearProgressIndicator(),
-            DropdownButtonFormField<String>(
-              initialValue: students.any((s) => s.id == _studentId)
-                  ? _studentId
-                  : null,
-              isExpanded: true,
-              decoration: const InputDecoration(labelText: 'رمز الطالب'),
-              items: students
-                  .map(
-                    (s) => DropdownMenuItem(value: s.id, child: Text(s.code)),
-                  )
-                  .toList(),
-              onChanged: _busy
-                  ? null
-                  : (v) => _edit(() {
-                      _studentId = v;
-                      _planId = null;
-                      for (final row in _inputs) {
-                        row.goalId = null;
-                        row.activityId = null;
-                      }
-                    }),
-            ),
-            const SizedBox(height: 14),
-            DropdownButtonFormField<String>(
-              key: ValueKey('session-plan-$_studentId-$_planId'),
-              initialValue: plans.any((p) => p.id == _planId) ? _planId : null,
-              isExpanded: true,
-              decoration: const InputDecoration(
-                labelText: 'نسخة الخطة المعتمدة',
+            if (students.isEmpty)
+              KhotwaEmptyState(
+                title: 'ملف الطالب أولًا',
+                message:
+                    'ابدئي بإضافة ملف الطالب وتقييمه، ثم اعتمدي خطته لتسجيل الجلسات المرتبطة بأهدافه.',
+                icon: Icons.assignment_ind_outlined,
+                action: FilledButton.icon(
+                  onPressed: _busy ? null : _openStudents,
+                  icon: const Icon(Icons.person_add_alt_1_outlined),
+                  label: const Text('فتح ملفات الطلبة'),
+                ),
               ),
-              items: plans
-                  .map(
-                    (p) => DropdownMenuItem(
-                      value: p.id,
-                      child: Text(
-                        'خطة ${p.data['version']} · ${p.data['approvedAt']?.toString().substring(0, 10) ?? ''}',
+            if (students.isNotEmpty || _formDraft.restored != null) ...[
+              KhotwaSectionCard(
+                title: '١. الطالب والخطة',
+                subtitle: 'اربطي الجلسة بأهداف الخطة المعتمدة.',
+                icon: Icons.folder_shared_outlined,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    DropdownButtonFormField<String>(
+                      initialValue: students.any((s) => s.id == _studentId)
+                          ? _studentId
+                          : null,
+                      isExpanded: true,
+                      decoration: const InputDecoration(
+                        labelText: 'رمز الطالب',
                       ),
+                      items: students
+                          .map(
+                            (s) => DropdownMenuItem(
+                              value: s.id,
+                              child: Text(s.code),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: _busy
+                          ? null
+                          : (v) => _edit(() {
+                              _studentId = v;
+                              _planId = null;
+                              for (final row in _inputs) {
+                                row.goalId = null;
+                                row.activityId = null;
+                              }
+                            }),
                     ),
-                  )
-                  .toList(),
-              onChanged: _busy
-                  ? null
-                  : (v) => _edit(() {
-                      _planId = v;
-                      for (final row in _inputs) {
-                        row.goalId = null;
-                        row.activityId = null;
-                      }
-                    }),
-            ),
-            if (_studentId != null && plans.isEmpty)
-              const Text(
-                'يلزم اعتماد خطة ومزامنتها أو تحديثها قبل تسجيل الجلسات.',
+                    const SizedBox(height: 14),
+                    DropdownButtonFormField<String>(
+                      key: ValueKey('session-plan-$_studentId-$_planId'),
+                      initialValue: plans.any((p) => p.id == _planId)
+                          ? _planId
+                          : null,
+                      isExpanded: true,
+                      decoration: const InputDecoration(
+                        labelText: 'نسخة الخطة المعتمدة',
+                      ),
+                      items: plans
+                          .map(
+                            (p) => DropdownMenuItem(
+                              value: p.id,
+                              child: Text(
+                                'خطة ${p.data['version']} · ${p.data['approvedAt']?.toString().substring(0, 10) ?? ''}',
+                              ),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: _busy
+                          ? null
+                          : (v) => _edit(() {
+                              _planId = v;
+                              for (final row in _inputs) {
+                                row.goalId = null;
+                                row.activityId = null;
+                              }
+                            }),
+                    ),
+                    if (_studentId != null && plans.isEmpty)
+                      const Text(
+                        'يلزم اعتماد خطة ومزامنتها أو تحديثها قبل تسجيل الجلسات.',
+                      ),
+
+                    if (_studentId != null && plans.isEmpty)
+                      TextButton.icon(
+                        onPressed: _busy ? null : _openPlans,
+                        icon: const Icon(Icons.auto_awesome_outlined),
+                        label: const Text('فتح الخطط ومراجعتها'),
+                      ),
+                  ],
+                ),
               ),
-            for (var i = 0; i < _inputs.length; i++) _row(_inputs[i], i, goals),
-            OutlinedButton.icon(
-              onPressed: _busy || _inputs.length >= 50 ? null : _addRow,
-              icon: const Icon(Icons.add),
-              label: const Text('إضافة جلسة أخرى إلى الدفعة'),
-            ),
-            CheckboxListTile(
-              value: _privacy,
-              onChanged: _busy
-                  ? null
-                  : (v) => _edit(() => _privacy = v ?? false),
-              title: const Text(
-                'راجعت الملاحظات؛ لا تحتوي أسماء أو بيانات تعريفية أو صحية',
+              const SectionHeading(
+                '٢. سجلي ما حدث في الجلسة',
+                subtitle: 'يمكن إضافة أكثر من جلسة وحفظها معًا.',
               ),
+              for (var i = 0; i < _inputs.length; i++)
+                _row(_inputs[i], i, goals),
+              OutlinedButton.icon(
+                onPressed: _busy || _inputs.length >= 50 ? null : _addRow,
+                icon: const Icon(Icons.add),
+                label: const Text('إضافة جلسة أخرى إلى الدفعة'),
+              ),
+              CheckboxListTile(
+                value: _privacy,
+                onChanged: _busy
+                    ? null
+                    : (v) => _edit(() => _privacy = v ?? false),
+                title: const Text(
+                  'راجعت الملاحظات؛ لا تحتوي أسماء أو بيانات تعريفية أو صحية',
+                ),
+              ),
+              FilledButton.icon(
+                onPressed:
+                    _busy ||
+                        !students.any((student) => student.id == _studentId) ||
+                        selected == null ||
+                        !_privacy
+                    ? null
+                    : _save,
+                icon: const Icon(Icons.save_outlined),
+                label: Text('حفظ ${_inputs.length} جلسة محليًا معًا'),
+              ),
+            ],
+            SectionHeading(
+              'الجلسات السابقة لهذا الطالب',
+              subtitle: '${previous.length} جلسة محفوظة',
             ),
-            FilledButton.icon(
-              onPressed: _busy ? null : _save,
-              icon: const Icon(Icons.save_outlined),
-              label: Text('حفظ ${_inputs.length} جلسة محليًا معًا'),
-            ),
-            const SectionHeading('الجلسات السابقة لهذا الطالب'),
+            if (previous.isEmpty)
+              KhotwaEmptyState(
+                title: _studentId == null
+                    ? 'سجل الجلسات'
+                    : 'لا توجد جلسات لهذا الطالب بعد',
+                message: _studentId == null
+                    ? 'اختاري ملف الطالب لعرض جلساته السابقة.'
+                    : 'بعد حفظ أول جلسة ستظهر هنا نتيجتها وحالة حفظها.',
+                icon: Icons.history_rounded,
+              ),
             for (final session in previous)
               Card(
                 child: ListTile(
@@ -415,6 +529,15 @@ class _SessionsScreenState extends State<SessionsScreen> {
           children: [
             Row(
               children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: KhotwaPalette.paleAmber,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.event_note_outlined),
+                ),
+                const SizedBox(width: 10),
                 Expanded(
                   child: Text(
                     'جلسة ${index + 1}',
@@ -434,13 +557,21 @@ class _SessionsScreenState extends State<SessionsScreen> {
                   ),
               ],
             ),
+            const SizedBox(height: 14),
             TextField(
               controller: row.date,
               enabled: !_busy,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: 'تاريخ الجلسة YYYY-MM-DD',
+                helperText: 'اختاري من التقويم أو اكتبي تاريخ جلسة سابقة',
+                suffixIcon: IconButton(
+                  tooltip: 'اختيار تاريخ الجلسة',
+                  onPressed: _busy ? null : () => _chooseSessionDate(row),
+                  icon: const Icon(Icons.calendar_month_outlined),
+                ),
               ),
             ),
+            const SizedBox(height: 14),
             DropdownButtonFormField<String>(
               key: ValueKey('goal-${row.id}-${row.goalId}'),
               initialValue: goals.any((g) => g['id'] == row.goalId)
@@ -467,7 +598,9 @@ class _SessionsScreenState extends State<SessionsScreen> {
                       row.activityId = null;
                     }),
             ),
+            const SizedBox(height: 14),
             DropdownButtonFormField<String>(
+              isExpanded: true,
               initialValue: row.status,
               decoration: const InputDecoration(labelText: 'حالة الجلسة'),
               items: sessionStatuses.entries
@@ -478,12 +611,16 @@ class _SessionsScreenState extends State<SessionsScreen> {
               onChanged: _busy ? null : (v) => _edit(() => row.status = v!),
             ),
             if (row.status == 'completed') ...[
+              const SizedBox(height: 14),
               _number(row.total, 'عدد المحاولات (مطلوب)'),
+              const SizedBox(height: 14),
               _number(row.correct, 'الإجابات الصحيحة (مطلوب)'),
               Text(
                 'الدقة: ${int.tryParse(row.total.text) != null && int.parse(row.total.text) > 0 && int.tryParse(row.correct.text) != null ? '${(int.parse(row.correct.text) / int.parse(row.total.text) * 100).toStringAsFixed(1)}٪' : 'تُحسب من الصحيح ÷ المحاولات × 100'}',
               ),
+              const SizedBox(height: 14),
               DropdownButtonFormField<String>(
+                isExpanded: true,
                 initialValue: row.support,
                 decoration: const InputDecoration(labelText: 'مستوى الدعم'),
                 items: supportLevels.entries
@@ -494,6 +631,7 @@ class _SessionsScreenState extends State<SessionsScreen> {
                     .toList(),
                 onChanged: _busy ? null : (v) => _edit(() => row.support = v!),
               ),
+              const SizedBox(height: 14),
               TextField(
                 controller: row.engagement,
                 enabled: !_busy,
@@ -506,6 +644,7 @@ class _SessionsScreenState extends State<SessionsScreen> {
               ),
               _number(row.duration, 'مدة الجلسة بالدقائق (اختياري)'),
             ],
+            const SizedBox(height: 14),
             DropdownButtonFormField<String>(
               key: ValueKey('activity-${row.id}-${row.goalId}'),
               initialValue: activities.any((a) => a['id'] == row.activityId)
@@ -531,6 +670,7 @@ class _SessionsScreenState extends State<SessionsScreen> {
               ],
               onChanged: _busy ? null : (v) => _edit(() => row.activityId = v),
             ),
+            const SizedBox(height: 14),
             TextField(
               controller: row.notes,
               enabled: !_busy,
