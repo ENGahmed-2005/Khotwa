@@ -61,11 +61,11 @@ class ApiClient {
       }
       final remaining = startupTimeout - elapsed.elapsed;
       if (remaining <= Duration.zero) break;
-      await Future<void>.delayed(
-        remaining < const Duration(seconds: 2)
-            ? remaining
-            : const Duration(seconds: 2),
-      );
+      if (remaining <= const Duration(seconds: 2)) {
+        await Future<void>.delayed(remaining);
+        break;
+      }
+      await Future<void>.delayed(const Duration(seconds: 2));
     }
     throw const ApiException(
       'server_starting_timeout',
