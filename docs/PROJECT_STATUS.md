@@ -1,6 +1,6 @@
 # Khotwa execution status
 
-Updated 2026-11-12 (Asia/Hebron). Integrated MVP implementation and verification IN_PROGRESS. This is not MVP acceptance or approval for real student data.
+Updated 2026-11-14 (Asia/Hebron). Integrated MVP implementation and verification IN_PROGRESS. This is not MVP acceptance or approval for real student data.
 
 ## Current source and operation
 
@@ -40,7 +40,15 @@ Nov12 Render connector and connector-discovery calls returned unavailable; nativ
 
 ## Installation and remaining acceptance
 
-Signed Android HTTPS release workflow is prepared in .github/workflows/installers.yml, with persistent protected PKCS12 identity stored outside Git and three encrypted GitHub Actions signing secrets configured; secret values were not printed. Installer candidate branch must be deliberately pushed only after remaining functional fixes and checks. Android release packaging/signature verification has not yet run for current source.
+Signed Android HTTPS release run43209934240 **SUCCESS** atc42ac25ec12062677326f82fbaf44ce2c50b2ddb oncodex/installer-candidate. It ran Flutter checks, built per-ABI releases, verified APK signatures with apksigner and checked ZIP contents. Persistent protected PKCS12 identity and GitHub signing secrets stay outside Git; values were not printed. The source includes all Nov12 mobile changes; later6e2bf61 is a test-only macOS temporary-parent canonicalization fix, not a native application change.
+
+Nov13 network constraint:12 parallel artifact transfers were stopped when the user reported device-wide internet degradation. Confirmed no owned Python/curl downloader remained. Partial ranges and DOWNLOAD_STATUS.json were preserved with auto_resume=false; do not resume bulk transfers automatically.
+
+Nov14 user supplied the completed official arm64 ZIP in D:/تنزيلات. Verified full20,378,366-byte ZIP digest9d19158276eaab837ac5cfb09aa9733c5ad85eca2be02d48aa982409903af55e, outer ZIP CRC, BUILD_METADATA commit/API, inner APK SHA256 and complete inner ZIP CRC. APK20,374,487bytes, SHA2565bdbefd309d81118f4b0197a2b94c7507b65d94b79f3c29981696de956025ae3, packageorg.khotwa.khotwa version0.1.0/code2001, minSDK24/target36. CI signature report verifies v2/RSA3072, certificate SHA2569235d22df8c6e12a3cbddc2e18aec1ab3e9c2b1abad8f54ee77c19194c03dd41. Extracted without changing the original archive to .artifacts/delivery/2026-11-14/ and copied the verified APK to D:/تنزيلات/Khotwa-arm64-v8a.apk. No network download was resumed.
+
+GameLoop installation is IN_PROGRESS at the user's request. Installed Tencent GameLoop7.0.167.0 is present; no Android ADB device is running yet. Opened the verified APK via GameLoop's registered handler and started its existing GameLoopEmulator.exe (valid Tencent Authenticode signature). Windows UAC consent is waiting for the user; automation cannot access its secure desktop. No successful APK install or launch is claimed before the engine is ready and the package/launch result is observed.
+
+New CI evidence atc42ac25: Android quality/native and backend/planning passed; macOS tests and unsigned iOS packaging failed on7 temporary-parent path assertions. Isolated and fixed via canonicalized trusted system-temp parents in tests only (6e2bf61); unsafe directory/link assertions remain. The agent's126-test suite and root13 affected tests passed Nov13. Integrated macOS rerun is pending. Word QA43208117181 failed its3 reference-heading extraction checks after LibreOffice; page identifiers passed. Word visual acceptance remains pending.
 
 Actual local build attempt Nov12 failed downloading Flutter Android artifacts (network interruption and partial-cache file lock); .local/android-local-build-2026-11-12.log. Doctor confirmed no Android SDK. Restored a valid local Google-signed Android Studio JBR21 into C:/Users/Ahmed/tools/khotwa/android-build/jbr without running its installer. SDK command-line tools partial was resumed for180s:42,057,781/155,655,386 bytes saved,11KB/s; complete checksum/extraction/build-tools/API36/NDK and Gradle remain unavailable. Original other-project archives were preserved. Setup state C:/Users/Ahmed/tools/khotwa/android-build/SETUP_STATUS.json. Local APK is not built. Cloud installer candidate is the available fallback; each ABI has a separate download artifact.
 
