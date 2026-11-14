@@ -311,7 +311,7 @@ class _SpecialistDashboardState extends State<SpecialistDashboard> {
               ),
               const SizedBox(width: 5),
               Icon(
-                Icons.chevron_left_rounded,
+                Icons.chevron_right_rounded,
                 size: 24,
                 color: onTap == null ? KhotwaPalette.line : KhotwaPalette.navy,
               ),
@@ -395,7 +395,7 @@ class _SpecialistDashboardState extends State<SpecialistDashboard> {
                 },
                 icon: Icon(
                   _guideStep < 2
-                      ? Icons.chevron_left_rounded
+                      ? Icons.chevron_right_rounded
                       : Icons.check_rounded,
                   size: 18,
                 ),

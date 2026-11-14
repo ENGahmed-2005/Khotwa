@@ -600,7 +600,7 @@ class _PlansScreenState extends State<PlansScreen> {
                   if (validStudent != null && sources.isEmpty)
                     TextButton.icon(
                       onPressed: _busy ? null : _openStudents,
-                      icon: const Icon(Icons.arrow_back_rounded),
+                      icon: const Icon(Icons.folder_shared_outlined),
                       label: const Text('فتح ملفات الطلبة والتقييم'),
                     ),
                 ],

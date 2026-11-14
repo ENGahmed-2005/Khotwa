@@ -190,7 +190,8 @@ class _AuthScreenState extends State<AuthScreen> {
                               child: const Text('استعادة كلمة المرور'),
                             ),
                           ),
-                        if (widget.auth.error != null)
+                        if (widget.auth.error != null &&
+                            widget.auth.error != widget.auth.cleanupWarning)
                           Padding(
                             padding: const EdgeInsets.symmetric(vertical: 12),
                             child: Text(

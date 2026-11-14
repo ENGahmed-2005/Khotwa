@@ -199,7 +199,7 @@ class _StudentsScreenState extends State<StudentsScreen> {
               ),
               const Padding(
                 padding: EdgeInsets.only(top: 8),
-                child: Icon(Icons.chevron_left_rounded),
+                child: Icon(Icons.chevron_right_rounded),
               ),
             ],
           ),
@@ -935,7 +935,7 @@ class _AssessmentHistoryCard extends StatelessWidget {
       ),
       title: Text(title),
       subtitle: Text(description),
-      trailing: const Icon(Icons.chevron_left_rounded),
+      trailing: const Icon(Icons.chevron_right_rounded),
       onTap: onTap,
     ),
   );
