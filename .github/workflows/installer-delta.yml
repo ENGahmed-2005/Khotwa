@@ -1,0 +1,77 @@
+name: Prepare verified Android update delta
+
+on:
+  push:
+    branches: ['codex/installer-delta']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  delta:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: 43209934240
+          name: khotwa-android-https-arm64-c42ac25ec12062677326f82fbaf44ce2c50b2ddb
+          path: base
+      - uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: 43570392325
+          name: khotwa-android-https-arm64-9f38187afdf6511138ccbac34fad1155c89695a7
+          path: target
+      - name: Install standard binary-diff utility on the runner
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y bsdiff
+      - name: Verify both signed installer inputs
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, zipfile
+          from pathlib import Path
+          for folder, commit in [('base','c42ac25ec12062677326f82fbaf44ce2c50b2ddb'),('target','9f38187afdf6511138ccbac34fad1155c89695a7')]:
+              root = Path(folder)
+              metadata = json.loads((root/'BUILD_METADATA.json').read_text())
+              assert metadata['commit'] == commit
+              apk = root/'Khotwa-arm64-v8a.apk'
+              expected = next(x['sha256'] for x in metadata['files'] if x['file'] == apk.name)
+              assert hashlib.sha256(apk.read_bytes()).hexdigest() == expected
+              with zipfile.ZipFile(apk) as z:
+                  assert z.testzip() is None
+              assert 'Verifies' in (root/'SIGNATURE-arm64-v8a.txt').read_text()
+          assert hashlib.sha256(Path('base/Khotwa-arm64-v8a.apk').read_bytes()).hexdigest() == '5bdbefd309d81118f4b0197a2b94c7507b65d94b79f3c29981696de956025ae3'
+          PY
+      - name: Produce and round-trip the update
+        run: |
+          mkdir delta
+          bsdiff base/Khotwa-arm64-v8a.apk target/Khotwa-arm64-v8a.apk delta/Khotwa-arm64.bsdiff
+          bspatch base/Khotwa-arm64-v8a.apk reconstructed.apk delta/Khotwa-arm64.bsdiff
+          cmp target/Khotwa-arm64-v8a.apk reconstructed.apk
+          python3 - <<'PY'
+          import hashlib, json, shutil
+          from pathlib import Path
+          digest = lambda p: hashlib.sha256(p.read_bytes()).hexdigest()
+          base = Path('base/Khotwa-arm64-v8a.apk')
+          target = Path('target/Khotwa-arm64-v8a.apk')
+          patch = Path('delta/Khotwa-arm64.bsdiff')
+          data = {'algorithm':'BSDIFF40','base_sha256':digest(base),'target_sha256':digest(target),'target_size':target.stat().st_size,'patch_sha256':digest(patch),'target_commit':'9f38187afdf6511138ccbac34fad1155c89695a7','base_commit':'c42ac25ec12062677326f82fbaf44ce2c50b2ddb','signed_apk_bytes_preserved':True,'round_trip_verified':True}
+          Path('delta/DELTA.json').write_text(json.dumps(data,indent=2)+'\n')
+          for name in ['BUILD_METADATA.json','SIGNATURE-arm64-v8a.txt','PACKAGE-arm64-v8a.txt']:
+              shutil.copyfile(Path('target')/name,Path('delta')/name)
+          print(json.dumps({'patch_bytes':patch.stat().st_size,'full_apk_bytes':target.stat().st_size,'target_sha256':digest(target)}))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: khotwa-arm64-update-c42ac25-to-9f38187
+          path: delta/
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14

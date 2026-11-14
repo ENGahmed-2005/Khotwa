@@ -218,8 +218,8 @@ describe('AI owner boundaries and consent on real PostgreSQL', () => {
   });
   it('does not enable processing merely because routes exist or a server key is configured', async () => {
     const account = await register();
-    const disabled = await buildApp({ prisma, storageKey });
-    const wrongPolicy = await buildApp({ prisma, storageKey, ai: { enabled: true, syntheticOnly: false, model: 'synthetic', provider: { generate } } });
+    const disabled = await buildApp({ prisma, storageKey, clock: () => now });
+    const wrongPolicy = await buildApp({ prisma, storageKey, clock: () => now, ai: { enabled: true, syntheticOnly: false, model: 'synthetic', provider: { generate } } });
     try {
       expect((await disabled.inject({ method: 'POST', url: '/v1/ai/preview', headers: headers(account), payload: {} })).statusCode).toBe(503);
       expect((await wrongPolicy.inject({ method: 'POST', url: '/v1/ai/preview', headers: headers(account), payload: {} })).statusCode).toBe(403);
