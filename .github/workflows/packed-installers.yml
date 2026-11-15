@@ -1,0 +1,101 @@
+name: Pack verified installers for a slow connection
+
+on:
+  push:
+    branches: ['fix/qa-01-packed-installers']
+    paths: ['.github/workflows/packed-installers.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  pack:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      matrix:
+        include:
+          - abi: armeabi-v7a
+            key: arm32
+          - abi: universal
+            key: universal
+    env:
+      ABI: ${{ matrix.abi }}
+      TARGET_COMMIT: 3837143ca2a2c991aa071ce98fe677bca198577a
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: 43705968692
+          name: khotwa-android-https-${{ matrix.key }}-3837143ca2a2c991aa071ce98fe677bca198577a
+          path: target
+      - name: Reverify the exact signed APK and package without changing its bytes
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, lzma, os, re, shutil, struct, subprocess, zipfile
+          from pathlib import Path
+          abi = os.environ['ABI']
+          target = Path('target')
+          output = Path('packed')
+          output.mkdir()
+          apk = target / f'Khotwa-{abi}.apk'
+          digest = lambda p: hashlib.sha256(p.read_bytes()).hexdigest()
+          metadata = json.loads((target/'BUILD_METADATA.json').read_text())
+          assert metadata['commit'] == os.environ['TARGET_COMMIT']
+          assert metadata['run_id'] == '43705968692'
+          assert metadata['android_signed'] is True and metadata['synthetic_data_only'] is True
+          expected = next(x for x in metadata['files'] if x['file'] == apk.name)
+          assert digest(apk) == expected['sha256']
+          abis = {'arm64-v8a','armeabi-v7a','x86_64'} if abi == 'universal' else {abi}
+          with zipfile.ZipFile(apk) as z:
+              assert z.testzip() is None
+              actual = {p.split('/')[1] for p in z.namelist() if p.startswith('lib/') and p.endswith('.so')}
+              assert actual == abis
+              for architecture in abis:
+                  assert f'lib/{architecture}/libapp.so' in z.namelist()
+                  for library in ('libapp.so','libflutter.so'):
+                      with z.open(f'lib/{architecture}/{library}') as stream:
+                          header = stream.read(20)
+                      elf_class, machine = {'armeabi-v7a':(1,40),'arm64-v8a':(2,183),'x86_64':(2,62)}[architecture]
+                      assert header[:4] == b'\x7fELF' and header[4] == elf_class and header[5] == 1
+                      assert struct.unpack('<H',header[18:20])[0] == machine
+          apksigner = sorted((Path(os.environ['ANDROID_HOME'])/'build-tools').glob('*/apksigner'))[-1]
+          signature = subprocess.run([str(apksigner),'verify','--verbose','--print-certs',str(apk)],check=True,capture_output=True,text=True).stdout
+          signer = '9235d22df8c6e12a3cbddc2e18aec1ab3e9c2b1abad8f54ee77c19194c03dd41'
+          assert signer in signature and 'Verified using v2 scheme (APK Signature Scheme v2): true' in signature
+          package = (target/f'PACKAGE-{abi}.txt').read_text()
+          assert "name='org.khotwa.khotwa'" in package
+          version = int(re.search(r"versionCode='(\d+)'", package)[1])
+          assert version == expected['version_code'] and version > 4004
+          compressed = output / (apk.name + '.xz')
+          with apk.open('rb') as src, lzma.open(compressed, 'wb', preset=9 | lzma.PRESET_EXTREME) as dst:
+              shutil.copyfileobj(src, dst)
+          restored = hashlib.sha256()
+          count = 0
+          with lzma.open(compressed, 'rb') as src:
+              while chunk := src.read(1024*1024):
+                  restored.update(chunk)
+                  count += len(chunk)
+          assert count == apk.stat().st_size and restored.hexdigest() == expected['sha256']
+          manifest = {'algorithm':'XZ','abi':abi,'target_commit':os.environ['TARGET_COMMIT'],
+                      'target_run_id':43705968692,'target_sha256':digest(apk),'target_size':count,
+                      'packed_sha256':digest(compressed),'packed_size':compressed.stat().st_size,
+                      'version_code':version,'min_sdk':expected['min_sdk'],'supported_abis':sorted(abis),
+                      'signed_apk_bytes_preserved':True,'round_trip_verified':True,'apksigner_reverified':True,
+                      'signer_sha256':signer,'elf_architectures_verified':True}
+          (output/'PACKED.json').write_text(json.dumps(manifest,indent=2)+'\n')
+          for name in ('BUILD_METADATA.json',f'PACKAGE-{abi}.txt'):
+              shutil.copyfile(target/name, output/name)
+          (output/f'SIGNATURE-{abi}.txt').write_text(signature)
+          print(json.dumps(manifest))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: khotwa-${{ matrix.key }}-packed-3837143
+          path: packed/
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
