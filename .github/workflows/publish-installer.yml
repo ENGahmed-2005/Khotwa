@@ -1,0 +1,96 @@
+name: Publish verified Android download links
+
+on:
+  push:
+    branches: ['fix/qa-01-packed-installers']
+    paths: ['.github/workflows/publish-installer.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: 43705968692
+          name: khotwa-android-https-universal-3837143ca2a2c991aa071ce98fe677bca198577a
+          path: universal
+      - uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: 43705968692
+          name: khotwa-android-https-arm32-3837143ca2a2c991aa071ce98fe677bca198577a
+          path: arm32
+      - name: Verify signed inputs and prepare public binary files only
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, os, shutil, struct, subprocess, zipfile
+          from pathlib import Path
+          source = '3837143ca2a2c991aa071ce98fe677bca198577a'
+          signer = '9235d22df8c6e12a3cbddc2e18aec1ab3e9c2b1abad8f54ee77c19194c03dd41'
+          apksigner = sorted((Path(os.environ['ANDROID_HOME'])/'build-tools').glob('*/apksigner'))[-1]
+          output = Path('public-downloads')
+          output.mkdir()
+          files = []
+          for folder, abi, name in [('universal','universal','Khotwa-Android.apk'),('arm32','armeabi-v7a','Khotwa-Android-32bit.apk')]:
+              root = Path(folder)
+              metadata = json.loads((root/'BUILD_METADATA.json').read_text())
+              assert metadata['commit'] == source and metadata['run_id'] == '43705968692'
+              assert metadata['android_signed'] is True and metadata['synthetic_data_only'] is True
+              apk = root/f'Khotwa-{abi}.apk'
+              expected = next(x for x in metadata['files'] if x['file'] == apk.name)
+              digest = hashlib.sha256(apk.read_bytes()).hexdigest()
+              assert digest == expected['sha256'] and expected['version_code'] == 10005
+              assert expected['min_sdk'] == 24
+              abis = {'armeabi-v7a','arm64-v8a','x86_64'} if abi == 'universal' else {'armeabi-v7a'}
+              with zipfile.ZipFile(apk) as archive:
+                  assert archive.testzip() is None
+                  assert 'assets/flutter_assets/assets/branding/khotwa-icon.png' in archive.namelist()
+                  actual = {p.split('/')[1] for p in archive.namelist() if p.startswith('lib/') and p.endswith('.so')}
+                  assert actual == abis
+                  for architecture in abis:
+                      for library in ('libapp.so','libflutter.so'):
+                          with archive.open(f'lib/{architecture}/{library}') as stream:
+                              header = stream.read(20)
+                          elf_class, machine = {'armeabi-v7a':(1,40),'arm64-v8a':(2,183),'x86_64':(2,62)}[architecture]
+                          assert header[:4] == b'\x7fELF' and header[4] == elf_class and header[5] == 1
+                          assert struct.unpack('<H',header[18:20])[0] == machine
+              signature = subprocess.run([str(apksigner),'verify','--verbose','--print-certs',str(apk)],check=True,capture_output=True,text=True).stdout
+              assert signer in signature and 'Verified using v2 scheme (APK Signature Scheme v2): true' in signature
+              shutil.copyfile(apk, output/name)
+              files.append({'file':name,'sha256':digest,'bytes':apk.stat().st_size,'supported_abis':sorted(abis)})
+          shutil.copyfile('mobile/assets/branding/khotwa-icon.png',output/'Khotwa-Logo.png')
+          (output/'SHA256SUMS.txt').write_text(''.join(f"{x['sha256']}  {x['file']}\n" for x in files))
+          (output/'DOWNLOADS.json').write_text(json.dumps({'version_code':10005,'source_commit':source,'min_android':'7.0','min_sdk':24,'signer_sha256':signer,'synthetic_data_only':True,'mvp_accepted':False,'physical_device_tested':False,'files':files},indent=2)+'\n')
+          Path('RELEASE_NOTES.md').write_text('''نسخة Android بالواجهة العربية الجديدة للمختصة وشعار خطوة الجديد، مع تحسين رسائل الحسابات والتوافق.
+
+للتثبيت اختر **Khotwa-Android.apk**: نسخة شاملة لمعمارية ARM32 وARM64 وx86_64. يحتاج التطبيق Android7.0 أو أحدث. يتوفر **Khotwa-Android-32bit.apk** كخيار أصغر للأجهزة التي تدعم ARM32.
+
+الإصدار10005 بنفس معرّف التطبيق والتوقيع السابقين. ثبّته كتحديث مع الاحتفاظ بالنسخة الحالية والبيانات؛ لا تحذف التطبيق لحل مشكلة التوافق.
+
+هذه نسخة اختبار ببيانات اصطناعية. نجاح البناء والاختبارات لا يمثل قبول MVP أو تحقق التثبيت على كل هاتف. أول دخول والتوليد والتصدير يحتاجان الإنترنت. قد يحتاج الخادم التجريبي وقتًا للاستيقاظ بعد الخمول. تشمل الحزمة أرقام التحقق SHA256 ومعلومات البناء العامة فقط.
+''',encoding='utf-8')
+          print(json.dumps({'verified':True,'source_commit':source,'files':files}))
+          PY
+      - name: Publish the reviewed download artifacts
+        env:
+          GH_TOKEN: ${{ secrets.KHOTWA_DOWNLOAD_PUBLISH_10005 }}
+        run: |
+          test -n "$GH_TOKEN"
+          gh release create android-0.1.0-10005 --repo ENGahmed-2005/Khotwa-Downloads --draft --prerelease --title 'خطوة — Android بالواجهة والشعار الجديدين' --notes-file RELEASE_NOTES.md
+          gh release upload android-0.1.0-10005 public-downloads/* --repo ENGahmed-2005/Khotwa-Downloads
+          gh release edit android-0.1.0-10005 --repo ENGahmed-2005/Khotwa-Downloads --draft=false
+      - name: Remove the one-time publishing credential
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.KHOTWA_DOWNLOAD_PUBLISH_10005 }}
+        run: gh secret delete KHOTWA_DOWNLOAD_PUBLISH_10005 --repo ENGahmed-2005/Khotwa
