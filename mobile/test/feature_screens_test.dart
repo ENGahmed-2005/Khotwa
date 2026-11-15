@@ -23,6 +23,32 @@ Widget rtl(Widget child, {double scale = 1}) => MaterialApp(
   home: child,
 );
 
+Finder institutionField() => find.byWidgetPredicate(
+  (widget) =>
+      widget is TextField &&
+      widget.decoration?.labelText == 'عنوان المؤسسة (اختياري)',
+);
+
+Future<void> viewReportHeader(
+  WidgetTester tester, {
+  bool expand = false,
+}) async {
+  final title = find.text('ترويسة المؤسسة (اختياري)');
+  await tester.scrollUntilVisible(
+    title,
+    300,
+    scrollable: find.byType(Scrollable).first,
+  );
+  await tester.pumpAndSettle();
+  if (expand) {
+    await tester.tap(title);
+    await tester.pumpAndSettle();
+  }
+  expect(institutionField(), findsOneWidget);
+  await tester.ensureVisible(institutionField());
+  await tester.pumpAndSettle();
+}
+
 void main() {
   testWidgets(
     'report screen preserves unsaved encrypted header and never restores export consent',
@@ -57,16 +83,18 @@ void main() {
         rtl(ReportsScreen(auth: auth, draftStore: store)),
       );
       await tester.pumpAndSettle();
-      expect(
-        tester.widget<TextField>(find.byType(TextField).first).controller!.text,
-        'LOCAL UNSAVED HEADER',
-      );
       await tester.scrollUntilVisible(
         find.text('صيغة الملف'),
         300,
         scrollable: find.byType(Scrollable).first,
       );
       expect(find.text('Word قابل للتعديل'), findsOneWidget);
+      // Unsaved edits reopen their section automatically after async restoration.
+      await viewReportHeader(tester);
+      expect(
+        tester.widget<TextField>(institutionField()).controller!.text,
+        'LOCAL UNSAVED HEADER',
+      );
       await tester.scrollUntilVisible(
         find.text(
           'راجعت خلو الترويسة والشعار من بيانات أي طالب، وأوافق على تصدير ملف خارج التخزين المشفّر للتطبيق.',
@@ -87,10 +115,12 @@ void main() {
   testWidgets(
     'report header edits survive offline disposal and reopening without approving an export',
     (tester) async {
+      final requests = <http.Request>[];
       final auth = account(
-        apiClient: MockClient(
-          (_) async => throw http.ClientException('synthetic offline'),
-        ),
+        apiClient: MockClient((request) async {
+          requests.add(request);
+          throw http.ClientException('synthetic offline');
+        }),
       );
       final backing = FeatureMemoryStore();
       final store = FeatureDraftStore(auth, 'report-inputs', store: backing);
@@ -98,10 +128,8 @@ void main() {
         rtl(ReportsScreen(auth: auth, draftStore: store)),
       );
       await tester.pumpAndSettle();
-      await tester.enterText(
-        find.byType(TextField).first,
-        'ترويسة تجربة محفوظة',
-      );
+      await viewReportHeader(tester, expand: true);
+      await tester.enterText(institutionField(), 'ترويسة تجربة محفوظة');
       await tester.pumpAndSettle();
       expect((await store.read())['institutionTitle'], 'ترويسة تجربة محفوظة');
       await tester.pumpWidget(const SizedBox.shrink());
@@ -118,10 +146,24 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
+      await viewReportHeader(tester);
       expect(
-        tester.widget<TextField>(find.byType(TextField).first).controller!.text,
+        tester.widget<TextField>(institutionField()).controller!.text,
         'ترويسة تجربة محفوظة',
       );
+      const reviewText =
+          'راجعت خلو الترويسة والشعار من بيانات أي طالب، وأوافق على تصدير ملف خارج التخزين المشفّر للتطبيق.';
+      await tester.scrollUntilVisible(
+        find.text(reviewText),
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
+      final consent = find.ancestor(
+        of: find.text(reviewText),
+        matching: find.byType(CheckboxListTile),
+      );
+      expect(tester.widget<CheckboxListTile>(consent).value, isFalse);
+      expect(requests.where((request) => request.method != 'GET'), isEmpty);
       expect(tester.takeException(), isNull);
     },
   );

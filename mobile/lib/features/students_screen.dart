@@ -3,68 +3,210 @@ import 'package:uuid/uuid.dart';
 
 import '../core/app_state.dart';
 import '../core/form_draft.dart';
+import '../core/khotwa_theme.dart';
 import '../data/assessment_templates.dart';
 import '../models/assessment.dart';
 import '../models/student.dart';
 import '../models/initial_assessment.dart';
 import '../widgets/common.dart';
+import '../widgets/khotwa_ui.dart';
 import 'assessment_screen.dart';
 import 'initial_assessment_screen.dart';
 
-class StudentsScreen extends StatelessWidget {
+class StudentsScreen extends StatefulWidget {
   const StudentsScreen({super.key, required this.state});
   final AppState state;
 
   @override
-  Widget build(BuildContext context) => ListView(
-    padding: const EdgeInsets.all(18),
-    children: [
-      const PrototypeNote(),
-      const SectionHeading(
-        'ملفات الطلبة',
-        subtitle: 'رموز مجّهلة فقط، بلا أسماء أو تواريخ ميلاد',
-      ),
-      FilledButton.icon(
-        onPressed: () => Navigator.push(
-          context,
-          MaterialPageRoute<void>(
-            builder: (_) => StudentFormScreen(state: state),
-          ),
-        ),
-        icon: const Icon(Icons.add),
-        label: const Text('إضافة ملف طالب'),
-      ),
-      const SizedBox(height: 14),
-      if (state.students.isEmpty)
-        const Card(
-          child: Padding(
-            padding: EdgeInsets.all(22),
-            child: Text('لا توجد ملفات بعد. أنشئ رمزًا تجريبيًا للبدء.'),
-          ),
-        ),
-      for (final student in state.students)
-        Card(
-          child: ListTile(
-            leading: const CircleAvatar(child: Icon(Icons.person_outline)),
-            title: Text(
-              'الطالب ${student.code}',
-              style: const TextStyle(fontWeight: FontWeight.w700),
-            ),
-            subtitle: Text(
-              'الصف: ${student.grade} · ${student.ageLabel}\n${syncStatusLabel(state.stateFor(student.id))}',
-            ),
-            trailing: const Icon(Icons.chevron_left),
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute<void>(
-                builder: (_) =>
-                    StudentDetailScreen(state: state, studentId: student.id),
-              ),
-            ),
-          ),
-        ),
-    ],
+  State<StudentsScreen> createState() => _StudentsScreenState();
+}
+
+class _StudentsScreenState extends State<StudentsScreen> {
+  final _search = TextEditingController();
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
+
+  void _openStudent(StudentRecord student) => Navigator.push(
+    context,
+    MaterialPageRoute<void>(
+      builder: (_) =>
+          StudentDetailScreen(state: widget.state, studentId: student.id),
+    ),
   );
+
+  @override
+  Widget build(BuildContext context) => AnimatedBuilder(
+    animation: widget.state,
+    builder: (context, _) {
+      final students = widget.state.students.reversed.toList();
+      final query = _search.text.trim().toLowerCase();
+      final visible = students
+          .where(
+            (student) =>
+                student.code.toLowerCase().contains(query) ||
+                student.grade.contains(query),
+          )
+          .toList();
+      return Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 760),
+          child: ListView(
+            padding: const EdgeInsets.all(18),
+            children: [
+              const PrototypeNote(),
+              const KhotwaPageIntro(
+                title: 'ملفات الطلبة',
+                description:
+                    'ملف واحد يجمع الملاحظات والتقييمات. افتحي رمز الطالب لمتابعة الخطوة التالية.',
+                icon: Icons.folder_shared_outlined,
+              ),
+              FilledButton.icon(
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute<void>(
+                    builder: (_) => StudentFormScreen(state: widget.state),
+                  ),
+                ),
+                icon: const Icon(Icons.person_add_alt_1_rounded),
+                label: const Text('إضافة ملف طالب'),
+              ),
+              const SizedBox(height: 18),
+              if (students.isEmpty)
+                const KhotwaEmptyState(
+                  title: 'ابدئي بأول ملف طالب',
+                  message:
+                      'اضغطي «إضافة ملف طالب». ينشئ خطوة رمزًا مجهّلًا، ثم يمكنك تسجيل الملاحظات والتقييم.',
+                  icon: Icons.folder_open_rounded,
+                )
+              else ...[
+                TextField(
+                  key: const ValueKey('students-search'),
+                  controller: _search,
+                  onChanged: (_) => setState(() {}),
+                  autocorrect: false,
+                  decoration: InputDecoration(
+                    labelText: 'البحث',
+                    helperText: 'رمز الطالب أو الصف الدراسي',
+                    prefixIcon: const Icon(Icons.search_rounded),
+                    suffixIcon: query.isEmpty
+                        ? null
+                        : IconButton(
+                            tooltip: 'مسح البحث',
+                            onPressed: () => setState(_search.clear),
+                            icon: const Icon(Icons.close_rounded),
+                          ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  'عرض ${visible.length} من ${students.length} ملف',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                const SizedBox(height: 6),
+                if (visible.isEmpty)
+                  const KhotwaEmptyState(
+                    title: 'لم نجد ملفًا مطابقًا',
+                    message:
+                        'راجعي الرمز المكتوب أو ابحثي بالصف الدراسي. يمكنك مسح البحث لعرض جميع الملفات.',
+                    icon: Icons.search_off_rounded,
+                  ),
+                for (final student in visible) _studentCard(context, student),
+              ],
+              const SizedBox(height: 18),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(
+                    Icons.shield_outlined,
+                    size: 18,
+                    color: KhotwaPalette.muted,
+                  ),
+                  const SizedBox(width: 7),
+                  Expanded(
+                    child: Text(
+                      'تُعرض رموز مجهّلة فقط. احتفظي بمطابقة الرمز مع الاسم خارج التطبيق.',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      );
+    },
+  );
+
+  Widget _studentCard(BuildContext context, StudentRecord student) {
+    final assessments =
+        widget.state.assessmentsFor(student.id).length +
+        widget.state.initialAssessmentsFor(student.id).length;
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () => _openStudent(student),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: KhotwaPalette.paleAmber,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Icon(
+                  Icons.school_outlined,
+                  color: KhotwaPalette.navy,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'الطالب ${student.code}',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 5),
+                    Text(
+                      '${student.grade} · ${student.ageLabel}',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      assessments == 0
+                          ? 'جاهز لبدء التقييم'
+                          : '$assessments تقييمات محفوظة',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: KhotwaPalette.navy,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      syncStatusLabel(widget.state.stateFor(student.id)),
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+              ),
+              const Padding(
+                padding: EdgeInsets.only(top: 8),
+                child: Icon(Icons.chevron_right_rounded),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class StudentFormScreen extends StatefulWidget {
@@ -286,135 +428,170 @@ class _StudentFormScreenState extends State<StudentFormScreen> {
               : 'تحديث البيانات المجهّلة',
         ),
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(18),
-        children: [
-          const PrototypeNote(),
-          FormDraftStatus(controller: _formDraft),
-          if (_draftError != null) Text(_draftError!),
-          const SectionHeading('١. البيانات الأساسية المجهّلة'),
-          const Text(
-            'يُنشأ رمز عشوائي تلقائيًا مثل ST-XXXXXXXX. احتفظي بربط الرمز بالاسم على الورق خارج التطبيق.',
-          ),
-          const SizedBox(height: 16),
-          DropdownButtonFormField<String>(
-            initialValue: _grade,
-            decoration: const InputDecoration(labelText: 'الصف الدراسي'),
-            isExpanded: true,
-            items: [
-              for (final grade in supportedSchoolGrades)
-                DropdownMenuItem(value: grade, child: Text(grade)),
-            ],
-            onChanged: (value) => _edit(() => _grade = value ?? _grade),
-          ),
-          const SizedBox(height: 16),
-          Row(
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 760),
+          child: ListView(
+            padding: const EdgeInsets.all(18),
             children: [
-              Expanded(
-                child: DropdownButtonFormField<int>(
-                  initialValue: _years,
-                  decoration: const InputDecoration(labelText: 'العمر - سنوات'),
-                  items: [
-                    for (var i = 3; i <= 21; i++)
-                      DropdownMenuItem(value: i, child: Text('$i')),
+              const PrototypeNote(),
+              KhotwaPageIntro(
+                title: widget.studentId == null
+                    ? 'لنبدأ بملف الطالب'
+                    : 'تحديث ملف الطالب',
+                description:
+                    'سجّلي البيانات والملاحظات، ثم راجعي الموافقة واحفظي الملف. يمكنك العودة لإكمال المسودة.',
+                icon: Icons.person_add_alt_1_outlined,
+              ),
+              FormDraftStatus(controller: _formDraft),
+              if (_draftError != null) Text(_draftError!),
+              KhotwaSectionCard(
+                title: '١. البيانات الأساسية المجهّلة',
+                icon: Icons.badge_outlined,
+                subtitle:
+                    'يُنشأ رمز عشوائي تلقائيًا. احتفظي بربط الرمز بالاسم على الورق خارج التطبيق.',
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    DropdownButtonFormField<String>(
+                      initialValue: _grade,
+                      decoration: const InputDecoration(
+                        labelText: 'الصف الدراسي',
+                      ),
+                      isExpanded: true,
+                      items: [
+                        for (final grade in supportedSchoolGrades)
+                          DropdownMenuItem(value: grade, child: Text(grade)),
+                      ],
+                      onChanged: _saving
+                          ? null
+                          : (value) => _edit(() => _grade = value ?? _grade),
+                    ),
+                    const SizedBox(height: 16),
+                    _ageChoices(),
+                    const SizedBox(height: 14),
+                    DropdownButtonFormField<String>(
+                      initialValue: _gender,
+                      isExpanded: true,
+                      decoration: const InputDecoration(
+                        labelText: 'صياغة الطالب / الطالبة',
+                        helperText: 'تُستخدم لصياغة النصوص فقط',
+                      ),
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'unspecified',
+                          child: Text('غير محدد'),
+                        ),
+                        DropdownMenuItem(value: 'male', child: Text('طالب')),
+                        DropdownMenuItem(value: 'female', child: Text('طالبة')),
+                      ],
+                      onChanged: _saving
+                          ? null
+                          : (v) => _edit(() => _gender = v!),
+                    ),
                   ],
-                  onChanged: (value) => _edit(() => _years = value ?? _years),
                 ),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: DropdownButtonFormField<int>(
-                  initialValue: _months,
-                  decoration: const InputDecoration(labelText: 'الأشهر'),
-                  items: [
-                    for (var i = 0; i < 12; i++)
-                      DropdownMenuItem(value: i, child: Text('$i')),
+              KhotwaSectionCard(
+                title: '٢. ملاحظة الأداء الصفي والصعوبات',
+                icon: Icons.edit_note_rounded,
+                subtitle:
+                    'وصف تربوي فقط، بلا أسماء أو تواريخ ميلاد أو بيانات اتصال أو تشخيص. لا تُرسل النصوص الحرة تلقائيًا للذكاء الاصطناعي.',
+                child: Column(
+                  children: [
+                    _intakeText(_referral, 'سبب الإحالة'),
+                    _intakeText(_observation, 'ملاحظة الأداء داخل الصف'),
+                    _intakeText(_difficulties, 'الصعوبات التعليمية الملحوظة'),
                   ],
-                  onChanged: (value) => _edit(() => _months = value ?? _months),
                 ),
+              ),
+              KhotwaSectionCard(
+                title: '٣. ملاحظات الأسرة والمعلمين (مستحسنة)',
+                icon: Icons.forum_outlined,
+                subtitle:
+                    'معلومات تساعدك على فهم الأداء في مواقف مختلفة، دون تسجيل أسماء أصحاب الملاحظات.',
+                child: Column(
+                  children: [
+                    _intakeText(_family, 'ملاحظات الأسرة دون أسمائهم'),
+                    _intakeText(_teacher, 'ملاحظات المعلمين دون أسمائهم'),
+                  ],
+                ),
+              ),
+              KhotwaSectionCard(
+                title: '٤. المدة المقترحة والقابلة للتعديل',
+                icon: Icons.event_note_outlined,
+                subtitle:
+                    'عدّلي هذه القيم وفق تقييمك. لا تعني القيم المقترحة قرارًا علاجيًا آليًا.',
+                child: Column(
+                  children: [
+                    _numberChoice(
+                      'مدة الخطة بالأسابيع',
+                      _weeks,
+                      104,
+                      (v) => _edit(() => _weeks = v),
+                    ),
+                    _numberChoice(
+                      'الجلسات الأسبوعية',
+                      _sessions,
+                      14,
+                      (v) => _edit(() => _sessions = v),
+                    ),
+                    _numberChoice(
+                      'زمن الجلسة بالدقائق',
+                      _minutes,
+                      240,
+                      (v) => _edit(() => _minutes = v),
+                    ),
+                  ],
+                ),
+              ),
+              KhotwaSectionCard(
+                title: '٥. الموافقة والخصوصية',
+                icon: Icons.verified_user_outlined,
+                child: Column(
+                  children: [
+                    CheckboxListTile(
+                      value: _consent,
+                      onChanged: _saving
+                          ? null
+                          : (value) =>
+                                setState(() => _consent = value ?? false),
+                      contentPadding: EdgeInsets.zero,
+                      controlAffinity: ListTileControlAffinity.leading,
+                      title: const Text(
+                        'أؤكد الحصول على الموافقة المطلوبة وفق سياسة المؤسسة',
+                      ),
+                      subtitle: const Text(
+                        'يُسجّل الإقرار وتاريخه فقط، ولا يُخزّن اسم ولي الأمر.',
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    CheckboxListTile(
+                      value: _privacy,
+                      onChanged: _saving
+                          ? null
+                          : (v) => setState(() => _privacy = v ?? false),
+                      contentPadding: EdgeInsets.zero,
+                      controlAffinity: ListTileControlAffinity.leading,
+                      title: const Text(
+                        'راجعت الحقول الحرة وأؤكد خلوها من الهوية والمعلومات الصحية',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              FilledButton(
+                onPressed: _saving ? null : _submit,
+                child: Text(_saving ? 'جارٍ الحفظ…' : 'حفظ الملف محليًا'),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'بعد حفظ الملف: سجّلي التقييم الأولي وحددي القوة والاحتياج، ثم راجعي المصدر واعتمديه قبل توليد خطة.',
               ),
             ],
           ),
-          const SizedBox(height: 14),
-          DropdownButtonFormField<String>(
-            initialValue: _gender,
-            decoration: const InputDecoration(
-              labelText: 'الجنس لصياغة الطالب / الطالبة فقط',
-            ),
-            items: const [
-              DropdownMenuItem(value: 'unspecified', child: Text('غير محدد')),
-              DropdownMenuItem(value: 'male', child: Text('طالب')),
-              DropdownMenuItem(value: 'female', child: Text('طالبة')),
-            ],
-            onChanged: (v) => _edit(() => _gender = v!),
-          ),
-          const SectionHeading('٢. ملاحظة الأداء الصفي والصعوبات'),
-          const Text(
-            'اكتبي وصفًا تربويًا بلا اسم أو تاريخ ميلاد أو بيانات اتصال أو تشخيص. معلومات التشخيص تبقى خارج التطبيق لدى المختصين.',
-          ),
-          _intakeText(_referral, 'سبب الإحالة'),
-          _intakeText(_observation, 'ملاحظة الأداء داخل الصف'),
-          _intakeText(_difficulties, 'الصعوبات التعليمية الملحوظة'),
-          const SectionHeading('٣. ملاحظات الأسرة والمعلمين (مستحسنة)'),
-          _intakeText(_family, 'ملاحظات الأسرة دون أسمائهم'),
-          _intakeText(_teacher, 'ملاحظات المعلمين دون أسمائهم'),
-          const SectionHeading('٤. المدة المقترحة والقابلة للتعديل'),
-          _numberChoice(
-            'مدة الخطة بالأسابيع',
-            _weeks,
-            104,
-            (v) => _edit(() => _weeks = v),
-          ),
-          _numberChoice(
-            'الجلسات الأسبوعية',
-            _sessions,
-            14,
-            (v) => _edit(() => _sessions = v),
-          ),
-          _numberChoice(
-            'زمن الجلسة بالدقائق',
-            _minutes,
-            240,
-            (v) => _edit(() => _minutes = v),
-          ),
-          const Text(
-            'القيم المقترحة قابلة للتعديل وفق تقييمك، ولا تعني قرارًا علاجيًا آليًا.',
-          ),
-          const SectionHeading('٥. الموافقة والخصوصية'),
-          CheckboxListTile(
-            value: _consent,
-            onChanged: _saving
-                ? null
-                : (value) => setState(() => _consent = value ?? false),
-            contentPadding: EdgeInsets.zero,
-            title: const Text(
-              'أؤكد الحصول على الموافقة المطلوبة وفق سياسة المؤسسة',
-            ),
-            subtitle: const Text(
-              'يُسجّل الإقرار وتاريخه فقط، ولا يُخزّن اسم ولي الأمر.',
-            ),
-          ),
-          const SizedBox(height: 12),
-          CheckboxListTile(
-            value: _privacy,
-            onChanged: _saving
-                ? null
-                : (v) => setState(() => _privacy = v ?? false),
-            title: const Text(
-              'راجعت الحقول الحرة وأؤكد خلوها من الهوية والمعلومات الصحية',
-            ),
-          ),
-          FilledButton(
-            onPressed: _saving ? null : _submit,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 10),
-              child: Text(_saving ? 'جارٍ الحفظ…' : 'حفظ الملف محليًا'),
-            ),
-          ),
-          const Text(
-            'بعد حفظ الملف: سجّلي التقييم الأولي وحددي القوة والاحتياج، ثم راجعي المصدر واعتمديه قبل توليد خطة.',
-          ),
-        ],
+        ),
       ),
     ),
   );
@@ -423,15 +600,57 @@ class _StudentFormScreenState extends State<StudentFormScreen> {
     child: TextField(
       enabled: !_saving,
       controller: controller,
+      minLines: 2,
       maxLines: 3,
       maxLength: 2000,
-      decoration: InputDecoration(
-        labelText: label,
-        helperText:
-            'وصف أداء فقط؛ لا تُرسل هذه النصوص تلقائيًا للذكاء الاصطناعي',
-        border: const OutlineInputBorder(),
-      ),
+      decoration: InputDecoration(labelText: label),
     ),
+  );
+  Widget _ageChoices() => LayoutBuilder(
+    builder: (context, constraints) {
+      final stacked =
+          constraints.maxWidth < 380 ||
+          MediaQuery.textScalerOf(context).scale(14) > 21;
+      final width = stacked
+          ? constraints.maxWidth
+          : (constraints.maxWidth - 12) / 2;
+      return Wrap(
+        spacing: 12,
+        runSpacing: 14,
+        children: [
+          SizedBox(
+            width: width,
+            child: DropdownButtonFormField<int>(
+              initialValue: _years,
+              isExpanded: true,
+              decoration: const InputDecoration(labelText: 'العمر - سنوات'),
+              items: [
+                for (var i = 3; i <= 21; i++)
+                  DropdownMenuItem(value: i, child: Text('$i')),
+              ],
+              onChanged: _saving
+                  ? null
+                  : (value) => _edit(() => _years = value ?? _years),
+            ),
+          ),
+          SizedBox(
+            width: width,
+            child: DropdownButtonFormField<int>(
+              initialValue: _months,
+              isExpanded: true,
+              decoration: const InputDecoration(labelText: 'الأشهر'),
+              items: [
+                for (var i = 0; i < 12; i++)
+                  DropdownMenuItem(value: i, child: Text('$i')),
+              ],
+              onChanged: _saving
+                  ? null
+                  : (value) => _edit(() => _months = value ?? _months),
+            ),
+          ),
+        ],
+      );
+    },
   );
   Widget _numberChoice(
     String label,
@@ -442,6 +661,7 @@ class _StudentFormScreenState extends State<StudentFormScreen> {
     padding: const EdgeInsets.symmetric(vertical: 8),
     child: DropdownButtonFormField<int>(
       initialValue: selected,
+      isExpanded: true,
       decoration: InputDecoration(labelText: label),
       items: [
         for (var i = 1; i <= limit; i++)
@@ -496,134 +716,228 @@ class StudentDetailScreen extends StatelessWidget {
     }
   }
 
+  Future<void> _startInitial(BuildContext context) async {
+    try {
+      final value = await state.createInitialAssessment(studentId);
+      if (context.mounted) {
+        await Navigator.push(
+          context,
+          MaterialPageRoute<void>(
+            builder: (_) =>
+                InitialAssessmentScreen(state: state, assessmentId: value.id),
+          ),
+        );
+      }
+    } catch (error) {
+      if (context.mounted) showError(context, error);
+    }
+  }
+
   @override
   Widget build(BuildContext context) => AnimatedBuilder(
     animation: state,
     builder: (context, _) {
       final student = state.studentById(studentId);
       final assessments = state.assessmentsFor(studentId);
+      final initials = state.initialAssessmentsFor(studentId);
       return Scaffold(
         appBar: AppBar(title: Text('ملف ${student.code}')),
-        body: ListView(
-          padding: const EdgeInsets.all(18),
-          children: [
-            const PrototypeNote(),
-            const SizedBox(height: 15),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(18),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'رمز الملف: ${student.code}',
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
+        body: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 760),
+            child: ListView(
+              padding: const EdgeInsets.all(18),
+              children: [
+                const PrototypeNote(),
+                const KhotwaPageIntro(
+                  title: 'ملف الطالب',
+                  description:
+                      'راجعي البيانات، ثم اختاري طريقة التقييم. كل تقييم محفوظ يظهر في سجل هذا الملف.',
+                  icon: Icons.folder_shared_outlined,
+                ),
+                Card(
+                  color: KhotwaPalette.paleBlue,
+                  child: Padding(
+                    padding: const EdgeInsets.all(18),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'رمز الملف: ${student.code}',
+                          style: Theme.of(context).textTheme.titleLarge
+                              ?.copyWith(fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 12),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            Chip(
+                              avatar: const Icon(
+                                Icons.school_outlined,
+                                size: 17,
+                              ),
+                              label: Text(student.grade),
+                            ),
+                            Chip(
+                              avatar: const Icon(Icons.cake_outlined, size: 17),
+                              label: Text(student.ageLabel),
+                            ),
+                            Chip(
+                              avatar: Icon(
+                                student.consentConfirmed
+                                    ? Icons.verified_user_outlined
+                                    : Icons.info_outline,
+                                size: 17,
+                              ),
+                              label: Text(
+                                'إقرار الموافقة: ${student.consentConfirmed ? 'موثق' : 'غير موثق'}',
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          syncStatusLabel(state.stateFor(studentId)),
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                OutlinedButton.icon(
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute<void>(
+                      builder: (_) =>
+                          StudentFormScreen(state: state, studentId: studentId),
+                    ),
+                  ),
+                  icon: const Icon(Icons.edit_outlined),
+                  label: const Text('مراجعة الملاحظات والبيانات الأساسية'),
+                ),
+                const SectionHeading(
+                  'التقييم الأكاديمي الأولي',
+                  subtitle:
+                      'اختاري طريقة تسجيل الأداء المناسبة؛ اعتماد التقييم يتم بعد مراجعته.',
+                ),
+                KhotwaSectionCard(
+                  title: 'بطاقات الأداء الأكاديمي',
+                  subtitle:
+                      'بطاقات القراءة والكتابة والرياضيات للفئتين 6–8 و9–12 سنة.',
+                  icon: Icons.style_outlined,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      FilledButton.icon(
+                        onPressed: recommendedAgeGroup(student) == null
+                            ? null
+                            : () => _startAssessment(context, student),
+                        icon: const Icon(Icons.note_add_outlined),
+                        label: const Text('بدء تقييم جديد'),
                       ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text('الصف: ${student.grade} · العمر: ${student.ageLabel}'),
-                    const SizedBox(height: 5),
-                    Text(
-                      'إقرار الموافقة: ${student.consentConfirmed ? 'موثق' : 'غير موثق'}',
-                    ),
-                  ],
+                      const SizedBox(height: 12),
+                      if (recommendedAgeGroup(student) == null)
+                        const Text(
+                          'العمر خارج نطاق البطاقات 6–12 سنة؛ استخدمي التقييم التربوي الحر أدناه.',
+                        ),
+                    ],
+                  ),
                 ),
-              ),
-            ),
-            const SectionHeading('التقييم الأكاديمي الأولي'),
-            OutlinedButton.icon(
-              onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute<void>(
-                  builder: (_) =>
-                      StudentFormScreen(state: state, studentId: studentId),
+                KhotwaSectionCard(
+                  title: 'التقييم الأولي الحر والقوة والاحتياج',
+                  subtitle:
+                      'سجّلي ملاحظاتك وأدلة الأداء والمجالات التي تحتاج إلى متابعة.',
+                  icon: Icons.fact_check_outlined,
+                  child: OutlinedButton.icon(
+                    onPressed: () => _startInitial(context),
+                    icon: const Icon(Icons.checklist_outlined),
+                    label: const Text('بدء تقييم تربوي أولي'),
+                  ),
                 ),
-              ),
-              icon: const Icon(Icons.edit_outlined),
-              label: const Text('مراجعة الملاحظات والبيانات الأساسية'),
-            ),
-            FilledButton.icon(
-              onPressed: recommendedAgeGroup(student) == null
-                  ? null
-                  : () => _startAssessment(context, student),
-              icon: const Icon(Icons.note_add_outlined),
-              label: const Text('بدء تقييم جديد'),
-            ),
-            const SizedBox(height: 12),
-            if (recommendedAgeGroup(student) == null)
-              const Text(
-                'العمر خارج نطاق البطاقات 6–12 سنة؛ استخدمي التقييم التربوي الحر أدناه.',
-              ),
-            const SectionHeading('التقييم الأولي الحر والقوة والاحتياج'),
-            OutlinedButton.icon(
-              onPressed: () async {
-                try {
-                  final value = await state.createInitialAssessment(studentId);
-                  if (context.mounted) {
-                    await Navigator.push(
+                SectionHeading(
+                  'التقييمات المحفوظة',
+                  subtitle:
+                      '${assessments.length + initials.length} تقييمات لهذا الملف',
+                ),
+                if (assessments.isEmpty && initials.isEmpty)
+                  const KhotwaEmptyState(
+                    title: 'لم يتم تسجيل أي تقييم لهذا الملف بعد.',
+                    message:
+                        'ابدئي بأحد الخيارين أعلاه. ستجدين التقييم هنا للمتابعة والمراجعة.',
+                    icon: Icons.assignment_outlined,
+                  ),
+                for (final initial in initials.reversed)
+                  _AssessmentHistoryCard(
+                    title:
+                        'تقييم ${initial.assessedOn} · ${initial.approved ? 'معتمد' : 'مسودة'}',
+                    description:
+                        'تقييم تربوي أولي · ${syncStatusLabel(state.stateFor(initial.id))}',
+                    approved: initial.approved,
+                    onTap: () => Navigator.push(
                       context,
                       MaterialPageRoute<void>(
                         builder: (_) => InitialAssessmentScreen(
                           state: state,
-                          assessmentId: value.id,
+                          assessmentId: initial.id,
                         ),
                       ),
-                    );
-                  }
-                } catch (e) {
-                  if (context.mounted) showError(context, e);
-                }
-              },
-              icon: const Icon(Icons.checklist_outlined),
-              label: const Text('بدء تقييم تربوي أولي'),
+                    ),
+                  ),
+                for (final assessment in assessments.reversed)
+                  _AssessmentHistoryCard(
+                    title:
+                        'بطاقات ${assessment.ageGroup} سنة - ${_statusLabel(assessment.status)}',
+                    description:
+                        '${assessment.createdAt.substring(0, 10)} · ${syncStatusLabel(state.stateFor(assessment.id))}',
+                    approved: assessment.status == AssessmentStatus.approved,
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute<void>(
+                        builder: (_) => AssessmentScreen(
+                          state: state,
+                          assessmentId: assessment.id,
+                        ),
+                      ),
+                    ),
+                  ),
+                const SizedBox(height: 18),
+                Text(
+                  'بعد مراجعة التقييم واعتماده، انتقلي إلى الخطط من الصفحة الرئيسية.',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
             ),
-            for (final initial in state.initialAssessmentsFor(studentId))
-              Card(
-                child: ListTile(
-                  title: Text(
-                    'تقييم ${initial.assessedOn} · ${initial.approved ? 'معتمد' : 'مسودة'}',
-                  ),
-                  subtitle: Text(syncStatusLabel(state.stateFor(initial.id))),
-                  trailing: const Icon(Icons.chevron_left),
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute<void>(
-                      builder: (_) => InitialAssessmentScreen(
-                        state: state,
-                        assessmentId: initial.id,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            if (assessments.isEmpty)
-              const Text('لم يتم تسجيل أي تقييم لهذا الملف بعد.'),
-            for (final assessment in assessments)
-              Card(
-                child: ListTile(
-                  title: Text(
-                    'بطاقات ${assessment.ageGroup} سنة - ${_statusLabel(assessment.status)}',
-                  ),
-                  subtitle: Text(
-                    'قالب ${assessment.templateVersion} · ${assessment.createdAt.substring(0, 10)}\n${syncStatusLabel(state.stateFor(assessment.id))}',
-                  ),
-                  trailing: const Icon(Icons.chevron_left),
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute<void>(
-                      builder: (_) => AssessmentScreen(
-                        state: state,
-                        assessmentId: assessment.id,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-          ],
+          ),
         ),
       );
     },
+  );
+}
+
+class _AssessmentHistoryCard extends StatelessWidget {
+  const _AssessmentHistoryCard({
+    required this.title,
+    required this.description,
+    required this.approved,
+    required this.onTap,
+  });
+  final String title, description;
+  final bool approved;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Card(
+    child: ListTile(
+      leading: Icon(
+        approved ? Icons.task_alt_rounded : Icons.edit_note_rounded,
+        color: approved ? KhotwaPalette.teal : KhotwaPalette.navy,
+      ),
+      title: Text(title),
+      subtitle: Text(description),
+      trailing: const Icon(Icons.chevron_right_rounded),
+      onTap: onTap,
+    ),
   );
 }
 

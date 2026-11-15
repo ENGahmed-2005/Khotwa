@@ -36,6 +36,8 @@ jobs:
         with:
           path: ~/.gradle/wrapper
           key: ${{ runner.os }}-gradle-wrapper-${{ hashFiles('mobile/android/gradle/wrapper/gradle-wrapper.properties') }}
+      - name: Set one increasing distribution version for all architectures
+        run: echo "BUILD_NUMBER=$((10000 + ${{ github.run_number }}))" >> "$GITHUB_ENV"
       - name: Verify reachable HTTPS database readiness
         run: |
           python3 - <<'PY'
@@ -71,30 +73,47 @@ jobs:
           KHOTWA_ANDROID_STORE_PASSWORD: ${{ secrets.KHOTWA_ANDROID_STORE_PASSWORD }}
           KHOTWA_ANDROID_KEY_PASSWORD: ${{ secrets.KHOTWA_ANDROID_STORE_PASSWORD }}
           KHOTWA_ANDROID_KEY_ALIAS: ${{ secrets.KHOTWA_ANDROID_KEY_ALIAS }}
-        run: flutter build apk --release --no-pub --split-per-abi --build-number="${{ github.run_number }}" --dart-define="API_BASE_URL=$API_BASE_URL"
+        run: |
+          flutter build apk --release --no-pub --split-per-abi --build-number="$BUILD_NUMBER" --dart-define="API_BASE_URL=$API_BASE_URL"
+          flutter build apk --release --no-pub --build-number="$BUILD_NUMBER" --dart-define="API_BASE_URL=$API_BASE_URL"
       - name: Verify signatures, ABI contents, and release metadata
         run: |
           set -euo pipefail
           tools="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)"
           mkdir -p build/installers
-          for abi in arm64-v8a armeabi-v7a x86_64; do
+          for abi in arm64-v8a armeabi-v7a x86_64 universal; do
             input="build/app/outputs/flutter-apk/app-$abi-release.apk"
+            if [[ "$abi" == universal ]]; then input="build/app/outputs/flutter-apk/app-release.apk"; fi
             cp "$input" "build/installers/Khotwa-$abi.apk"
             "$tools/apksigner" verify --verbose --print-certs "$input" > "build/installers/SIGNATURE-$abi.txt"
             "$tools/aapt" dump badging "$input" > "build/installers/PACKAGE-$abi.txt"
           done
           python3 - <<'PY'
-          import hashlib, json, os, zipfile
+          import hashlib, json, os, re, zipfile
           from pathlib import Path
           output = Path('build/installers')
           files = []
-          for abi in ('arm64-v8a', 'armeabi-v7a', 'x86_64'):
+          supported = {'arm64-v8a', 'armeabi-v7a', 'x86_64'}
+          for abi in ('arm64-v8a', 'armeabi-v7a', 'x86_64', 'universal'):
               path = output / f'Khotwa-{abi}.apk'
+              expected_abis = supported if abi == 'universal' else {abi}
               with zipfile.ZipFile(path) as apk:
                   assert apk.testzip() is None
-                  assert f'lib/{abi}/libapp.so' in apk.namelist()
+                  actual_abis = {name.split('/')[1] for name in apk.namelist() if name.startswith('lib/') and name.endswith('.so')}
+                  assert actual_abis == expected_abis, (abi, actual_abis)
+                  for architecture in expected_abis:
+                      assert f'lib/{architecture}/libapp.so' in apk.namelist()
+                      assert f'lib/{architecture}/libflutter.so' in apk.namelist()
                   assert 'AndroidManifest.xml' in apk.namelist()
-              files.append({'file': path.name, 'sha256': hashlib.sha256(path.read_bytes()).hexdigest(), 'abi': abi})
+              package = (output / f'PACKAGE-{abi}.txt').read_text()
+              version = int(re.search(r"versionCode='(\d+)'", package)[1])
+              minimum = int(re.search(r"sdkVersion:'(\d+)'", package)[1])
+              assert version == int(os.environ['BUILD_NUMBER']) and version > 4004
+              assert "name='org.khotwa.khotwa'" in package
+              signature = (output / f'SIGNATURE-{abi}.txt').read_text()
+              assert 'Verifies' in signature and '9235d22df8c6e12a3cbddc2e18aec1ab3e9c2b1abad8f54ee77c19194c03dd41' in signature
+              files.append({'file': path.name, 'sha256': hashlib.sha256(path.read_bytes()).hexdigest(), 'abi': abi,
+                            'supported_abis': sorted(expected_abis), 'version_code': version, 'min_sdk': minimum})
           (output / 'BUILD_METADATA.json').write_text(json.dumps({
               'commit': os.environ['GITHUB_SHA'], 'run_id': os.environ['GITHUB_RUN_ID'],
               'api_base_url': os.environ['API_BASE_URL'], 'android_signed': True,
@@ -116,6 +135,18 @@ jobs:
             mobile/build/installers/Khotwa-arm64-v8a.apk
             mobile/build/installers/SIGNATURE-arm64-v8a.txt
             mobile/build/installers/PACKAGE-arm64-v8a.txt
+            mobile/build/installers/BUILD_METADATA.json
+            mobile/build/installers/SHA256SUMS.txt
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        with:
+          name: khotwa-android-https-universal-${{ github.sha }}
+          path: |
+            mobile/build/installers/Khotwa-universal.apk
+            mobile/build/installers/SIGNATURE-universal.txt
+            mobile/build/installers/PACKAGE-universal.txt
             mobile/build/installers/BUILD_METADATA.json
             mobile/build/installers/SHA256SUMS.txt
           if-no-files-found: error

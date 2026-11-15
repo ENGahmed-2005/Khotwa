@@ -8,6 +8,8 @@ import '../core/auth_state.dart';
 import '../core/feature_api.dart';
 import '../core/share_export.dart';
 import '../widgets/common.dart';
+import '../widgets/khotwa_ui.dart';
+import 'plans_screen.dart';
 
 class ReportsScreen extends StatefulWidget {
   const ReportsScreen({
@@ -338,6 +340,14 @@ class _ReportsScreenState extends State<ReportsScreen> {
         'ملف مجهّل — زامني رمز الطالب';
   }
 
+  Future<void> _openPlans() async {
+    await Navigator.push<void>(
+      context,
+      MaterialPageRoute(builder: (_) => PlansScreen(auth: widget.auth)),
+    );
+    if (mounted) await _run(_refresh);
+  }
+
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
@@ -354,6 +364,12 @@ class _ReportsScreenState extends State<ReportsScreen> {
       padding: const EdgeInsets.all(18),
       children: [
         const PrototypeNote(),
+        const KhotwaPageIntro(
+          title: 'تقارير تعبّر عن التقدّم',
+          description:
+              'من الخطط والجلسات المسجّلة إلى تقرير عربي للأهل أو المدرسة أو ملفك المهني.',
+          icon: Icons.article_outlined,
+        ),
         if (_busy) const LinearProgressIndicator(),
         if (_error != null)
           Padding(
@@ -363,160 +379,230 @@ class _ReportsScreenState extends State<ReportsScreen> {
               style: TextStyle(color: Theme.of(context).colorScheme.error),
             ),
           ),
-        const SectionHeading(
-          'ترويسة المؤسسة',
-          subtitle:
-              'اسم المؤسسة وشعارها فقط. لا تُرفقي صور الأطفال أو أوراقهم أو بياناتهم.',
-        ),
-        TextField(
-          controller: _institution,
-          enabled: !_busy,
-          maxLength: 160,
-          decoration: const InputDecoration(
-            labelText: 'عنوان المؤسسة (اختياري)',
-          ),
-          onChanged: (_) => _edit(() => _headerDirty = true),
-        ),
-        if (_logo != null)
-          Image.memory(
-            base64Decode(_logo!['base64'] as String),
-            height: 90,
-            fit: BoxFit.contain,
-            semanticLabel: 'معاينة شعار المؤسسة',
-          ),
-        Wrap(
-          spacing: 10,
-          runSpacing: 10,
-          children: [
-            OutlinedButton(
-              onPressed: _busy ? null : () => _run(_chooseLogo),
-              child: const Text('اختيار شعار المؤسسة'),
-            ),
-            if (_logo != null)
-              TextButton(
-                onPressed: _busy
+        KhotwaSectionCard(
+          title: '١. نوع التقرير وفترته',
+          subtitle: 'اختاري لمن يُكتب التقرير، وصيغته، والفترة التي يغطيها.',
+          icon: Icons.description_outlined,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              DropdownButtonFormField<String>(
+                key: ValueKey('report-type-$_type'),
+                initialValue: _type,
+                isExpanded: true,
+                decoration: const InputDecoration(labelText: 'قالب التقرير'),
+                items: [
+                  for (final item in _types.entries)
+                    DropdownMenuItem(value: item.key, child: Text(item.value)),
+                ],
+                onChanged: _busy
                     ? null
-                    : () => _edit(() {
-                        _logo = null;
-                        _headerDirty = true;
-                      }),
-                child: const Text('إزالة الشعار'),
+                    : (value) {
+                        if (value != null) _edit(() => _type = value);
+                      },
               ),
-            OutlinedButton(
-              onPressed: _busy ? null : () => _run(_saveHeader),
-              child: const Text('حفظ الترويسة'),
-            ),
-            if (_headerDirty)
-              TextButton(
-                onPressed: _busy ? null : () => _run(_reloadHeader),
-                child: const Text('تحميل ترويسة الخادم'),
+              const SizedBox(height: 14),
+              DropdownButtonFormField<String>(
+                key: ValueKey('format-$_format'),
+                initialValue: _format,
+                isExpanded: true,
+                decoration: const InputDecoration(labelText: 'صيغة الملف'),
+                items: const [
+                  DropdownMenuItem(value: 'pdf', child: Text('PDF للطباعة')),
+                  DropdownMenuItem(
+                    value: 'docx',
+                    child: Text('Word قابل للتعديل'),
+                  ),
+                ],
+                onChanged: _busy
+                    ? null
+                    : (value) {
+                        if (value != null) _edit(() => _format = value);
+                      },
               ),
-          ],
-        ),
-        const SizedBox(height: 22),
-        const SectionHeading('نوع التقرير وفترته'),
-        DropdownButtonFormField<String>(
-          key: ValueKey('report-type-$_type'),
-          initialValue: _type,
-          isExpanded: true,
-          decoration: const InputDecoration(labelText: 'قالب التقرير'),
-          items: [
-            for (final item in _types.entries)
-              DropdownMenuItem(value: item.key, child: Text(item.value)),
-          ],
-          onChanged: _busy
-              ? null
-              : (value) {
-                  if (value != null) _edit(() => _type = value);
-                },
-        ),
-        const SizedBox(height: 14),
-        DropdownButtonFormField<String>(
-          key: ValueKey('format-$_format'),
-          initialValue: _format,
-          isExpanded: true,
-          decoration: const InputDecoration(labelText: 'صيغة الملف'),
-          items: const [
-            DropdownMenuItem(value: 'pdf', child: Text('PDF للطباعة')),
-            DropdownMenuItem(value: 'docx', child: Text('Word قابل للتعديل')),
-          ],
-          onChanged: _busy
-              ? null
-              : (value) {
-                  if (value != null) _edit(() => _format = value);
-                },
-        ),
-        Wrap(
-          spacing: 12,
-          children: [
-            TextButton(
-              onPressed: _busy ? null : () => _chooseDate(true),
-              child: Text('من: $_start'),
-            ),
-            TextButton(
-              onPressed: _busy ? null : () => _chooseDate(false),
-              child: Text('إلى: $_end'),
-            ),
-          ],
-        ),
-        SwitchListTile(
-          value: _includeGrade,
-          onChanged: _busy
-              ? null
-              : (value) => _edit(() => _includeGrade = value),
-          title: const Text('إدراج الصف في هذا التصدير'),
-          subtitle: const Text(
-            'مستبعد افتراضيًا لحماية البيانات شبه التعريفية.',
+              Wrap(
+                spacing: 12,
+                children: [
+                  TextButton(
+                    onPressed: _busy ? null : () => _chooseDate(true),
+                    child: Text('من: $_start'),
+                  ),
+                  TextButton(
+                    onPressed: _busy ? null : () => _chooseDate(false),
+                    child: Text('إلى: $_end'),
+                  ),
+                ],
+              ),
+              SwitchListTile(
+                value: _includeGrade,
+                onChanged: _busy
+                    ? null
+                    : (value) => _edit(() => _includeGrade = value),
+                title: const Text('إدراج الصف في هذا التصدير'),
+                subtitle: const Text(
+                  'يُستبعد الصف افتراضيًا لتقليل ما يُشارك عن الطالب.',
+                ),
+              ),
+            ],
           ),
         ),
-        const SectionHeading(
-          'اختيار الملفات',
+        KhotwaSectionCard(
+          title: '٢. اختيار الملفات',
           subtitle:
-              'خطة معتمدة واحدة لكل طالب؛ الدفعة تنتج ملفًا مستقلًا لكل رمز وقائمة مطابقة.',
-        ),
-        if (_plans.isEmpty)
-          const Text(
-            'لا توجد خطط معتمدة محفوظة. اعتمدي الخطة ثم زامنيها وحدّثي هذه الشاشة.',
-          ),
-        for (final plan in _plans)
-          CheckboxListTile(
-            value: _selected.contains(plan['id']),
-            title: Text(_codeFor(plan)),
-            subtitle: Text(
-              'الإصدار ${(plan['data'] as Map)['version']} · ${(plan['data'] as Map)['content']['generalGoal']}',
-            ),
-            onChanged: _busy
-                ? null
-                : (value) => _edit(() {
-                    if (value == true) {
-                      _selected.add(plan['id'] as String);
-                    } else {
-                      _selected.remove(plan['id']);
-                    }
-                  }),
-          ),
-        CheckboxListTile(
-          value: _privacyReviewed,
-          onChanged: _busy
-              ? null
-              : (value) => setState(() => _privacyReviewed = value ?? false),
-          title: const Text(
-            'راجعت خلو الترويسة والشعار من بيانات أي طالب، وأوافق على تصدير ملف خارج التخزين المشفّر للتطبيق.',
-          ),
-        ),
-        FilledButton.icon(
-          onPressed: _busy || !_storageReady ? null : () => _run(_export),
-          icon: const Icon(Icons.file_download_outlined),
-          label: Text(
-            _selected.length > 1
-                ? 'تصدير ملفات مستقلة في ZIP'
-                : 'تصدير وحفظ التقرير',
+              'اختاري خطة معتمدة واحدة لكل طالب. المحدد الآن: ${_selected.length}.',
+          icon: Icons.folder_copy_outlined,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (_plans.isEmpty)
+                KhotwaEmptyState(
+                  title: 'الخطة المعتمدة أولًا',
+                  message:
+                      'اعتمدي خطة الطالب، ثم زامنيها وحدّثي التقارير لتظهر ضمن الاختيارات.',
+                  icon: Icons.assignment_turned_in_outlined,
+                  action: OutlinedButton.icon(
+                    onPressed: _busy ? null : _openPlans,
+                    icon: const Icon(Icons.auto_awesome_outlined),
+                    label: const Text('فتح الخطط ومراجعتها'),
+                  ),
+                ),
+              for (final plan in _plans)
+                CheckboxListTile(
+                  value: _selected.contains(plan['id']),
+                  title: Text(_codeFor(plan)),
+                  subtitle: Text(
+                    'الإصدار ${(plan['data'] as Map)['version']} · ${(plan['data'] as Map)['content']['generalGoal']}',
+                  ),
+                  onChanged: _busy
+                      ? null
+                      : (value) => _edit(() {
+                          if (value == true) {
+                            _selected.add(plan['id'] as String);
+                          } else {
+                            _selected.remove(plan['id']);
+                          }
+                        }),
+                ),
+            ],
           ),
         ),
-        if (_lastSerial != null)
-          SelectableText('الرقم التسلسلي للتقرير: $_lastSerial'),
-        const SizedBox(height: 24),
+        KhotwaSectionCard(
+          title: '٣. راجعي وصدّري',
+          subtitle: 'لكل رمز ملف مستقل؛ يتضمن تصدير الدفعة قائمة المطابقة.',
+          icon: Icons.file_download_outlined,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (_storageReady)
+                ExpansionTile(
+                  tilePadding: EdgeInsets.zero,
+                  initiallyExpanded: _headerDirty,
+                  leading: _logo == null
+                      ? const Icon(Icons.school_outlined)
+                      : Image.memory(
+                          base64Decode(_logo!['base64'] as String),
+                          width: 44,
+                          height: 44,
+                          fit: BoxFit.contain,
+                          semanticLabel: 'شعار المؤسسة',
+                        ),
+                  title: const Text('ترويسة المؤسسة (اختياري)'),
+                  subtitle: Text(
+                    _institution.text.isEmpty
+                        ? 'إضافة اسم المؤسسة وشعارها'
+                        : _institution.text,
+                  ),
+                  children: [
+                    const Text(
+                      'اسم المؤسسة وشعارها فقط. لا تُرفقي صور الأطفال أو أوراقهم أو بياناتهم.',
+                    ),
+                    const SizedBox(height: 14),
+                    TextField(
+                      controller: _institution,
+                      enabled: !_busy,
+                      maxLength: 160,
+                      decoration: const InputDecoration(
+                        labelText: 'عنوان المؤسسة (اختياري)',
+                      ),
+                      onChanged: (_) => _edit(() => _headerDirty = true),
+                    ),
+                    if (_logo != null)
+                      Image.memory(
+                        base64Decode(_logo!['base64'] as String),
+                        height: 90,
+                        fit: BoxFit.contain,
+                        semanticLabel: 'معاينة شعار المؤسسة',
+                      ),
+                    Wrap(
+                      spacing: 10,
+                      runSpacing: 10,
+                      children: [
+                        OutlinedButton(
+                          onPressed: _busy ? null : () => _run(_chooseLogo),
+                          child: const Text('اختيار شعار المؤسسة'),
+                        ),
+                        if (_logo != null)
+                          TextButton(
+                            onPressed: _busy
+                                ? null
+                                : () => _edit(() {
+                                    _logo = null;
+                                    _headerDirty = true;
+                                  }),
+                            child: const Text('إزالة الشعار'),
+                          ),
+                        OutlinedButton(
+                          onPressed: _busy ? null : () => _run(_saveHeader),
+                          child: const Text('حفظ الترويسة'),
+                        ),
+                        if (_headerDirty)
+                          TextButton(
+                            onPressed: _busy ? null : () => _run(_reloadHeader),
+                            child: const Text('تحميل ترويسة الخادم'),
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+              const SizedBox(height: 10),
+              CheckboxListTile(
+                value: _privacyReviewed,
+                onChanged: _busy
+                    ? null
+                    : (value) =>
+                          setState(() => _privacyReviewed = value ?? false),
+                title: const Text(
+                  'راجعت خلو الترويسة والشعار من بيانات أي طالب، وأوافق على تصدير ملف خارج التخزين المشفّر للتطبيق.',
+                ),
+              ),
+              FilledButton.icon(
+                onPressed:
+                    _busy ||
+                        !_storageReady ||
+                        _selected.isEmpty ||
+                        !_privacyReviewed
+                    ? null
+                    : () => _run(_export),
+                icon: const Icon(Icons.file_download_outlined),
+                label: Text(
+                  _selected.length > 1
+                      ? 'تصدير ملفات مستقلة في ZIP'
+                      : 'تصدير وحفظ التقرير',
+                ),
+              ),
+              if (_lastSerial != null)
+                SelectableText('الرقم التسلسلي للتقرير: $_lastSerial'),
+            ],
+          ),
+        ),
         const SectionHeading('سجل التصدير'),
+        if (_exports.isEmpty)
+          const KhotwaEmptyState(
+            title: 'ستظهر تقاريرك هنا',
+            message:
+                'بعد أول تصدير ستجدين رمز الطالب والرقم التسلسلي والتاريخ للرجوع إليها.',
+            icon: Icons.history_rounded,
+          ),
         for (final export in _exports)
           Card(
             child: ListTile(
