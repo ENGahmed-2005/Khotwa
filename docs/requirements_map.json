@@ -70,7 +70,8 @@
       "scope": "MVP",
       "status": "IN_PROGRESS",
       "evidence": [
-        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md",
+        "2026-11-15 specialist UX integration: actual dashboard/students/plans/sessions/reports and original brand icon; mobile/test/{specialist_dashboard,students_ux,workflow_ux}_test.dart; Flutter177/177 PASS, analyze/format PASS; actual synthetic live preview opened; native/device/specialist acceptance pending; docs/PROJECT_STATUS.md"
       ]
     },
     {
@@ -87,7 +88,8 @@
       "status": "IN_PROGRESS",
       "evidence": [
         "mobile/lib/main.dart; mobile/lib/features/home_screen.dart; Arabic RTL source integrated; updated Flutter tests pending",
-        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md",
+        "2026-11-15 specialist UX integration: actual dashboard/students/plans/sessions/reports and original brand icon; mobile/test/{specialist_dashboard,students_ux,workflow_ux}_test.dart; Flutter177/177 PASS, analyze/format PASS; actual synthetic live preview opened; native/device/specialist acceptance pending; docs/PROJECT_STATUS.md"
       ]
     },
     {
@@ -97,7 +99,8 @@
       "status": "IN_PROGRESS",
       "evidence": [
         "mobile/lib/main.dart; mobile/lib/features/home_screen.dart; Arabic RTL source integrated; updated Flutter tests pending",
-        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md",
+        "2026-11-15 specialist UX integration: actual dashboard/students/plans/sessions/reports and original brand icon; mobile/test/{specialist_dashboard,students_ux,workflow_ux}_test.dart; Flutter177/177 PASS, analyze/format PASS; actual synthetic live preview opened; native/device/specialist acceptance pending; docs/PROJECT_STATUS.md"
       ]
     },
     {
@@ -106,7 +109,8 @@
       "scope": "MVP",
       "status": "IN_PROGRESS",
       "evidence": [
-        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md",
+        "2026-11-15 specialist UX integration: actual dashboard/students/plans/sessions/reports and original brand icon; mobile/test/{specialist_dashboard,students_ux,workflow_ux}_test.dart; Flutter177/177 PASS, analyze/format PASS; actual synthetic live preview opened; native/device/specialist acceptance pending; docs/PROJECT_STATUS.md"
       ]
     },
     {
@@ -116,7 +120,8 @@
       "status": "IN_PROGRESS",
       "evidence": [
         "mobile/lib/main.dart; mobile/lib/features/home_screen.dart; Arabic RTL source integrated; updated Flutter tests pending",
-        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md",
+        "2026-11-15 specialist UX integration: actual dashboard/students/plans/sessions/reports and original brand icon; mobile/test/{specialist_dashboard,students_ux,workflow_ux}_test.dart; Flutter177/177 PASS, analyze/format PASS; actual synthetic live preview opened; native/device/specialist acceptance pending; docs/PROJECT_STATUS.md"
       ]
     },
     {
@@ -126,7 +131,8 @@
       "status": "IN_PROGRESS",
       "evidence": [
         "mobile/lib/main.dart; mobile/lib/features/home_screen.dart; Arabic RTL source integrated; updated Flutter tests pending",
-        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md",
+        "2026-11-15 specialist UX integration: actual dashboard/students/plans/sessions/reports and original brand icon; mobile/test/{specialist_dashboard,students_ux,workflow_ux}_test.dart; Flutter177/177 PASS, analyze/format PASS; actual synthetic live preview opened; native/device/specialist acceptance pending; docs/PROJECT_STATUS.md"
       ]
     },
     {
@@ -136,7 +142,8 @@
       "status": "IN_PROGRESS",
       "evidence": [
         "mobile/lib/main.dart; mobile/lib/features/home_screen.dart; Arabic RTL source integrated; updated Flutter tests pending",
-        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md"
+        "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md",
+        "2026-11-15 specialist UX integration: actual dashboard/students/plans/sessions/reports and original brand icon; mobile/test/{specialist_dashboard,students_ux,workflow_ux}_test.dart; Flutter177/177 PASS, analyze/format PASS; actual synthetic live preview opened; native/device/specialist acceptance pending; docs/PROJECT_STATUS.md"
       ]
     },
     {

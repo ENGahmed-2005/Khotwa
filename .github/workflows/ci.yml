@@ -21,6 +21,10 @@ jobs:
         with:
           python-version: '3.12'
       - run: python scripts/validate_planning.py
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --test scripts/preview.test.mjs
 
   backend:
     runs-on: ubuntu-latest

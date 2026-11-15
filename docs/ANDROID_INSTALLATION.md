@@ -1,6 +1,6 @@
 # تثبيت نسخة خطوة على Android
 
-هذه نسخة اختبار ببيانات اصطناعية فقط، بمعرّف التطبيق `org.khotwa.khotwa`. نسخة `arm64-v8a` مخصصة لهواتف Android ذات المعالج 64 بت، ونسخة `armeabi-v7a` للأجهزة ذات المعالج ARM 32 بت، ونسخة `x86_64` للمحاكي المناسب. يمكن معرفة المعمارية عبر `adb shell getprop ro.product.cpu.abi`. الإصدار وSHA ونتيجة البناء الفعلية موجودة في `BUILD_METADATA.json` و`PROJECT_STATUS.md`؛ الوصف هنا لا يعني اكتمال قبول MVP أو الاختبار على هاتف.
+هذه نسخة اختبار ببيانات اصطناعية فقط، بمعرّف التطبيق `org.khotwa.khotwa`. نسخة `arm64-v8a` مخصصة لهواتف Android التي يدعم نظامها معمارية ARM64، ونسخة `armeabi-v7a` لأجهزة ARM ذات النظام32بت، ونسخة `x86_64` للمحاكي المناسب. يمكن معرفة المعمارية عبر `adb shell getprop ro.product.cpu.abi`. الإصدار وSHA ونتيجة البناء الفعلية موجودة في `BUILD_METADATA.json` و`PROJECT_STATUS.md`؛ الوصف هنا لا يعني اكتمال قبول MVP أو الاختبار على هاتف.
 
 ## نسخة HTTPS المستقلة
 
@@ -53,3 +53,34 @@ adb reverse tcp:3000 tcp:3000
 ## تأخر التسجيل ورسائل الدخول
 
 تجهيز خدمة الاستضافة المجانية بعد الخمول قد يستغرق نحو دقيقة. ينتظر المصدر المحدّث جاهزية الاتصال حتى90ثانية بطلب GET بلا بريد أو كلمة مرور، ثم يرسل طلب الحساب مرة واحدة؛ لا يكرر POST تلقائيًا. إن انتهت مهلة التسجيل بعد الإرسال فقد يكون الحساب أُنشئ بالفعل، لذا يُطلب تسجيل الدخول بنفس البيانات. رسالة كلمة مرور غير صحيحة مستقلة عن انتهاء جلسة سابقة، ولا تُمسح بيانات التطبيق أو مفاتيحه لعلاج أي منهما. حالة وصول الإصلاح إلى الحزمة المثبتة مسجلة في PROJECT_STATUS.md.
+
+## Compatibility and brand update — 2026-11-15
+
+Updated 2026-11-15. Packages are synthetic-data pilot builds, not MVP acceptance.
+
+## Choosing the package
+
+- `Khotwa-universal.apk`: the default for direct sharing. Contains ARM32 (`armeabi-v7a`), ARM64 (`arm64-v8a`) and x86_64. Android selects the supported libraries. It is larger than a package for one architecture.
+- `Khotwa-armeabi-v7a.apk`: smaller ARM32 package, including phones whose Android system exposes only 32-bit ARM ABIs.
+- `Khotwa-arm64-v8a.apk`: smaller ARM64 package. A 64-bit CPU alone does not prove its installed Android system supports this ABI.
+- `Khotwa-x86_64.apk`: smaller package for compatible emulators, including the verified GameLoop configuration.
+
+The verified previous APKs require API24 (Android7.0) or newer. The installer workflow records the actual minimum SDK and architecture set of every new APK with `aapt` and ZIP inspection; do not infer it from a filename. Android12 satisfies API24, but does not identify the supported ABIs.
+
+The user's screenshot showed Android rejecting `Khotwa-arm64-v8a.apk` before launch on a reported Samsung A13 with Android12. We verified that the inspected APK contains only `arm64-v8a`. Architecture mismatch is plausible, not confirmed by that generic message. The affected phone is not connected for an actual Package Manager error, ABI query or installation test. Do not claim successful installation on it.
+
+## Safe updates
+
+Keep package ID `org.khotwa.khotwa` and the existing protected distribution signing identity. CI checks certificate SHA256 `9235d22df8c6e12a3cbddc2e18aec1ab3e9c2b1abad8f54ee77c19194c03dd41` and verifies each signed APK. Installer builds use `10000 + github.run_number` and `force-version-code-ignoring-abi=true`, so all architecture packages in a build share one version above the old2001/2002/2004/4002/4004 packages. This also permits switching to the universal package without an architecture-specific downgrade.
+
+Install as an update. **Do not uninstall or clear storage to troubleshoot compatibility**: unsynchronized student records and local encryption keys must be preserved. If a matching package is still rejected, obtain the exact Package Manager failure on an authorized connected phone before changing signing, SDK requirements or storage.
+
+## Reproducible icon assets
+
+The original generated book/path/spark artwork is `mobile/assets/branding/khotwa-icon-master.png`. Navy and amber match the specialist UI. `scripts/generate-app-icons.ps1` prepares the Android legacy/adaptive sizes, all existing iOS asset-catalog sizes, Flutter's brand image and browser favicon. Android adaptive foreground is inset for launcher masks; iOS outputs are opaque RGB PNGs. Flutter loads the same symbol from its bundled asset. This replaces the stock Flutter launcher icon without changing application ID or user data.
+
+Generation prompt: one original professional Khotwa educational-specialist icon, an open book combined with a gentle ascending path/step and an amber spark; navy17375E/amberE3A343 on warm ivoryF8F5EF, clear small-size silhouette and generous mask-safe margins, no lettering, watermark, children, device mockup or medical symbolism. Original artwork was generated with the built-in image generator on2026-11-15; the master is kept unchanged and copied into this repository. Standard size conversion is reproducible with the script.
+
+## Verification and limits
+
+`.github/workflows/installers.yml` runs locked dependencies, formatting, analyzer and Flutter tests before both split and universal release builds. It checks signatures, package ID, exact architecture libraries, common increasing version, minimum SDK, ZIP CRC and SHA256, and uploads metadata with every artifact. No phone installation is implied by these checks. iOS signing and physical Android/iPhone acceptance remain separate requirements; see `PROJECT_STATUS.md`.

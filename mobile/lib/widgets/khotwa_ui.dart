@@ -7,30 +7,13 @@ class KhotwaBrandMark extends StatelessWidget {
   final double size;
   @override
   Widget build(BuildContext context) => ExcludeSemantics(
-    child: SizedBox(
-      width: size,
-      height: size,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          Positioned(
-            bottom: 0,
-            child: Icon(
-              Icons.auto_stories_rounded,
-              size: size * .83,
-              color: KhotwaPalette.navy,
-            ),
-          ),
-          Positioned(
-            top: 0,
-            right: size * .12,
-            child: Icon(
-              Icons.star_rounded,
-              size: size * .33,
-              color: KhotwaPalette.amber,
-            ),
-          ),
-        ],
+    child: ClipRRect(
+      borderRadius: BorderRadius.circular(size * .22),
+      child: Image.asset(
+        'assets/branding/khotwa-icon.png',
+        width: size,
+        height: size,
+        fit: BoxFit.contain,
       ),
     ),
   );
