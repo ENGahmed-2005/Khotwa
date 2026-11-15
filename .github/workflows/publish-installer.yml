@@ -1,9 +1,6 @@
 name: Publish verified Android download links
 
 on:
-  push:
-    branches: ['fix/qa-01-packed-installers']
-    paths: ['.github/workflows/publish-installer.yml']
   workflow_dispatch:
 
 permissions:
@@ -71,14 +68,12 @@ jobs:
           shutil.copyfile('mobile/assets/branding/khotwa-icon.png',output/'Khotwa-Logo.png')
           (output/'SHA256SUMS.txt').write_text(''.join(f"{x['sha256']}  {x['file']}\n" for x in files))
           (output/'DOWNLOADS.json').write_text(json.dumps({'version_code':10005,'source_commit':source,'min_android':'7.0','min_sdk':24,'signer_sha256':signer,'synthetic_data_only':True,'mvp_accepted':False,'physical_device_tested':False,'files':files},indent=2)+'\n')
-          Path('RELEASE_NOTES.md').write_text('''نسخة Android بالواجهة العربية الجديدة للمختصة وشعار خطوة الجديد، مع تحسين رسائل الحسابات والتوافق.
-
-للتثبيت اختر **Khotwa-Android.apk**: نسخة شاملة لمعمارية ARM32 وARM64 وx86_64. يحتاج التطبيق Android7.0 أو أحدث. يتوفر **Khotwa-Android-32bit.apk** كخيار أصغر للأجهزة التي تدعم ARM32.
-
-الإصدار10005 بنفس معرّف التطبيق والتوقيع السابقين. ثبّته كتحديث مع الاحتفاظ بالنسخة الحالية والبيانات؛ لا تحذف التطبيق لحل مشكلة التوافق.
-
-هذه نسخة اختبار ببيانات اصطناعية. نجاح البناء والاختبارات لا يمثل قبول MVP أو تحقق التثبيت على كل هاتف. أول دخول والتوليد والتصدير يحتاجان الإنترنت. قد يحتاج الخادم التجريبي وقتًا للاستيقاظ بعد الخمول. تشمل الحزمة أرقام التحقق SHA256 ومعلومات البناء العامة فقط.
-''',encoding='utf-8')
+          Path('RELEASE_NOTES.md').write_text(
+              'نسخة Android بالواجهة العربية الجديدة للمختصة وشعار خطوة الجديد، مع تحسين رسائل الحسابات والتوافق.\n\n'
+              'للتثبيت اختر **Khotwa-Android.apk**: نسخة شاملة لمعمارية ARM32 وARM64 وx86_64. يحتاج التطبيق Android7.0 أو أحدث. يتوفر **Khotwa-Android-32bit.apk** كخيار أصغر للأجهزة التي تدعم ARM32.\n\n'
+              'الإصدار10005 بنفس معرّف التطبيق والتوقيع السابقين. ثبّته كتحديث مع الاحتفاظ بالنسخة الحالية والبيانات؛ لا تحذف التطبيق لحل مشكلة التوافق.\n\n'
+              'هذه نسخة اختبار ببيانات اصطناعية. نجاح البناء والاختبارات لا يمثل قبول MVP أو تحقق التثبيت على كل هاتف. أول دخول والتوليد والتصدير يحتاجان الإنترنت. قد يحتاج الخادم التجريبي وقتًا للاستيقاظ بعد الخمول. تشمل الحزمة أرقام التحقق SHA256 ومعلومات البناء العامة فقط.\n',
+              encoding='utf-8')
           print(json.dumps({'verified':True,'source_commit':source,'files':files}))
           PY
       - name: Publish the reviewed download artifacts
