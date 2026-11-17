@@ -4,6 +4,7 @@ import '../core/api_client.dart';
 import '../core/auth_state.dart';
 import '../core/khotwa_theme.dart';
 import '../widgets/khotwa_ui.dart';
+import '../widgets/khotwa_backdrop.dart';
 import '../widgets/common.dart';
 
 class AuthScreen extends StatefulWidget {
@@ -57,40 +58,57 @@ class _AuthScreenState extends State<AuthScreen> {
             padding: const EdgeInsets.all(22),
             children: [
               const SizedBox(height: 12),
-              Row(
-                children: [
-                  const KhotwaBrandMark(size: 72),
-                  const SizedBox(width: 18),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+              KhotwaPhotoPanel(
+                minHeight: 200,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
                       children: [
-                        Text(
-                          'خطوة',
-                          style: Theme.of(context).textTheme.headlineLarge,
-                        ),
-                        const SizedBox(height: 3),
-                        const Text(
-                          'معًا.. نحو تعلّم أفضل',
-                          style: TextStyle(
-                            color: KhotwaPalette.muted,
-                            fontSize: 13,
+                        const KhotwaBrandMark(size: 58),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'خطوة',
+                                style: Theme.of(context).textTheme.headlineLarge
+                                    ?.copyWith(color: Colors.white),
+                              ),
+                              const Text(
+                                'معًا.. نحو تعلّم أفضل',
+                                style: TextStyle(
+                                  color: Color(0xFFF9E3B9),
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 26),
-              Text(
-                'عملكِ التربوي، خطوة بخطوة.',
-                style: Theme.of(context).textTheme.headlineSmall,
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'ملفات منظمة وخطط تراجعينها بنفسكِ، لتكون متابعة كل طالب أوضح وأسهل.',
-                style: TextStyle(color: KhotwaPalette.muted, height: 1.8),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'عملكِ التربوي، خطوة بخطوة.',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    const Text(
+                      'لكل طالب طريقته في التعلم، ولكل خطوة أثر في التقدم',
+                      style: TextStyle(
+                        color: Color(0xFFEDF2F8),
+                        fontSize: 12,
+                        height: 1.8,
+                      ),
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(height: 24),
               const PrototypeNote(),

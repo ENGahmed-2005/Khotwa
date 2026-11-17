@@ -10,12 +10,17 @@ import 'package:khotwa/core/khotwa_theme.dart';
 import 'package:khotwa/features/students_screen.dart';
 import 'package:khotwa/main.dart';
 import 'package:khotwa/widgets/specialist_dashboard.dart';
+import 'package:khotwa/widgets/khotwa_backdrop.dart';
 
 import 'app_state_test.dart' show FakeStore, SyncServer, stateFor, addStudent;
 import 'encrypted_store_test.dart' show MemorySecrets;
 import 'mvp_features_test.dart' show seedPlan, session;
 
 const capture = bool.fromEnvironment('CAPTURE_UX');
+const captureDirectory = String.fromEnvironment(
+  'CAPTURE_UX_DIR',
+  defaultValue: '../.artifacts/ux/current',
+);
 final captureKey = GlobalKey();
 
 Future<AuthState> fixture({bool populated = false}) async {
@@ -54,14 +59,34 @@ Future<void> surface(
 
 Future<void> screenshot(WidgetTester tester, String name) async {
   if (!capture) return;
+  await tester.runAsync(() async {
+    final context = captureKey.currentContext!;
+    await Future.wait([
+      precacheImage(
+        ResizeImage.resizeIfNeeded(
+          960,
+          null,
+          const AssetImage(KhotwaArtwork.room),
+        ),
+        context,
+      ),
+      precacheImage(
+        ResizeImage.resizeIfNeeded(
+          1280,
+          null,
+          const AssetImage(KhotwaArtwork.desk),
+        ),
+        context,
+      ),
+    ]);
+  });
   await tester.pumpAndSettle();
   await tester.runAsync(() async {
     final boundary =
         captureKey.currentContext!.findRenderObject()! as RenderRepaintBoundary;
     final picture = await boundary.toImage(pixelRatio: 2);
     final bytes = await picture.toByteData(format: ui.ImageByteFormat.png);
-    final folder = Directory('../.artifacts/ux/2026-11-14')
-      ..createSync(recursive: true);
+    final folder = Directory(captureDirectory)..createSync(recursive: true);
     await File(
       '${folder.path}/$name.png',
     ).writeAsBytes(bytes!.buffer.asUint8List());
@@ -219,6 +244,39 @@ void main() {
       );
     }
   }
+
+  testWidgets(
+    'login stays usable with a keyboard and large Arabic text on a small phone',
+    (tester) async {
+      await surface(tester, 320, scale: 2);
+      tester.view.viewInsets = const FakeViewPadding(bottom: 280);
+      addTearDown(tester.view.resetViewInsets);
+      final auth = AuthState(
+        api: SyncServer().api,
+        secrets: MemorySecrets(),
+        storeForOwner: (_) async => FakeStore(),
+      );
+      await tester.pumpWidget(app(auth));
+      await tester.pumpAndSettle();
+      await reveal(tester, find.text('إنشاء حساب جديد'));
+      await tester.tap(find.text('إنشاء حساب جديد'));
+      await tester.pumpAndSettle();
+      expect(find.text('إنشاء حساب المختصة'), findsOneWidget);
+      final password = find.byType(TextField).at(1);
+      await reveal(tester, password);
+      await tester.enterText(password, 'synthetic-test-password-only');
+      await reveal(tester, find.byTooltip('إظهار كلمة المرور'), delta: -120);
+      await tester.tap(find.byTooltip('إظهار كلمة المرور'));
+      await tester.pumpAndSettle();
+      expect(tester.widget<TextField>(password).obscureText, isFalse);
+      expect(
+        tester.widget<TextField>(password).controller!.text,
+        'synthetic-test-password-only',
+      );
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
 
   testWidgets(
     'login is readable at phone width with the real password reveal control',

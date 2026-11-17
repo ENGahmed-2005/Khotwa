@@ -5,7 +5,7 @@ abstract final class KhotwaPalette {
   static const amber = Color(0xFFE3A343);
   static const cream = Color(0xFFF8F5EF);
   static const ink = Color(0xFF22344B);
-  static const muted = Color(0xFF68778A);
+  static const muted = Color(0xFF526074);
   static const line = Color(0xFFE8E4DC);
   static const teal = Color(0xFF2F8078);
   static const paleBlue = Color(0xFFEDF2F8);
@@ -16,7 +16,7 @@ abstract final class KhotwaTheme {
   static ThemeData get light => ThemeData(
     useMaterial3: true,
     fontFamily: 'NotoSansArabic',
-    scaffoldBackgroundColor: KhotwaPalette.cream,
+    scaffoldBackgroundColor: Colors.transparent,
     colorScheme: ColorScheme.fromSeed(
       seedColor: KhotwaPalette.navy,
       primary: KhotwaPalette.navy,
@@ -77,7 +77,7 @@ abstract final class KhotwaTheme {
       labelMedium: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
     ),
     appBarTheme: const AppBarTheme(
-      backgroundColor: KhotwaPalette.cream,
+      backgroundColor: Colors.transparent,
       foregroundColor: KhotwaPalette.navy,
       surfaceTintColor: Colors.transparent,
       centerTitle: false,
