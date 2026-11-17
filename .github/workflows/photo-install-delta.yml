@@ -1,0 +1,102 @@
+name: Prepare verified photographic UI update
+
+on:
+  push:
+    branches: ['fix/qa-01-photo-install-delta']
+    paths: ['.github/workflows/photo-install-delta.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  delta:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      BASE_COMMIT: 3837143ca2a2c991aa071ce98fe677bca198577a
+      TARGET_COMMIT: 05d1133aa83695bde2cd589c9c2e76c9774faa8e
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: 43705968692
+          name: khotwa-android-https-universal-3837143ca2a2c991aa071ce98fe677bca198577a
+          path: base
+      - uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: 44055453700
+          name: khotwa-android-https-universal-05d1133aa83695bde2cd589c9c2e76c9774faa8e
+          path: target
+      - name: Install standard binary diff utilities
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y bsdiff
+      - name: Reverify both signed packages and increasing version
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, os, re, struct, subprocess, zipfile
+          from pathlib import Path
+          codes=[]
+          signer='9235d22df8c6e12a3cbddc2e18aec1ab3e9c2b1abad8f54ee77c19194c03dd41'
+          tool=sorted((Path(os.environ['ANDROID_HOME'])/'build-tools').glob('*/apksigner'))[-1]
+          for folder, commit, run in [('base',os.environ['BASE_COMMIT'],'43705968692'),('target',os.environ['TARGET_COMMIT'],'44055453700')]:
+              root=Path(folder)
+              metadata=json.loads((root/'BUILD_METADATA.json').read_text())
+              assert metadata['commit']==commit and metadata['run_id']==run
+              assert metadata['android_signed'] is True and metadata['synthetic_data_only'] is True
+              apk=root/'Khotwa-universal.apk'
+              expected=next(x for x in metadata['files'] if x['abi']=='universal')
+              assert hashlib.sha256(apk.read_bytes()).hexdigest()==expected['sha256']
+              if folder=='base':
+                  assert expected['sha256']=='32f9b2b962815ee4a96cc0d3bedc70700812b2d1d029e80bbc559a6f221fd3bc'
+              with zipfile.ZipFile(apk) as archive:
+                  assert archive.testzip() is None
+                  actual={p.split('/')[1] for p in archive.namelist() if p.startswith('lib/') and p.endswith('.so')}
+                  assert actual=={'armeabi-v7a','arm64-v8a','x86_64'}
+                  for abi, values in {'armeabi-v7a':(1,40),'arm64-v8a':(2,183),'x86_64':(2,62)}.items():
+                      for library in ('libapp.so','libflutter.so'):
+                          with archive.open(f'lib/{abi}/{library}') as stream:
+                              header=stream.read(20)
+                          assert header[:4]==b'\x7fELF' and header[4]==values[0] and header[5]==1
+                          assert struct.unpack('<H',header[18:20])[0]==values[1]
+                  if folder=='target':
+                      for photo in ('learning-room','learning-desk'):
+                          assert f'assets/flutter_assets/assets/backgrounds/{photo}.webp' in archive.namelist()
+              signature=subprocess.run([str(tool),'verify','--verbose','--print-certs',str(apk)],check=True,capture_output=True,text=True).stdout
+              assert signer in signature and 'Verified using v2 scheme (APK Signature Scheme v2): true' in signature
+              package=(root/'PACKAGE-universal.txt').read_text()
+              assert "name='org.khotwa.khotwa'" in package and "sdkVersion:'24'" in package
+              codes.append(int(re.search(r"versionCode='(\d+)'",package)[1]))
+          assert codes[0]==10005 and codes[1]>codes[0]
+          PY
+      - name: Produce and round-trip the signed-byte update
+        run: |
+          mkdir delta
+          bsdiff base/Khotwa-universal.apk target/Khotwa-universal.apk delta/Khotwa-universal.bsdiff
+          bspatch base/Khotwa-universal.apk restored.apk delta/Khotwa-universal.bsdiff
+          cmp target/Khotwa-universal.apk restored.apk
+          python3 - <<'PY'
+          import hashlib, json, os, shutil
+          from pathlib import Path
+          digest=lambda p:hashlib.sha256(p.read_bytes()).hexdigest()
+          base=Path('base/Khotwa-universal.apk')
+          target=Path('target/Khotwa-universal.apk')
+          patch=Path('delta/Khotwa-universal.bsdiff')
+          manifest={'algorithm':'BSDIFF40','abi':'universal','base_commit':os.environ['BASE_COMMIT'],'target_commit':os.environ['TARGET_COMMIT'],'base_sha256':digest(base),'target_sha256':digest(target),'target_size':target.stat().st_size,'patch_sha256':digest(patch),'patch_size':patch.stat().st_size,'round_trip_verified':True,'apksigner_reverified':True,'signed_apk_bytes_preserved':True}
+          Path('delta/DELTA.json').write_text(json.dumps(manifest,indent=2)+'\n')
+          for name in ['BUILD_METADATA.json','PACKAGE-universal.txt','SIGNATURE-universal.txt']:
+              shutil.copyfile(Path('target')/name,Path('delta')/name)
+          print(json.dumps(manifest))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: khotwa-universal-photo-update-3837143-to-05d1133
+          path: delta/
+          compression-level: 0
+          retention-days: 14
+          if-no-files-found: error
