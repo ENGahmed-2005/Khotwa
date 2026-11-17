@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 const workspace = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const root = resolve(process.env.KHOTWA_PREVIEW_BUILD ?? resolve(workspace, 'mobile/build/web'));
 if (!existsSync(resolve(root, 'index.html'))) throw new Error('Build Flutter web preview first; mobile/build/web/index.html is missing.');
-const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.json': 'application/json', '.css': 'text/css', '.wasm': 'application/wasm', '.png': 'image/png', '.svg': 'image/svg+xml', '.woff2': 'font/woff2', '.ttf': 'font/ttf' };
+const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.json': 'application/json', '.css': 'text/css', '.wasm': 'application/wasm', '.png': 'image/png', '.webp': 'image/webp', '.svg': 'image/svg+xml', '.woff2': 'font/woff2', '.ttf': 'font/ttf' };
 const port = Number(process.env.KHOTWA_PREVIEW_PORT ?? 4173);
 const apiPort = Number(process.env.KHOTWA_API_PORT ?? 3000);
 const api = new URL(process.env.KHOTWA_API_URL ?? `http://127.0.0.1:${apiPort}`);

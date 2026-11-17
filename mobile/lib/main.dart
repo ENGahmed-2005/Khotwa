@@ -11,6 +11,7 @@ import 'features/home_screen.dart';
 import 'features/auth_screen.dart';
 import 'features/activities_screen.dart';
 import 'features/reports_screen.dart';
+import 'widgets/khotwa_backdrop.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -61,21 +62,24 @@ class KhotwaApp extends StatelessWidget {
       theme: KhotwaTheme.light,
       builder: (context, child) => Directionality(
         textDirection: TextDirection.rtl,
-        child: Column(
-          children: [
-            if (auth.cleanupWarning != null)
-              Material(
-                color: const Color(0xFFFFF6E5),
-                child: SafeArea(
-                  bottom: false,
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Text(auth.cleanupWarning!),
+        child: KhotwaBackdrop(
+          welcome: !auth.signedIn,
+          child: Column(
+            children: [
+              if (auth.cleanupWarning != null)
+                Material(
+                  color: const Color(0xFFFFF6E5),
+                  child: SafeArea(
+                    bottom: false,
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Text(auth.cleanupWarning!),
+                    ),
                   ),
                 ),
-              ),
-            Expanded(child: child ?? const SizedBox.shrink()),
-          ],
+              Expanded(child: child ?? const SizedBox.shrink()),
+            ],
+          ),
         ),
       ),
       home: AnimatedBuilder(

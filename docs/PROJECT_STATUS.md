@@ -1,10 +1,10 @@
 # Khotwa execution status
 
-Updated 2026-11-15 (Asia/Hebron). Integrated MVP implementation and verification IN_PROGRESS. This is not MVP acceptance or approval for real student data.
+Updated 2026-11-17 (Asia/Hebron). Integrated MVP implementation and verification IN_PROGRESS. This is not MVP acceptance or approval for real student data.
 
 ## Current source and operation
 
-- Repository: https://github.com/ENGahmed-2005/Khotwa; foundation draft review: https://github.com/ENGahmed-2005/Khotwa/pull/1. Signup fix9cee95c is isolated on fix/sec-01-emulator-signup (PR2). Current UI refresh is on feat/fnd-03-specialist-ux based on that fix; main was not merged.
+- Repository: https://github.com/ENGahmed-2005/Khotwa; foundation draft review: https://github.com/ENGahmed-2005/Khotwa/pull/1. Signup fix9cee95c is isolated on fix/sec-01-emulator-signup (PR2); specialist UI is PR3. Current photographic follow-up is on feat/fnd-03-photo-backgrounds from the preserved cc0c3e5 checkpoint; main was not merged.
 - Reference: original docs/reference/Khotwa_SRS_v1.3.docx, 128 FRs and task DAG. Previous chronological execution notes are preserved in docs/history/PROJECT_STATUS_2026-11-08.md.
 - Automation `automation` was deleted on 2026-11-06 and must remain stopped.
 
@@ -15,6 +15,18 @@ Accounts, opaque sessions, explicit owner/specialist isolation, account deletion
 Key integrated changes: activities/report UI 36e4a14, form autosave a571634/16539b5, assessment observations/date/grade/unfinished input 8a1812b, provider status classification 3926902, basic-input gating fb4212e, Gemini grammar fix 99dcd5f, HTTPS installer/signing configuration f174383. Raw observations remain outside AI input. Legacy assessments are preserved without invented date/grade. Undefined gender and missing referral may be saved but must be completed before AI.
 
 Nov12 integration: managed native export files and pending/confirmed account-deletion cleanup 9bf6a30; Word-only numeric/date/fraction direction isolation80c42fe; foreground sync retries9ee7c84 (30/60/120/240/300 seconds, pause in background, owner/record identity guards, no idle requests after success). No AI requests are retried automatically. Failed/ambiguous account deletion retains unsynced work until online reconciliation; a confirmed deletion closes private routes even when local cleanup fails. Managed Android share_plus copies are retained until return from the recipient app and removed on cleanup; actual recipient-device behavior remains unverified.
+
+## Resumed UI and GameLoop — 2026-11-17
+
+User explicitly resumed the paused photographic UI task after requesting installation of the latest completed download and desktop shortcut refresh. Google Play/AAB preparation remains deferred; automation remains deleted.
+
+**Completed installation first:** the user's already downloaded universal archive at D:/تنزيلات/khotwa-android-https-universal-3837143ca2a2c991aa071ce98fe677bca198577a.zip is59,247,069 bytes, SHA256df0d5fd1d324f28ad55f546e9e7eae4f681691cd821f906f5c6adf8680f9e32c, matching authenticated GitHub artifact14158726697. Outer/inner CRC, metadata/source/API, exact59,242,415-byte APK SHA25632f9b2b962815ee4a96cc0d3bedc70700812b2d1d029e80bbc559a6f221fd3bc and actual ELF class/machine for all3 ABIs verified. `adb install -r` **Success**. Package Manager confirms10005/minSDK24/target36/primaryCpuAbi=x86_64, upgraded from4002. Official GameLoop launcher opened org.khotwa.khotwa; PID14438 and resumed MainActivity confirmed. No uninstall, storage clear or key reset occurred. Signature was verified in CI; local apksigner is unavailable.
+
+**Shortcut:** D:/Desktop/خطوة - GameLoop.lnk updated and binary copy verified, pointing to the official GameLoopLauncher.exe with existing package-launch arguments. Icon generated from the exact logo inside the installed APK, C:/Users/Ahmed/AppData/Local/Khotwa/khotwa-10005.ico. Previous link backed up. This host's WScript.Shell loses Arabic path characters, so the link was created and checked through the ASCII project junction before copying to its Arabic desktop filename. Evidence .artifacts/delivery/2026-11-17/{local-apk-verification,desktop-shortcut,GameLoop-installation}.json. Native window capture still fails with FrameArrived timeout; no visual sign-in or native encryption acceptance is claimed.
+
+**New photo UI source:** two original no-person/no-child educational-room photographs generated successfully Nov17; Nov16's failed connection attempts produced no images. Bundled WebP room960×1440/56,132 bytes and desk1280×720/37,922 bytes total94,054 bytes. No runtime image requests. Shared decorative backdrop is outside Navigator, with stronger washes for high contrast/large text; opaque white input/review cards remain. Arabic photo headers replace the former painted desk; muted copy is darker, and the SRS startup slogan is restored exactly. No core/auth/storage/AI/approval contract changed. Original PNGs retained locally, prompts/hashes in mobile/assets/backgrounds/SOURCE.md.
+
+**Actual checks:** locked offline pub PASS; formatting63 Dart files PASS; analyzer PASS10.4s; full Flutter **179/179 PASS66s**. Targeted responsive/navigation/keyboard/asset/auth checks **21/21 PASS13s**. The new tests decode both real bundled photos within a256KiB budget and exercise login mode/password reveal with a keyboard on320px at2× text. Actual-font synthetic Flutter captures at320/390/768px are under.artifacts/ux/2026-11-17/; login/home390 inspected. Preview header-isolation regression1/1 PASS; planning128FR/DAG PASS. Logs .local/photo-{pub,final-analyze,full-tests,targeted}-2026-11-17.log. Web/native builds for this photo follow-up remain pending until recorded; the running10005 package above is the earlier Nov15 UI, not the new photo build.
 
 ## Executed verification
 

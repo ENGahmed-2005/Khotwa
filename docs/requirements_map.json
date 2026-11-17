@@ -89,7 +89,8 @@
       "evidence": [
         "mobile/lib/main.dart; mobile/lib/features/home_screen.dart; Arabic RTL source integrated; updated Flutter tests pending",
         "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md",
-        "2026-11-15 specialist UX integration: actual dashboard/students/plans/sessions/reports and original brand icon; mobile/test/{specialist_dashboard,students_ux,workflow_ux}_test.dart; Flutter177/177 PASS, analyze/format PASS; actual synthetic live preview opened; native/device/specialist acceptance pending; docs/PROJECT_STATUS.md"
+        "2026-11-15 specialist UX integration: actual dashboard/students/plans/sessions/reports and original brand icon; mobile/test/{specialist_dashboard,students_ux,workflow_ux}_test.dart; Flutter177/177 PASS, analyze/format PASS; actual synthetic live preview opened; native/device/specialist acceptance pending; docs/PROJECT_STATUS.md",
+        "2026-11-17 original bundled photographic backdrops and Arabic welcome panels; mobile/lib/widgets/khotwa_backdrop.dart; real offline asset decoding and320px/2x keyboard/navigation checks; full Flutter179/179 PASS; GameLoop10005 installed and desktop shortcut verified separately; photo native build/device acceptance pending; docs/PROJECT_STATUS.md"
       ]
     },
     {
@@ -100,7 +101,8 @@
       "evidence": [
         "mobile/lib/main.dart; mobile/lib/features/home_screen.dart; Arabic RTL source integrated; updated Flutter tests pending",
         "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md",
-        "2026-11-15 specialist UX integration: actual dashboard/students/plans/sessions/reports and original brand icon; mobile/test/{specialist_dashboard,students_ux,workflow_ux}_test.dart; Flutter177/177 PASS, analyze/format PASS; actual synthetic live preview opened; native/device/specialist acceptance pending; docs/PROJECT_STATUS.md"
+        "2026-11-15 specialist UX integration: actual dashboard/students/plans/sessions/reports and original brand icon; mobile/test/{specialist_dashboard,students_ux,workflow_ux}_test.dart; Flutter177/177 PASS, analyze/format PASS; actual synthetic live preview opened; native/device/specialist acceptance pending; docs/PROJECT_STATUS.md",
+        "2026-11-17 original bundled photographic backdrops and Arabic welcome panels; mobile/lib/widgets/khotwa_backdrop.dart; real offline asset decoding and320px/2x keyboard/navigation checks; full Flutter179/179 PASS; GameLoop10005 installed and desktop shortcut verified separately; photo native build/device acceptance pending; docs/PROJECT_STATUS.md"
       ]
     },
     {
@@ -121,7 +123,8 @@
       "evidence": [
         "mobile/lib/main.dart; mobile/lib/features/home_screen.dart; Arabic RTL source integrated; updated Flutter tests pending",
         "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md",
-        "2026-11-15 specialist UX integration: actual dashboard/students/plans/sessions/reports and original brand icon; mobile/test/{specialist_dashboard,students_ux,workflow_ux}_test.dart; Flutter177/177 PASS, analyze/format PASS; actual synthetic live preview opened; native/device/specialist acceptance pending; docs/PROJECT_STATUS.md"
+        "2026-11-15 specialist UX integration: actual dashboard/students/plans/sessions/reports and original brand icon; mobile/test/{specialist_dashboard,students_ux,workflow_ux}_test.dart; Flutter177/177 PASS, analyze/format PASS; actual synthetic live preview opened; native/device/specialist acceptance pending; docs/PROJECT_STATUS.md",
+        "2026-11-17 original bundled photographic backdrops and Arabic welcome panels; mobile/lib/widgets/khotwa_backdrop.dart; real offline asset decoding and320px/2x keyboard/navigation checks; full Flutter179/179 PASS; GameLoop10005 installed and desktop shortcut verified separately; photo native build/device acceptance pending; docs/PROJECT_STATUS.md"
       ]
     },
     {
@@ -132,7 +135,8 @@
       "evidence": [
         "mobile/lib/main.dart; mobile/lib/features/home_screen.dart; Arabic RTL source integrated; updated Flutter tests pending",
         "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md",
-        "2026-11-15 specialist UX integration: actual dashboard/students/plans/sessions/reports and original brand icon; mobile/test/{specialist_dashboard,students_ux,workflow_ux}_test.dart; Flutter177/177 PASS, analyze/format PASS; actual synthetic live preview opened; native/device/specialist acceptance pending; docs/PROJECT_STATUS.md"
+        "2026-11-15 specialist UX integration: actual dashboard/students/plans/sessions/reports and original brand icon; mobile/test/{specialist_dashboard,students_ux,workflow_ux}_test.dart; Flutter177/177 PASS, analyze/format PASS; actual synthetic live preview opened; native/device/specialist acceptance pending; docs/PROJECT_STATUS.md",
+        "2026-11-17 original bundled photographic backdrops and Arabic welcome panels; mobile/lib/widgets/khotwa_backdrop.dart; real offline asset decoding and320px/2x keyboard/navigation checks; full Flutter179/179 PASS; GameLoop10005 installed and desktop shortcut verified separately; photo native build/device acceptance pending; docs/PROJECT_STATUS.md"
       ]
     },
     {
@@ -143,7 +147,8 @@
       "evidence": [
         "mobile/lib/main.dart; mobile/lib/features/home_screen.dart; Arabic RTL source integrated; updated Flutter tests pending",
         "2026-11-11 integrated implementation; backend234PASS; current source/native/report/field acceptance limits: docs/PROJECT_STATUS.md",
-        "2026-11-15 specialist UX integration: actual dashboard/students/plans/sessions/reports and original brand icon; mobile/test/{specialist_dashboard,students_ux,workflow_ux}_test.dart; Flutter177/177 PASS, analyze/format PASS; actual synthetic live preview opened; native/device/specialist acceptance pending; docs/PROJECT_STATUS.md"
+        "2026-11-15 specialist UX integration: actual dashboard/students/plans/sessions/reports and original brand icon; mobile/test/{specialist_dashboard,students_ux,workflow_ux}_test.dart; Flutter177/177 PASS, analyze/format PASS; actual synthetic live preview opened; native/device/specialist acceptance pending; docs/PROJECT_STATUS.md",
+        "2026-11-17 original bundled photographic backdrops and Arabic welcome panels; mobile/lib/widgets/khotwa_backdrop.dart; real offline asset decoding and320px/2x keyboard/navigation checks; full Flutter179/179 PASS; GameLoop10005 installed and desktop shortcut verified separately; photo native build/device acceptance pending; docs/PROJECT_STATUS.md"
       ]
     },
     {

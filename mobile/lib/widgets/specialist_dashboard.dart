@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../core/app_state.dart';
 import '../core/khotwa_theme.dart';
 import 'common.dart';
+import 'khotwa_backdrop.dart';
 
 class SpecialistDashboard extends StatefulWidget {
   const SpecialistDashboard({
@@ -160,22 +161,14 @@ class _SpecialistDashboardState extends State<SpecialistDashboard> {
     ],
   );
 
-  Widget _welcome() => Container(
-    padding: const EdgeInsets.all(22),
-    decoration: BoxDecoration(
-      gradient: const LinearGradient(
-        begin: Alignment.topRight,
-        end: Alignment.bottomLeft,
-        colors: [Color(0xFF17375E), Color(0xFF28557F)],
-      ),
-      borderRadius: BorderRadius.circular(26),
-    ),
+  Widget _welcome() => KhotwaPhotoPanel(
     child: LayoutBuilder(
       builder: (context, constraints) => Row(
         children: [
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
                   padding: const EdgeInsets.symmetric(
@@ -183,7 +176,7 @@ class _SpecialistDashboardState extends State<SpecialistDashboard> {
                     vertical: 5,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: .12),
+                    color: Colors.white.withValues(alpha: .14),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: const Text(
@@ -206,22 +199,16 @@ class _SpecialistDashboardState extends State<SpecialistDashboard> {
                   'كل خطوة صغيرة، فرصة لتقدّم أكبر.',
                   style: TextStyle(
                     fontSize: 13,
-                    color: Color(0xFFDDE8F3),
+                    color: Color(0xFFEDF2F8),
                     height: 1.8,
                   ),
                 ),
               ],
             ),
           ),
-          if (constraints.maxWidth >= 290 &&
-              MediaQuery.textScalerOf(context).scale(14) <= 19) ...[
-            const SizedBox(width: 12),
-            const SizedBox(
-              width: 88,
-              height: 120,
-              child: CustomPaint(painter: _LearningDeskPainter()),
-            ),
-          ],
+          if (constraints.maxWidth >= 280 &&
+              MediaQuery.textScalerOf(context).scale(14) <= 19)
+            SizedBox(width: (constraints.maxWidth * .25).clamp(72.0, 180.0)),
         ],
       ),
     ),
@@ -408,96 +395,4 @@ class _SpecialistDashboardState extends State<SpecialistDashboard> {
       ),
     );
   }
-}
-
-class _LearningDeskPainter extends CustomPainter {
-  const _LearningDeskPainter();
-  @override
-  void paint(Canvas canvas, Size size) {
-    canvas.save();
-    canvas.scale(size.width / 88, size.height / 120);
-    final paint = Paint();
-    canvas.drawCircle(
-      const Offset(43, 57),
-      43,
-      paint..color = Colors.white.withValues(alpha: .07),
-    );
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        const Rect.fromLTWH(3, 94, 80, 8),
-        const Radius.circular(4),
-      ),
-      paint..color = const Color(0xFFE2A349),
-    );
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        const Rect.fromLTWH(9, 78, 66, 14),
-        const Radius.circular(4),
-      ),
-      paint..color = const Color(0xFF76AFA9),
-    );
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        const Rect.fromLTWH(12, 73, 64, 10),
-        const Radius.circular(4),
-      ),
-      paint..color = const Color(0xFFF6E8CE),
-    );
-    final book = Path()
-      ..moveTo(44, 77)
-      ..quadraticBezierTo(22, 64, 6, 69)
-      ..lineTo(8, 43)
-      ..quadraticBezierTo(24, 37, 44, 49)
-      ..quadraticBezierTo(64, 37, 80, 43)
-      ..lineTo(82, 69)
-      ..quadraticBezierTo(63, 64, 44, 77)
-      ..close();
-    canvas.drawPath(book, paint..color = const Color(0xFFFFFBF2));
-    canvas.drawLine(
-      const Offset(44, 49),
-      const Offset(44, 77),
-      paint
-        ..color = const Color(0xFFB8CDD9)
-        ..strokeWidth = 1.5,
-    );
-    for (var row = 0; row < 3; row++) {
-      canvas.drawLine(
-        Offset(14, 49 + row * 6),
-        Offset(35, 54 + row * 6),
-        paint
-          ..color = const Color(0xFFD3DDE2)
-          ..strokeWidth = 1.5,
-      );
-      canvas.drawLine(
-        Offset(53, 54 + row * 6),
-        Offset(73, 49 + row * 6),
-        paint,
-      );
-    }
-    canvas.drawCircle(
-      const Offset(45, 21),
-      8,
-      paint..color = const Color(0xFFF4C772),
-    );
-    canvas.drawLine(
-      const Offset(45, 5),
-      const Offset(45, 1),
-      paint
-        ..color = const Color(0xFFF4C772)
-        ..strokeWidth = 2,
-    );
-    canvas.drawLine(const Offset(30, 9), const Offset(27, 6), paint);
-    canvas.drawLine(const Offset(59, 9), const Offset(62, 6), paint);
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        const Rect.fromLTWH(41, 30, 8, 4),
-        const Radius.circular(2),
-      ),
-      paint..color = const Color(0xFFD6E8EF),
-    );
-    canvas.restore();
-  }
-
-  @override
-  bool shouldRepaint(covariant _LearningDeskPainter oldDelegate) => false;
 }
